@@ -109,7 +109,7 @@ ai-news-oneshot       = "ai_news_agent.scheduler.serverless:cli_main"
 ai-news-prompt-hashes = "ai_news_agent.curation.prompt_builder:_cli_prompt_hashes"
 
 [project.urls]
-Repository = "https://github.com/erikbrown/ai-news-agent"
+Repository = "https://github.com/erbrown33/ai-news-agent"
 
 # ---------------------------------------------------------------------------
 # Hatch build — include src/ layout

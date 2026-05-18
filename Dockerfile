@@ -64,4 +64,4 @@ CMD ["python", "-m", "uvicorn", "ai_news_agent.portal.app:app", \
 # ---------------------------------------------------------------------------
 LABEL org.opencontainers.image.title="AI News Curation Agent"
 LABEL org.opencontainers.image.description="Multi-agent AI News platform: sourcing, curation, rendering, portal"
-LABEL org.opencontainers.image.source="https://github.com/erikbrown/ai-news-agent"
+LABEL org.opencontainers.image.source="https://github.com/erbrown33/ai-news-agent"

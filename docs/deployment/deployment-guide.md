@@ -74,7 +74,7 @@ All three options (GCP, AWS, Azure) are equally suitable for this workload.
 
 ```bash
 # 1. Clone (or download) the repository
-git clone https://github.com/erikbrown/ai-news-agent.git
+git clone https://github.com/erbrown33/ai-news-agent.git
 cd ai-news-agent
 
 # 2. Create a virtual environment

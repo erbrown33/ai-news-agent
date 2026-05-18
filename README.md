@@ -3,7 +3,7 @@
 > **Multi-agent platform** for autonomously sourcing, curating, and rendering AI-industry
 > news digests on **daily, weekly, monthly, and annual cadences.**
 
-[![CI](https://github.com/erikbrown/ai-news-agent/actions/workflows/ci.yml/badge.svg)](https://github.com/erikbrown/ai-news-agent/actions/workflows/ci.yml)
+[![CI](https://github.com/erbrown33/ai-news-agent/actions/workflows/ci.yml/badge.svg)](https://github.com/erbrown33/ai-news-agent/actions/workflows/ci.yml)
 [![Python 3.12](https://img.shields.io/badge/python-3.12-blue.svg)](https://python.org)
 [![License: MIT](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE)
 
@@ -39,7 +39,7 @@ The AI News Curation Agent automatically:
 
 ```bash
 # Clone and set up virtual environment
-git clone https://github.com/erikbrown/ai-news-agent.git
+git clone https://github.com/erbrown33/ai-news-agent.git
 cd ai-news-agent
 python -m venv .venv
 source .venv/bin/activate     # Windows: .venv\Scripts\activate
