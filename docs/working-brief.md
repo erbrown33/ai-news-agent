@@ -463,7 +463,7 @@ Each digest output records the SHA-256 hash of the prompt file used (SRC-129), e
 ## 10. Repository Layout (Canonical)
 
 ```
-wm-ai-news-agent-2/
+ai-news-agent/
 ├── pyproject.toml                        # PEP 517/518 build + ruff, pytest, mypy config
 ├── Dockerfile                            # Multi-stage; same image local → CI → prod (SRC-085)
 ├── .dockerignore

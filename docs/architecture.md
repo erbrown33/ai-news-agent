@@ -75,7 +75,7 @@ The AI News Curation Agent is a **multi-agent platform** that autonomously sourc
 ## 2. Repository Layout
 
 ```
-wm-ai-news-agent-2/
+ai-news-agent/
 ├── pyproject.toml                        # PEP 517/518 build + tool config (ruff, pytest, mypy)
 ├── Dockerfile                            # Multi-stage; same image local → CI → prod (SRC-085)
 ├── .dockerignore                         # Excludes tests/, docs/, outputs/ from image
@@ -1934,7 +1934,7 @@ class CurationResponse(BaseModel):
 ```bash
 # Clone + install
 git clone <repo>
-cd wm-ai-news-agent-2
+cd ai-news-agent
 cp .env.example .env    # Fill in API keys — never commit .env
 pip install -e ".[dev,tavily]"
 

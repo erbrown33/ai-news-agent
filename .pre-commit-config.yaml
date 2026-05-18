@@ -17,6 +17,8 @@ repos:
     hooks:
       - id: trailing-whitespace
         exclude: "^prompts/"
+        # Preserve markdown hard line breaks (two trailing spaces before \n)
+        args: [--markdown-linebreak-ext=md]
       - id: end-of-file-fixer
         exclude: "^prompts/"
       - id: check-yaml
@@ -62,22 +64,23 @@ repos:
       - id: check-no-secrets-in-configs
         name: Check YAML configs for accidentally committed secrets (SRC-073)
         language: python
-        entry: python -c "
-import sys
-from pathlib import Path
-from ai_news_agent.config.loader import validate_no_secrets_in_yaml, ConfigError
+        entry: |
+          python -c "
+          import sys
+          from pathlib import Path
+          from ai_news_agent.config.loader import validate_no_secrets_in_yaml, ConfigError
 
-errors = []
-for path in sys.argv[1:]:
-    try:
-        validate_no_secrets_in_yaml(Path(path).read_text(), source_name=path)
-    except ConfigError as exc:
-        errors.append(str(exc))
+          errors = []
+          for path in sys.argv[1:]:
+              try:
+                  validate_no_secrets_in_yaml(Path(path).read_text(), source_name=path)
+              except ConfigError as exc:
+                  errors.append(str(exc))
 
-if errors:
-    for e in errors:
-        print(e, file=sys.stderr)
-    sys.exit(1)
-"
+          if errors:
+              for e in errors:
+                  print(e, file=sys.stderr)
+              sys.exit(1)
+          "
         files: "^configs/.*\\.yaml$"
         pass_filenames: true
