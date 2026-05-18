@@ -74,8 +74,8 @@ All three options (GCP, AWS, Azure) are equally suitable for this workload.
 
 ```bash
 # 1. Clone (or download) the repository
-git clone https://github.com/erbrown33/ai-news-agent.git
-cd ai-news-agent
+git clone https://github.com/erbrown33/wm-ai-news-agent-2.git
+cd wm-ai-news-agent-2
 
 # 2. Create a virtual environment
 python -m venv .venv

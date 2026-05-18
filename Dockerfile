@@ -20,8 +20,10 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     curl \
     && rm -rf /var/lib/apt/lists/*
 
-# Copy dependency manifest first for layer caching
-COPY pyproject.toml ./
+# Copy dependency manifest first for layer caching.
+# README.md and LICENSE are required by hatchling because pyproject.toml
+# declares `readme` and `license-files`.
+COPY pyproject.toml README.md LICENSE ./
 COPY src/ ./src/
 
 # Install the package and its core dependencies into /install
@@ -64,4 +66,4 @@ CMD ["python", "-m", "uvicorn", "ai_news_agent.portal.app:app", \
 # ---------------------------------------------------------------------------
 LABEL org.opencontainers.image.title="AI News Curation Agent"
 LABEL org.opencontainers.image.description="Multi-agent AI News platform: sourcing, curation, rendering, portal"
-LABEL org.opencontainers.image.source="https://github.com/erbrown33/ai-news-agent"
+LABEL org.opencontainers.image.source="https://github.com/erbrown33/wm-ai-news-agent-2"

@@ -100,8 +100,8 @@ high curation quality.
 
 ```bash
 # 1. Clone the repository
-git clone https://github.com/erbrown33/ai-news-agent.git
-cd ai-news-agent
+git clone https://github.com/erbrown33/wm-ai-news-agent-2.git
+cd wm-ai-news-agent-2
 
 # 2. Create an isolated virtual environment (strongly recommended)
 python -m venv .venv
