@@ -30,6 +30,7 @@ from ai_news_agent.llm.search_tools import (
 # Helper: _extract_domain
 # ---------------------------------------------------------------------------
 
+
 class TestExtractDomain:
     """
     Unit tests for the internal _extract_domain helper.
@@ -61,6 +62,7 @@ class TestExtractDomain:
 # ---------------------------------------------------------------------------
 # NativeOpenAISearchTool
 # ---------------------------------------------------------------------------
+
 
 class TestNativeOpenAISearchTool:
     """
@@ -97,10 +99,20 @@ class TestNativeOpenAISearchTool:
         tool, mock_client = self._make_tool()
 
         # Simulate a Responses API output with a JSON block in text
-        json_results = json.dumps([
-            {"url": "https://reuters.com/ai-news", "title": "AI Advances", "snippet": "AI is changing..."},
-            {"url": "https://bloomberg.com/tech", "title": "Tech Wave", "snippet": "Technology..."},
-        ])
+        json_results = json.dumps(
+            [
+                {
+                    "url": "https://reuters.com/ai-news",
+                    "title": "AI Advances",
+                    "snippet": "AI is changing...",
+                },
+                {
+                    "url": "https://bloomberg.com/tech",
+                    "title": "Tech Wave",
+                    "snippet": "Technology...",
+                },
+            ]
+        )
         fake_block = MagicMock()
         fake_block.text = f"```json\n{json_results}\n```"
         fake_content_item = MagicMock()
@@ -144,10 +156,12 @@ class TestNativeOpenAISearchTool:
         """
         tool, mock_client = self._make_tool()
 
-        json_results = json.dumps([
-            {"url": f"https://example{i}.com", "title": f"Article {i}", "snippet": "Text"}
-            for i in range(10)
-        ])
+        json_results = json.dumps(
+            [
+                {"url": f"https://example{i}.com", "title": f"Article {i}", "snippet": "Text"}
+                for i in range(10)
+            ]
+        )
         fake_block = MagicMock()
         fake_block.text = f"```json\n{json_results}\n```"
         fake_content_item = MagicMock()
@@ -272,10 +286,7 @@ class TestNativeOpenAISearchTool:
         sequences as JSON, then failed silently.
         """
         tool, _ = self._make_tool()
-        text = (
-            "Results: [Article A](https://example.com/a) and "
-            "[Article B](https://example.com/b)"
-        )
+        text = "Results: [Article A](https://example.com/a) and [Article B](https://example.com/b)"
         results = tool._parse_search_block(text)
         titles = [r.title for r in results]
         assert "Article A" in titles
@@ -325,6 +336,7 @@ class TestNativeOpenAISearchTool:
 # ---------------------------------------------------------------------------
 # BraveSearchTool
 # ---------------------------------------------------------------------------
+
 
 class TestBraveSearchTool:
     """
@@ -428,8 +440,8 @@ class TestBraveSearchTool:
         """
         tool = self._make_tool()
         raw = [
-            {"title": "No URL here", "description": "..."},           # no url / link
-            {"url": "https://reuters.com/ai", "title": "Valid"},       # valid
+            {"title": "No URL here", "description": "..."},  # no url / link
+            {"url": "https://reuters.com/ai", "title": "Valid"},  # valid
         ]
         mock_resp = self._make_web_response(raw)
 
@@ -445,9 +457,15 @@ class TestBraveSearchTool:
         Traces: SRC-060
         """
         tool = self._make_tool()
-        data = {"results": [
-            {"url": "https://techcrunch.com/news", "title": "TC News", "description": "TechCrunch"}
-        ]}
+        data = {
+            "results": [
+                {
+                    "url": "https://techcrunch.com/news",
+                    "title": "TC News",
+                    "description": "TechCrunch",
+                }
+            ]
+        }
         results = tool._parse_response(data, n=5)
         assert len(results) == 1
         assert results[0].source == "techcrunch.com"
@@ -458,13 +476,17 @@ class TestBraveSearchTool:
         Traces: SRC-060
         """
         tool = self._make_tool()
-        data = {"web": {"results": [
-            {
-                "url": "https://reuters.com/x",
-                "title": "Reuters X",
-                "extra_snippets": ["Extra snippet text here"],
+        data = {
+            "web": {
+                "results": [
+                    {
+                        "url": "https://reuters.com/x",
+                        "title": "Reuters X",
+                        "extra_snippets": ["Extra snippet text here"],
+                    }
+                ]
             }
-        ]}}
+        }
         results = tool._parse_response(data, n=5)
         assert results[0].snippet == "Extra snippet text here"
 
@@ -505,6 +527,7 @@ class TestBraveSearchTool:
 # ---------------------------------------------------------------------------
 # SearchResult shape consistency (SRC-056 — provider-agnostic)
 # ---------------------------------------------------------------------------
+
 
 class TestSearchResultShape:
     """
@@ -547,6 +570,7 @@ class TestSearchResultShape:
 # LLM Factory — get_search_tool and get_llm_client
 # ---------------------------------------------------------------------------
 
+
 class TestLLMFactory:
     """
     Tests for get_search_tool() and get_llm_client() factory functions.
@@ -582,12 +606,14 @@ class TestLLMFactory:
         from ai_news_agent.config.models import RuntimeSecrets
         from ai_news_agent.llm.factory import get_search_tool
 
-        secrets = RuntimeSecrets.model_validate({
-            "OPENAI_API_KEY": openai_secrets.openai_api_key,
-            "TWITTER_BEARER_TOKEN": openai_secrets.twitter_bearer_token,
-            "WEB_SEARCH_API_KEY": "brave-key-123",
-            "WEB_SEARCH_PROVIDER": "brave",
-        })
+        secrets = RuntimeSecrets.model_validate(
+            {
+                "OPENAI_API_KEY": openai_secrets.openai_api_key,
+                "TWITTER_BEARER_TOKEN": openai_secrets.twitter_bearer_token,
+                "WEB_SEARCH_API_KEY": "brave-key-123",
+                "WEB_SEARCH_PROVIDER": "brave",
+            }
+        )
         tool = get_search_tool(openai_llm_cfg, secrets)
         assert isinstance(tool, BraveSearchTool)
 
@@ -602,12 +628,14 @@ class TestLLMFactory:
 
         # Mock tavily import
         with patch.dict("sys.modules", {"tavily": MagicMock()}):
-            secrets = RuntimeSecrets.model_validate({
-                "OPENAI_API_KEY": openai_secrets.openai_api_key,
-                "TWITTER_BEARER_TOKEN": openai_secrets.twitter_bearer_token,
-                "WEB_SEARCH_API_KEY": "tvly-key-123",
-                "WEB_SEARCH_PROVIDER": "tavily",
-            })
+            secrets = RuntimeSecrets.model_validate(
+                {
+                    "OPENAI_API_KEY": openai_secrets.openai_api_key,
+                    "TWITTER_BEARER_TOKEN": openai_secrets.twitter_bearer_token,
+                    "WEB_SEARCH_API_KEY": "tvly-key-123",
+                    "WEB_SEARCH_PROVIDER": "tavily",
+                }
+            )
             tool = get_search_tool(openai_llm_cfg, secrets)
             assert isinstance(tool, TavilySearchTool)
 
@@ -621,11 +649,13 @@ class TestLLMFactory:
         from ai_news_agent.llm.factory import get_search_tool
 
         google_cfg = LLMConfig(provider="google", model="gemini-1.5-pro")
-        secrets = RuntimeSecrets.model_validate({
-            "OPENAI_API_KEY": openai_secrets.openai_api_key,
-            "TWITTER_BEARER_TOKEN": openai_secrets.twitter_bearer_token,
-            "GOOGLE_API_KEY": "test-google-key",
-        })
+        secrets = RuntimeSecrets.model_validate(
+            {
+                "OPENAI_API_KEY": openai_secrets.openai_api_key,
+                "TWITTER_BEARER_TOKEN": openai_secrets.twitter_bearer_token,
+                "GOOGLE_API_KEY": "test-google-key",
+            }
+        )
         with pytest.raises(ConfigError, match="WEB_SEARCH_API_KEY"):
             get_search_tool(google_cfg, secrets)
 
@@ -640,11 +670,13 @@ class TestLLMFactory:
 
         # Use anthropic provider with no search key — should raise
         anthropic_cfg = LLMConfig(provider="anthropic", model="claude-3-5-sonnet-20241022")
-        secrets = RuntimeSecrets.model_validate({
-            "OPENAI_API_KEY": openai_secrets.openai_api_key,
-            "TWITTER_BEARER_TOKEN": openai_secrets.twitter_bearer_token,
-            "ANTHROPIC_API_KEY": "test-ant-key",
-        })
+        secrets = RuntimeSecrets.model_validate(
+            {
+                "OPENAI_API_KEY": openai_secrets.openai_api_key,
+                "TWITTER_BEARER_TOKEN": openai_secrets.twitter_bearer_token,
+                "ANTHROPIC_API_KEY": "test-ant-key",
+            }
+        )
         with pytest.raises(ConfigError):
             get_search_tool(anthropic_cfg, secrets)
 
@@ -717,12 +749,14 @@ class TestLLMFactory:
         from ai_news_agent.llm.search_tools import TavilySearchTool
 
         with patch.dict("sys.modules", {"tavily": MagicMock()}):
-            secrets = RuntimeSecrets.model_validate({
-                "OPENAI_API_KEY": openai_secrets.openai_api_key,
-                "TWITTER_BEARER_TOKEN": openai_secrets.twitter_bearer_token,
-                "WEB_SEARCH_API_KEY": "tvly-key",
-                "WEB_SEARCH_PROVIDER": "tavily",
-            })
+            secrets = RuntimeSecrets.model_validate(
+                {
+                    "OPENAI_API_KEY": openai_secrets.openai_api_key,
+                    "TWITTER_BEARER_TOKEN": openai_secrets.twitter_bearer_token,
+                    "WEB_SEARCH_API_KEY": "tvly-key",
+                    "WEB_SEARCH_PROVIDER": "tavily",
+                }
+            )
             tool = get_search_tool(openai_llm_cfg, secrets)
             assert isinstance(tool, TavilySearchTool)
 

@@ -415,17 +415,12 @@ class Pipeline:
         sourcing_window_start = window_start
         sourcing_window_end = window_end
 
-        if (
-            not skip_sourcing
-            and window_start is None
-            and window_end is None
-            and cadence != "daily"
-        ):
+        if not skip_sourcing and window_start is None and window_end is None and cadence != "daily":
             cadence_start, cadence_end = _WINDOW_FN[cadence](run_at)
             top_n_map = {
-                "weekly":  self._config.limits.weekly_top_n,
+                "weekly": self._config.limits.weekly_top_n,
                 "monthly": self._config.limits.monthly_top_n,
-                "annual":  self._config.limits.annual_top_n,
+                "annual": self._config.limits.annual_top_n,
             }
             backfill_threshold = max(top_n_map.get(cadence, 5), 5)
             existing = self._store.count_window(
@@ -654,9 +649,7 @@ class Pipeline:
             rendering_result = rendering_agent.render(curation_result)
         else:
             # Write to production directory + update DigestRecord paths (SRC-145)
-            rendering_result = rendering_agent.render_and_update_store(
-                curation_result, self._store
-            )
+            rendering_result = rendering_agent.render_and_update_store(curation_result, self._store)
 
         log.info(
             "pipeline_rendering_done",
@@ -867,8 +860,7 @@ def cli_main() -> None:  # noqa: C901 — deliberately a unified CLI with full o
         default=None,
         metavar="YYYY-MM-DD",
         help=(
-            "Override lookback window end date (UTC).  "
-            "Must be used with --window-start. (SRC-028)"
+            "Override lookback window end date (UTC).  Must be used with --window-start. (SRC-028)"
         ),
     )
 

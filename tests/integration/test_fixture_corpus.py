@@ -219,6 +219,7 @@ def _seed_corpus(
 # Fixtures
 # ---------------------------------------------------------------------------
 
+
 @pytest.fixture
 def corpus_agent_config() -> AgentConfig:
     """
@@ -262,10 +263,12 @@ def corpus_agent_config() -> AgentConfig:
 @pytest.fixture
 def corpus_secrets() -> RuntimeSecrets:
     """Fake RuntimeSecrets for corpus tests."""
-    return RuntimeSecrets.model_validate({
-        "OPENAI_API_KEY": "sk-corpus-test-fake",
-        "TWITTER_BEARER_TOKEN": "test-bearer-corpus",
-    })
+    return RuntimeSecrets.model_validate(
+        {
+            "OPENAI_API_KEY": "sk-corpus-test-fake",
+            "TWITTER_BEARER_TOKEN": "test-bearer-corpus",
+        }
+    )
 
 
 @pytest.fixture
@@ -329,12 +332,14 @@ def _run_with_mocks(
     skip_sourcing: bool = False,
 ) -> PipelineRunResult:
     """Run pipeline with mocked sourcing and LLM."""
-    with patch("ai_news_agent.pipeline.SourcingAgent") as MockSourcing, \
-         patch("ai_news_agent.curation.agent.get_llm_client") as mock_factory:
+    with (
+        patch("ai_news_agent.pipeline.SourcingAgent") as MockSourcing,
+        patch("ai_news_agent.curation.agent.get_llm_client") as mock_factory,
+    ):
         MockSourcing.return_value.run.return_value = sourcing_result
-        mock_factory.return_value = DummyLLMClient(
-            complete_response=llm_response
-        ) if llm_response else DummyLLMClient()
+        mock_factory.return_value = (
+            DummyLLMClient(complete_response=llm_response) if llm_response else DummyLLMClient()
+        )
 
         return pipeline.run(
             cadence=cadence,
@@ -350,6 +355,7 @@ def _run_with_mocks(
 # ---------------------------------------------------------------------------
 # Test: Three output formats from fixture corpus (SRC-004, SRC-102)
 # ---------------------------------------------------------------------------
+
 
 @pytest.mark.integration
 class TestFixtureCorpusThreeFormats:
@@ -380,9 +386,7 @@ class TestFixtureCorpusThreeFormats:
         """
         scratch = tmp_path / "scratch-formats"
 
-        pipeline = _make_pipeline(
-            corpus_agent_config, corpus_secrets, seeded_store, prompts_dir
-        )
+        pipeline = _make_pipeline(corpus_agent_config, corpus_secrets, seeded_store, prompts_dir)
         result = _run_with_mocks(
             pipeline=pipeline,
             cadence="daily",
@@ -432,9 +436,7 @@ class TestFixtureCorpusThreeFormats:
         scratch.mkdir()
         prod_output = tmp_path / "outputs" / corpus_agent_config.agent_id
 
-        pipeline = _make_pipeline(
-            corpus_agent_config, corpus_secrets, seeded_store, prompts_dir
-        )
+        pipeline = _make_pipeline(corpus_agent_config, corpus_secrets, seeded_store, prompts_dir)
         result = _run_with_mocks(
             pipeline=pipeline,
             cadence="daily",
@@ -449,22 +451,24 @@ class TestFixtureCorpusThreeFormats:
         assert result.markdown_path is not None
         assert result.markdown_path.parent == scratch
         # Production output dir must NOT have been created
-        assert not prod_output.exists(), (
-            f"Dry-run must not create production dir {prod_output}"
-        )
+        assert not prod_output.exists(), f"Dry-run must not create production dir {prod_output}"
 
 
 # ---------------------------------------------------------------------------
 # Test: All four cadences complete (SRC-029–SRC-032)
 # ---------------------------------------------------------------------------
 
+
 @pytest.mark.integration
-@pytest.mark.parametrize(("cadence", "ref_time"), [
-    ("daily",   datetime(2026, 5, 10, 1, 0, tzinfo=UTC)),
-    ("weekly",  datetime(2026, 5, 11, 1, 0, tzinfo=UTC)),  # Monday: covers prior week
-    ("monthly", datetime(2026, 5, 1, 2, 0, tzinfo=UTC)),   # May 1: covers April
-    ("annual",  datetime(2026, 1, 1, 3, 0, tzinfo=UTC)),   # Jan 1: covers prior year
-])
+@pytest.mark.parametrize(
+    ("cadence", "ref_time"),
+    [
+        ("daily", datetime(2026, 5, 10, 1, 0, tzinfo=UTC)),
+        ("weekly", datetime(2026, 5, 11, 1, 0, tzinfo=UTC)),  # Monday: covers prior week
+        ("monthly", datetime(2026, 5, 1, 2, 0, tzinfo=UTC)),  # May 1: covers April
+        ("annual", datetime(2026, 1, 1, 3, 0, tzinfo=UTC)),  # Jan 1: covers prior year
+    ],
+)
 def test_fixture_all_cadences(
     cadence: str,
     ref_time: datetime,
@@ -498,9 +502,7 @@ def test_fixture_all_cadences(
         tweet_api_call_count=5,
     )
 
-    pipeline = _make_pipeline(
-        corpus_agent_config, corpus_secrets, seeded_store, prompts_dir
-    )
+    pipeline = _make_pipeline(corpus_agent_config, corpus_secrets, seeded_store, prompts_dir)
     result = _run_with_mocks(
         pipeline=pipeline,
         cadence=cadence,
@@ -510,9 +512,7 @@ def test_fixture_all_cadences(
         sourcing_result=sourcing_result,
     )
 
-    assert result.success is True, (
-        f"Pipeline failed for cadence={cadence!r}: {result.errors}"
-    )
+    assert result.success is True, f"Pipeline failed for cadence={cadence!r}: {result.errors}"
     assert result.cadence == cadence
     assert result.markdown_path is not None
     assert result.markdown_path.exists()
@@ -526,6 +526,7 @@ def test_fixture_all_cadences(
 # ---------------------------------------------------------------------------
 # Test: URL enforcement (SRC-049, SRC-141)
 # ---------------------------------------------------------------------------
+
 
 @pytest.mark.integration
 class TestFixtureURLEnforcement:
@@ -551,7 +552,7 @@ class TestFixtureURLEnforcement:
                 {
                     "headline": "No URL Article — Must Be Dropped",
                     "source_name": "Unknown",
-                    "url": "",   # empty — must be dropped (SRC-049)
+                    "url": "",  # empty — must be dropped (SRC-049)
                     "pub_date": "2026-05-09",
                     "why_it_matters": "This should never appear in the output.",
                     "impact_tags": [],
@@ -582,9 +583,7 @@ class TestFixtureURLEnforcement:
         Markdown, HTML, or JSON output.
         """
         scratch = tmp_path / "scratch-no-url"
-        pipeline = _make_pipeline(
-            corpus_agent_config, corpus_secrets, seeded_store, prompts_dir
-        )
+        pipeline = _make_pipeline(corpus_agent_config, corpus_secrets, seeded_store, prompts_dir)
         result = _run_with_mocks(
             pipeline=pipeline,
             cadence="daily",
@@ -605,16 +604,12 @@ class TestFixtureURLEnforcement:
 
         # Check HTML (SRC-049, SRC-141)
         html = result.html_path.read_text(encoding="utf-8")  # type: ignore[union-attr]
-        assert "No URL Article — Must Be Dropped" not in html, (
-            "No-URL item leaked into HTML output"
-        )
+        assert "No URL Article — Must Be Dropped" not in html, "No-URL item leaked into HTML output"
 
         # Check JSON (SRC-049)
         json_data = json.loads(result.json_path.read_text(encoding="utf-8"))  # type: ignore[union-attr]
         for item in json_data.get("items", []):
-            assert item.get("url"), (
-                f"Item without URL in JSON output: {item.get('headline', '?')}"
-            )
+            assert item.get("url"), f"Item without URL in JSON output: {item.get('headline', '?')}"
 
     def test_fixture_valid_article_preserved(
         self,
@@ -630,9 +625,7 @@ class TestFixtureURLEnforcement:
         Traces: SRC-048 (curated item schema), SRC-049
         """
         scratch = tmp_path / "scratch-valid"
-        pipeline = _make_pipeline(
-            corpus_agent_config, corpus_secrets, seeded_store, prompts_dir
-        )
+        pipeline = _make_pipeline(corpus_agent_config, corpus_secrets, seeded_store, prompts_dir)
         result = _run_with_mocks(
             pipeline=pipeline,
             cadence="daily",
@@ -655,6 +648,7 @@ class TestFixtureURLEnforcement:
 # ---------------------------------------------------------------------------
 # Test: Deduplication (SRC-012)
 # ---------------------------------------------------------------------------
+
 
 @pytest.mark.integration
 class TestFixtureDeduplication:
@@ -716,6 +710,7 @@ class TestFixtureDeduplication:
 # Test: §8.2 monitoring fields (SRC-150)
 # ---------------------------------------------------------------------------
 
+
 @pytest.mark.integration
 class TestFixtureMonitoringFields:
     """
@@ -736,9 +731,7 @@ class TestFixtureMonitoringFields:
         All §8.2 fields must be present and correct after a successful run (SRC-150).
         """
         scratch = tmp_path / "scratch-monitoring"
-        pipeline = _make_pipeline(
-            corpus_agent_config, corpus_secrets, seeded_store, prompts_dir
-        )
+        pipeline = _make_pipeline(corpus_agent_config, corpus_secrets, seeded_store, prompts_dir)
         result = _run_with_mocks(
             pipeline=pipeline,
             cadence="daily",
@@ -770,10 +763,19 @@ class TestFixtureMonitoringFields:
         meta = json_data["metadata"]
 
         required_fields = [
-            "agent_id", "cadence", "run_date", "prompt_version",
-            "llm_provider", "llm_model", "items_considered", "items_included",
-            "items_by_tier", "items_by_source_class", "token_usage",
-            "twitter_signal_available", "tweet_api_call_count",
+            "agent_id",
+            "cadence",
+            "run_date",
+            "prompt_version",
+            "llm_provider",
+            "llm_model",
+            "items_considered",
+            "items_included",
+            "items_by_tier",
+            "items_by_source_class",
+            "token_usage",
+            "twitter_signal_available",
+            "tweet_api_call_count",
         ]
         for field_name in required_fields:
             assert field_name in meta, (
@@ -787,6 +789,7 @@ class TestFixtureMonitoringFields:
 # ---------------------------------------------------------------------------
 # Test: Prompt SHA-256 in all three formats (SRC-129)
 # ---------------------------------------------------------------------------
+
 
 @pytest.mark.integration
 class TestFixturePromptVersion:
@@ -805,9 +808,7 @@ class TestFixturePromptVersion:
     ) -> None:
         """Prompt SHA-256 in all three output formats (SRC-129)."""
         scratch = tmp_path / "scratch-pv"
-        pipeline = _make_pipeline(
-            corpus_agent_config, corpus_secrets, seeded_store, prompts_dir
-        )
+        pipeline = _make_pipeline(corpus_agent_config, corpus_secrets, seeded_store, prompts_dir)
         result = _run_with_mocks(
             pipeline=pipeline,
             cadence="daily",
@@ -836,6 +837,7 @@ class TestFixturePromptVersion:
 # Test: Date-stamped filenames (SRC-145)
 # ---------------------------------------------------------------------------
 
+
 @pytest.mark.integration
 class TestFixtureDateStampedFilenames:
     """
@@ -858,10 +860,10 @@ class TestFixtureDateStampedFilenames:
         from ai_news_agent.curation.agent import _WINDOW_FN
 
         ref_times = {
-            "daily":   datetime(2026, 5, 10, 1, 0, tzinfo=UTC),
-            "weekly":  datetime(2026, 5, 11, 1, 0, tzinfo=UTC),
+            "daily": datetime(2026, 5, 10, 1, 0, tzinfo=UTC),
+            "weekly": datetime(2026, 5, 11, 1, 0, tzinfo=UTC),
             "monthly": datetime(2026, 5, 1, 2, 0, tzinfo=UTC),
-            "annual":  datetime(2026, 1, 1, 3, 0, tzinfo=UTC),
+            "annual": datetime(2026, 1, 1, 3, 0, tzinfo=UTC),
         }
         ws, we = _WINDOW_FN[cadence](ref_times[cadence])
         scratch = tmp_path / f"scratch-fn-{cadence}"
@@ -880,9 +882,7 @@ class TestFixtureDateStampedFilenames:
             tweet_api_call_count=2,
         )
 
-        pipeline = _make_pipeline(
-            corpus_agent_config, corpus_secrets, seeded_store, prompts_dir
-        )
+        pipeline = _make_pipeline(corpus_agent_config, corpus_secrets, seeded_store, prompts_dir)
         result = _run_with_mocks(
             pipeline=pipeline,
             cadence=cadence,
@@ -898,15 +898,14 @@ class TestFixtureDateStampedFilenames:
         # Filename pattern: YYYY-MM-DD-{cadence}.{ext} (SRC-145)
         name = result.markdown_path.name
         assert cadence in name, f"Cadence missing from filename: {name}"
-        assert re.search(r"\d{4}-\d{2}-\d{2}", name), (
-            f"Date stamp missing from filename: {name}"
-        )
+        assert re.search(r"\d{4}-\d{2}-\d{2}", name), f"Date stamp missing from filename: {name}"
         assert name.endswith(".md"), f"Expected .md extension, got: {name}"
 
 
 # ---------------------------------------------------------------------------
 # Test: Twitter degradation (SRC-148)
 # ---------------------------------------------------------------------------
+
 
 @pytest.mark.integration
 class TestFixtureTwitterDegradation:
@@ -945,9 +944,7 @@ class TestFixtureTwitterDegradation:
             tweet_api_call_count=0,
         )
 
-        pipeline = _make_pipeline(
-            corpus_agent_config, corpus_secrets, seeded_store, prompts_dir
-        )
+        pipeline = _make_pipeline(corpus_agent_config, corpus_secrets, seeded_store, prompts_dir)
         result = _run_with_mocks(
             pipeline=pipeline,
             cadence="daily",
@@ -988,13 +985,11 @@ class TestFixtureTwitterDegradation:
             articles_duplicate=0,
             tweets_fetched=0,
             tweets_inserted=0,
-            twitter_signal_available=True,   # sourcing thinks it's OK...
+            twitter_signal_available=True,  # sourcing thinks it's OK...
             tweet_api_call_count=0,
         )
 
-        pipeline = _make_pipeline(
-            corpus_agent_config, corpus_secrets, seeded_store, prompts_dir
-        )
+        pipeline = _make_pipeline(corpus_agent_config, corpus_secrets, seeded_store, prompts_dir)
         result = _run_with_mocks(
             pipeline=pipeline,
             cadence="daily",
@@ -1002,7 +997,7 @@ class TestFixtureTwitterDegradation:
             window_end=datetime(2026, 5, 9, 23, 59, tzinfo=UTC),
             scratch_dir=scratch,
             sourcing_result=sourcing_r,
-            twitter_api_available=False,   # ...but caller overrides
+            twitter_api_available=False,  # ...but caller overrides
         )
 
         assert result.success is True
@@ -1014,6 +1009,7 @@ class TestFixtureTwitterDegradation:
 # ---------------------------------------------------------------------------
 # Test: Window override / on-demand re-run (SRC-028, SRC-147)
 # ---------------------------------------------------------------------------
+
 
 @pytest.mark.integration
 class TestFixtureWindowOverride:
@@ -1074,9 +1070,7 @@ class TestFixtureWindowOverride:
             tweet_api_call_count=0,
         )
 
-        pipeline = _make_pipeline(
-            corpus_agent_config, corpus_secrets, corpus_store, prompts_dir
-        )
+        pipeline = _make_pipeline(corpus_agent_config, corpus_secrets, corpus_store, prompts_dir)
         result = _run_with_mocks(
             pipeline=pipeline,
             cadence="monthly",
@@ -1104,6 +1098,7 @@ class TestFixtureWindowOverride:
 # Test: skip_sourcing mode (SRC-028)
 # ---------------------------------------------------------------------------
 
+
 @pytest.mark.integration
 class TestFixtureSkipSourcing:
     """
@@ -1123,12 +1118,12 @@ class TestFixtureSkipSourcing:
         skip_sourcing=True: SourcingAgent must not be called; curation succeeds (SRC-028).
         """
         scratch = tmp_path / "scratch-skip"
-        pipeline = _make_pipeline(
-            corpus_agent_config, corpus_secrets, seeded_store, prompts_dir
-        )
+        pipeline = _make_pipeline(corpus_agent_config, corpus_secrets, seeded_store, prompts_dir)
 
-        with patch("ai_news_agent.pipeline.SourcingAgent") as MockSourcing, \
-             patch("ai_news_agent.curation.agent.get_llm_client") as mock_factory:
+        with (
+            patch("ai_news_agent.pipeline.SourcingAgent") as MockSourcing,
+            patch("ai_news_agent.curation.agent.get_llm_client") as mock_factory,
+        ):
             mock_factory.return_value = DummyLLMClient()
 
             result = pipeline.run(
@@ -1152,6 +1147,7 @@ class TestFixtureSkipSourcing:
 # ---------------------------------------------------------------------------
 # Test: CuratedItem schema preserved (SRC-048)
 # ---------------------------------------------------------------------------
+
 
 @pytest.mark.integration
 class TestFixtureItemSchema:
@@ -1200,9 +1196,7 @@ class TestFixtureItemSchema:
         JSON output items must contain all required schema fields (SRC-048).
         """
         scratch = tmp_path / "scratch-schema"
-        pipeline = _make_pipeline(
-            corpus_agent_config, corpus_secrets, seeded_store, prompts_dir
-        )
+        pipeline = _make_pipeline(corpus_agent_config, corpus_secrets, seeded_store, prompts_dir)
         result = _run_with_mocks(
             pipeline=pipeline,
             cadence="daily",
@@ -1220,8 +1214,15 @@ class TestFixtureItemSchema:
 
         item = json_data["items"][0]
         # Required schema fields (SRC-048)
-        for field_name in ["headline", "source_name", "url", "pub_date",
-                           "why_it_matters", "impact_tags", "tier"]:
+        for field_name in [
+            "headline",
+            "source_name",
+            "url",
+            "pub_date",
+            "why_it_matters",
+            "impact_tags",
+            "tier",
+        ]:
             assert field_name in item, (
                 f"Required CuratedItem field '{field_name}' missing from JSON item (SRC-048)"
             )
@@ -1234,6 +1235,7 @@ class TestFixtureItemSchema:
 # ---------------------------------------------------------------------------
 # Test: Idempotent re-run (SRC-145) — running twice overwrites cleanly
 # ---------------------------------------------------------------------------
+
 
 @pytest.mark.integration
 class TestFixtureIdempotentReRun:
@@ -1255,9 +1257,7 @@ class TestFixtureIdempotentReRun:
         Second pipeline run for same window must succeed and overwrite first run (SRC-145).
         """
         scratch = tmp_path / "scratch-idem"
-        pipeline = _make_pipeline(
-            corpus_agent_config, corpus_secrets, seeded_store, prompts_dir
-        )
+        pipeline = _make_pipeline(corpus_agent_config, corpus_secrets, seeded_store, prompts_dir)
 
         kwargs: dict[str, Any] = {
             "cadence": "daily",
@@ -1284,6 +1284,7 @@ class TestFixtureIdempotentReRun:
 # ---------------------------------------------------------------------------
 # Test: Annual cadence includes predictions (SRC-032, SRC-124)
 # ---------------------------------------------------------------------------
+
 
 @pytest.mark.integration
 class TestFixtureAnnualPredictions:
@@ -1378,9 +1379,7 @@ class TestFixtureAnnualPredictions:
             tweet_api_call_count=9,
         )
 
-        pipeline = _make_pipeline(
-            corpus_agent_config, corpus_secrets, corpus_store, prompts_dir
-        )
+        pipeline = _make_pipeline(corpus_agent_config, corpus_secrets, corpus_store, prompts_dir)
         result = _run_with_mocks(
             pipeline=pipeline,
             cadence="annual",
@@ -1400,7 +1399,5 @@ class TestFixtureAnnualPredictions:
 
         # Predictions may be in the JSON directly
         predictions = json_data.get("predictions", [])
-        assert len(predictions) >= 1, (
-            "Annual digest must include predictions (SRC-032, SRC-124)"
-        )
+        assert len(predictions) >= 1, "Annual digest must include predictions (SRC-032, SRC-124)"
         assert json_data["metadata"]["cadence"] == "annual"

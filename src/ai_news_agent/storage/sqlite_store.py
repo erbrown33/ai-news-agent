@@ -261,12 +261,12 @@ class SQLiteArticleStore(AbstractArticleStore):
                 logger.warning(
                     "near_duplicate_detected",
                     extra={
-                        "agent_id":           candidate.agent_id,
-                        "new_url":            candidate.url,
-                        "existing_url":       row["url"],
-                        "similarity":         round(sim, 3),
-                        "new_headline":       candidate.headline,
-                        "existing_headline":  row["headline"],
+                        "agent_id": candidate.agent_id,
+                        "new_url": candidate.url,
+                        "existing_url": row["url"],
+                        "similarity": round(sim, 3),
+                        "new_headline": candidate.headline,
+                        "existing_headline": row["headline"],
                     },
                 )
                 break
@@ -546,9 +546,7 @@ class SQLiteArticleStore(AbstractArticleStore):
         Traces: SRC-145 (portal listing)
         """
         if run_date is not None:
-            run_date_key = (
-                run_date.date() if isinstance(run_date, datetime) else run_date
-            )
+            run_date_key = run_date.date() if isinstance(run_date, datetime) else run_date
             cur = self._conn.execute(
                 """
                 SELECT * FROM digests

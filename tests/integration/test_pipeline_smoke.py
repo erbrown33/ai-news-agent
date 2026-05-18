@@ -34,6 +34,7 @@ if TYPE_CHECKING:
 # Traces: SRC-102 (smoke test), SRC-004 (non-empty output with all required fields)
 # ---------------------------------------------------------------------------
 
+
 @pytest.mark.integration
 class TestPipelineSmoke:
     """
@@ -198,23 +199,25 @@ class TestPipelineSmoke:
 
         from tests.conftest import DummyLLMClient
 
-        no_url_response = json_mod.dumps({
-            "items": [
-                {
-                    "headline": "No URL Item — Must Be Dropped",
-                    "source_name": "Unknown",
-                    "url": "",
-                    "pub_date": "2026-05-09",
-                    "why_it_matters": "Should not appear in output.",
-                    "impact_tags": [],
-                    "tier": "3",
-                    "cross_refs": [],
-                }
-            ],
-            "themes": [],
-            "outlook": "",
-            "predictions": [],
-        })
+        no_url_response = json_mod.dumps(
+            {
+                "items": [
+                    {
+                        "headline": "No URL Item — Must Be Dropped",
+                        "source_name": "Unknown",
+                        "url": "",
+                        "pub_date": "2026-05-09",
+                        "why_it_matters": "Should not appear in output.",
+                        "impact_tags": [],
+                        "tier": "3",
+                        "cross_refs": [],
+                    }
+                ],
+                "themes": [],
+                "outlook": "",
+                "predictions": [],
+            }
+        )
         raw_response = f"```json\n{no_url_response}\n```"
 
         store = TinyDBArticleStore(tmp_path / "store.json")

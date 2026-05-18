@@ -49,6 +49,7 @@ _SECRET_PATTERNS: list[re.Pattern[str]] = [
 # ConfigError
 # ---------------------------------------------------------------------------
 
+
 class ConfigError(Exception):
     """
     Raised for:
@@ -64,6 +65,7 @@ class ConfigError(Exception):
 # ---------------------------------------------------------------------------
 # Internal helpers
 # ---------------------------------------------------------------------------
+
 
 def _read_yaml(path: str | Path) -> dict[str, Any]:
     """
@@ -124,6 +126,7 @@ def validate_no_secrets_in_yaml(raw_yaml: str, source_name: str = "<unknown>") -
 # Public loaders
 # ---------------------------------------------------------------------------
 
+
 def load_agent_config(path: str | Path) -> AgentConfig:
     """
     Load and validate a per-agent YAML configuration file.
@@ -166,9 +169,7 @@ def load_agent_config(path: str | Path) -> AgentConfig:
     try:
         data: dict[str, Any] = yaml.safe_load(raw_text) or {}
     except yaml.YAMLError as exc:
-        raise ConfigError(
-            f"YAML parse error in {resolved}:\n{exc}"
-        ) from exc
+        raise ConfigError(f"YAML parse error in {resolved}:\n{exc}") from exc
 
     # Pydantic validation (includes {agent_id} resolution via model_validator)
     try:
@@ -232,9 +233,7 @@ def load_scheduler_config(
     try:
         config = SchedulerConfig.model_validate(data)
     except ValidationError as exc:
-        raise ConfigError(
-            f"Invalid scheduler configuration at {resolved}:\n{exc}"
-        ) from exc
+        raise ConfigError(f"Invalid scheduler configuration at {resolved}:\n{exc}") from exc
 
     enabled_count = sum(1 for a in config.agents if a.enabled)
     log.debug(

@@ -38,25 +38,26 @@ from ai_news_agent.storage.models import Cadence, lookback_window
 
 # Maps each cadence to a human-readable description of its trigger schedule.
 CADENCE_TRIGGER_DESCRIPTIONS: dict[str, str] = {
-    "daily":   "00:05 UTC every day — curates yesterday's articles (SRC-029)",
-    "weekly":  "01:00 UTC every Sunday — curates prior Sun–Sat (SRC-030)",
+    "daily": "00:05 UTC every day — curates yesterday's articles (SRC-029)",
+    "weekly": "01:00 UTC every Sunday — curates prior Sun–Sat (SRC-030)",
     "monthly": "02:00 UTC the 1st of each month — curates prior month (SRC-031)",
-    "annual":  "03:00 UTC every January 1st — curates prior year (SRC-032)",
+    "annual": "03:00 UTC every January 1st — curates prior year (SRC-032)",
 }
 
 # Default APScheduler cron expressions per cadence (mirror of scheduler.yaml).
 CADENCE_DEFAULT_CRONS: dict[str, str] = {
-    "sourcing_daily":   "0 0 * * *",    # 00:00 UTC daily  (SRC-009)
-    "curation_daily":   "5 0 * * *",    # 00:05 UTC daily  (SRC-029)
-    "curation_weekly":  "0 1 * * 0",    # 01:00 UTC Sunday (SRC-030)
-    "curation_monthly": "0 2 1 * *",    # 02:00 UTC 1st    (SRC-031)
-    "curation_annual":  "0 3 1 1 *",    # 03:00 UTC Jan 1  (SRC-032)
+    "sourcing_daily": "0 0 * * *",  # 00:00 UTC daily  (SRC-009)
+    "curation_daily": "5 0 * * *",  # 00:05 UTC daily  (SRC-029)
+    "curation_weekly": "0 1 * * 0",  # 01:00 UTC Sunday (SRC-030)
+    "curation_monthly": "0 2 1 * *",  # 02:00 UTC 1st    (SRC-031)
+    "curation_annual": "0 3 1 1 *",  # 03:00 UTC Jan 1  (SRC-032)
 }
 
 
 # ---------------------------------------------------------------------------
 # Window-boundary verification
 # ---------------------------------------------------------------------------
+
 
 def verify_window_for_trigger(cadence: str, trigger_utc: datetime) -> tuple[datetime, datetime]:
     """

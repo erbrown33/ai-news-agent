@@ -39,6 +39,7 @@ log = structlog.get_logger(__name__)
 # Application factory
 # ---------------------------------------------------------------------------
 
+
 def create_app(
     outputs_dir: str = "outputs",
     configs_dir: str = "configs",
@@ -91,6 +92,7 @@ def create_app(
 
     # Register routes
     from ai_news_agent.portal.routes import register_routes
+
     register_routes(_app)
 
     log.info(
@@ -112,6 +114,7 @@ app = create_app()
 # ---------------------------------------------------------------------------
 # CLI entry point (SRC-076: local dev web portal)
 # ---------------------------------------------------------------------------
+
 
 def cli_main() -> None:
     """

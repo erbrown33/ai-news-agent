@@ -36,9 +36,9 @@ log = structlog.get_logger(__name__)
 def _impact_badge(tags: list[str]) -> str:
     """Format impact tags as compact inline badges."""
     tag_map = {
-        "business_impact":  "💼 Business",
+        "business_impact": "💼 Business",
         "workforce_impact": "👥 Workforce",
-        "policy_impact":    "⚖️ Policy",
+        "policy_impact": "⚖️ Policy",
     }
     parts = [tag_map.get(t, t) for t in tags]
     return " · ".join(parts) if parts else "📌 General"
@@ -140,15 +140,14 @@ class MarkdownRenderer:
     def _render_header(self, meta: DigestMetadata, cadence: str) -> list[str]:
         """Render the digest header with window dates (SRC-116)."""
         title_map = {
-            "daily":   "Daily AI News Digest",
-            "weekly":  "Weekly AI News Digest",
+            "daily": "Daily AI News Digest",
+            "weekly": "Weekly AI News Digest",
             "monthly": "Monthly AI Intelligence Briefing",
-            "annual":  "Annual AI Year in Review & Predictions",
+            "annual": "Annual AI Year in Review & Predictions",
         }
         title = title_map.get(cadence, "AI News Digest")
         window = (
-            f"{meta.window_start.strftime('%Y-%m-%d')} — "
-            f"{meta.window_end.strftime('%Y-%m-%d')}"
+            f"{meta.window_start.strftime('%Y-%m-%d')} — {meta.window_end.strftime('%Y-%m-%d')}"
         )
 
         return [
@@ -179,20 +178,22 @@ class MarkdownRenderer:
         ]
         for reason in diag.reasons:
             lines.append(f"> - {reason}")
-        lines.extend([
-            ">",
-            f"> *Articles in store:* {diag.articles_in_store}  ",
-            f"> *Candidates in window:* {diag.articles_in_window}"
-            + (
-                f" ({', '.join(f'tier {k}={v}' for k, v in sorted(diag.articles_in_window_by_tier.items()))})"
-                if diag.articles_in_window_by_tier
-                else ""
-            )
-            + "  ",
-            f"> *Items dropped (missing URL):* {diag.items_dropped_no_url}  ",
-            f"> *Twitter signal available:* {diag.twitter_signal_available}",
-            "",
-        ])
+        lines.extend(
+            [
+                ">",
+                f"> *Articles in store:* {diag.articles_in_store}  ",
+                f"> *Candidates in window:* {diag.articles_in_window}"
+                + (
+                    f" ({', '.join(f'tier {k}={v}' for k, v in sorted(diag.articles_in_window_by_tier.items()))})"
+                    if diag.articles_in_window_by_tier
+                    else ""
+                )
+                + "  ",
+                f"> *Items dropped (missing URL):* {diag.items_dropped_no_url}  ",
+                f"> *Twitter signal available:* {diag.twitter_signal_available}",
+                "",
+            ]
+        )
         return lines
 
     # ------------------------------------------------------------------
@@ -418,4 +419,5 @@ class MarkdownRenderer:
                 SRC-140 (naming convention supports future distribution layer)
         """
         from ai_news_agent.rendering.utils import filename_stem
+
         return f"{filename_stem(meta.run_date, meta.cadence)}.md"

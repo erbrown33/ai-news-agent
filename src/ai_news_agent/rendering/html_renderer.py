@@ -37,6 +37,7 @@ log = structlog.get_logger(__name__)
 # HTML escaping helpers
 # ---------------------------------------------------------------------------
 
+
 def _esc(text: str) -> str:
     """HTML-escape arbitrary text for safe insertion into HTML content."""
     return html_lib.escape(str(text), quote=True)
@@ -62,9 +63,9 @@ def _esc_attr(url: str) -> str:
 def _impact_badges_html(tags: list[str]) -> str:
     """Render impact tags as styled HTML inline badges."""
     tag_map: dict[str, tuple[str, str, str]] = {
-        "business_impact":  ("💼", "Business Impact",  "#e3f2fd"),
-        "workforce_impact": ("👥", "Workforce Impact",  "#e8f5e9"),
-        "policy_impact":    ("⚖️",  "Policy Impact",    "#fce4ec"),
+        "business_impact": ("💼", "Business Impact", "#e3f2fd"),
+        "workforce_impact": ("👥", "Workforce Impact", "#e8f5e9"),
+        "policy_impact": ("⚖️", "Policy Impact", "#fce4ec"),
     }
     badges: list[str] = []
     for tag in tags:
@@ -152,13 +153,9 @@ class HtmlRenderer:
         if cadence == "daily":
             body_parts.append(self._render_daily_html(valid_items))
         elif cadence == "weekly":
-            body_parts.append(
-                self._render_weekly_html(valid_items, result.themes, result.outlook)
-            )
+            body_parts.append(self._render_weekly_html(valid_items, result.themes, result.outlook))
         elif cadence == "monthly":
-            body_parts.append(
-                self._render_monthly_html(valid_items, result.themes, result.outlook)
-            )
+            body_parts.append(self._render_monthly_html(valid_items, result.themes, result.outlook))
         elif cadence == "annual":
             body_parts.append(
                 self._render_annual_html(valid_items, result.themes, result.predictions)
@@ -177,10 +174,10 @@ class HtmlRenderer:
     def _wrap_document(self, meta: DigestMetadata, cadence: str, body: str) -> str:
         """Wrap body content in a complete HTML document with inline CSS."""
         title_map = {
-            "daily":   "Daily AI Digest",
-            "weekly":  "Weekly AI Digest",
+            "daily": "Daily AI Digest",
+            "weekly": "Weekly AI Digest",
             "monthly": "Monthly AI Briefing",
-            "annual":  "Annual AI Review",
+            "annual": "Annual AI Review",
         }
         title = _esc(f"{title_map.get(cadence, 'AI Digest')} — {meta.run_date}")
 
@@ -237,10 +234,10 @@ class HtmlRenderer:
     def _render_header_html(self, meta: DigestMetadata, cadence: str) -> str:
         """Render the digest header with concrete ISO window dates (SRC-116)."""
         title_map = {
-            "daily":   "Daily AI News Digest",
-            "weekly":  "Weekly AI News Digest",
+            "daily": "Daily AI News Digest",
+            "weekly": "Weekly AI News Digest",
             "monthly": "Monthly AI Intelligence Briefing",
-            "annual":  "Annual AI Year in Review &amp; Predictions",
+            "annual": "Annual AI Year in Review &amp; Predictions",
         }
         title = title_map.get(cadence, "AI News Digest")
         window = (
@@ -266,14 +263,16 @@ class HtmlRenderer:
         every output format. Styled in-line so the HTML stays paste-ready
         for email clients that strip <style> blocks.
         """
-        reason_items = "".join(
-            f"<li>{_esc(reason)}</li>" for reason in diag.reasons
-        )
+        reason_items = "".join(f"<li>{_esc(reason)}</li>" for reason in diag.reasons)
         if diag.articles_in_window_by_tier:
-            tier_breakdown = " (" + ", ".join(
-                f"tier {_esc(k)}={_esc(str(v))}"
-                for k, v in sorted(diag.articles_in_window_by_tier.items())
-            ) + ")"
+            tier_breakdown = (
+                " ("
+                + ", ".join(
+                    f"tier {_esc(k)}={_esc(str(v))}"
+                    for k, v in sorted(diag.articles_in_window_by_tier.items())
+                )
+                + ")"
+            )
         else:
             tier_breakdown = ""
 
@@ -305,7 +304,7 @@ class HtmlRenderer:
         """
         if not items:
             return (
-                '<h2>Today\'s Stories</h2>'
+                "<h2>Today's Stories</h2>"
                 '<p class="empty-state">No articles met the curation threshold.</p>'
             )
         cards = "\n".join(self._render_item_card_html(i, item) for i, item in enumerate(items, 1))
@@ -329,10 +328,7 @@ class HtmlRenderer:
 
         if themes:
             theme_items = "\n".join(f"<li>{_esc(t)}</li>" for t in themes)
-            parts.append(
-                f'<h2>This Week\'s Themes</h2>'
-                f'<ul class="themes-list">{theme_items}</ul>'
-            )
+            parts.append(f'<h2>This Week\'s Themes</h2><ul class="themes-list">{theme_items}</ul>')
 
         cards = (
             "\n".join(self._render_item_card_html(i, item) for i, item in enumerate(items, 1))
@@ -342,10 +338,7 @@ class HtmlRenderer:
         parts.append(f"<h2>Top Stories This Week</h2>\n{cards}")
 
         if outlook:
-            parts.append(
-                f'<h2>Looking Ahead</h2>'
-                f'<div class="outlook-box">{_esc(outlook)}</div>'
-            )
+            parts.append(f'<h2>Looking Ahead</h2><div class="outlook-box">{_esc(outlook)}</div>')
 
         return "\n".join(parts)
 
@@ -371,16 +364,10 @@ class HtmlRenderer:
 
         if themes:
             theme_items = "\n".join(f"<li>{_esc(t)}</li>" for t in themes)
-            parts.append(
-                f'<h2>Monthly Themes</h2>'
-                f'<ul class="themes-list">{theme_items}</ul>'
-            )
+            parts.append(f'<h2>Monthly Themes</h2><ul class="themes-list">{theme_items}</ul>')
 
         if outlook:
-            parts.append(
-                f'<h2>What to Watch</h2>'
-                f'<div class="outlook-box">{_esc(outlook)}</div>'
-            )
+            parts.append(f'<h2>What to Watch</h2><div class="outlook-box">{_esc(outlook)}</div>')
 
         cards = (
             "\n".join(self._render_item_card_html(i, item) for i, item in enumerate(items, 1))
@@ -412,8 +399,7 @@ class HtmlRenderer:
         if themes:
             theme_items = "\n".join(f"<li>{_esc(t)}</li>" for t in themes)
             parts.append(
-                f'<h2>Year in Review — Key Themes</h2>'
-                f'<ul class="themes-list">{theme_items}</ul>'
+                f'<h2>Year in Review — Key Themes</h2><ul class="themes-list">{theme_items}</ul>'
             )
 
         cards = (
@@ -433,7 +419,7 @@ class HtmlRenderer:
             )
             note = f"<p><em>{_esc(note_text)}</em></p>"
             parts.append(
-                f'<h2>10 Predictions for the Year Ahead</h2>{note}'
+                f"<h2>10 Predictions for the Year Ahead</h2>{note}"
                 f'<div class="predictions">{pred_items}</div>'
             )
 
@@ -463,7 +449,7 @@ class HtmlRenderer:
             twitter_html = (
                 f'<div class="twitter-signal">🐦 via '
                 f'<a href="{_esc_attr(item.tweet_url)}" rel="noopener">'
-                f'@{_esc(item.twitter_handle)}</a></div>'
+                f"@{_esc(item.twitter_handle)}</a></div>"
             )
 
         cross_refs_html = ""
@@ -522,4 +508,5 @@ class HtmlRenderer:
                 SRC-140 (naming convention supports future distribution layer)
         """
         from ai_news_agent.rendering.utils import filename_stem
+
         return f"{filename_stem(meta.run_date, meta.cadence)}.html"

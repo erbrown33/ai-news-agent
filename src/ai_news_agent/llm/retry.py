@@ -83,7 +83,11 @@ def _is_retryable(exc: BaseException) -> bool:
             return True
 
     # httpx transport errors
-    return "httpx" in exc_module and exc_type_name in {"TimeoutException", "ConnectError", "ReadError"}
+    return "httpx" in exc_module and exc_type_name in {
+        "TimeoutException",
+        "ConnectError",
+        "ReadError",
+    }
 
 
 def with_retry(

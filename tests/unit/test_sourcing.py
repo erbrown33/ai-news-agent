@@ -46,6 +46,7 @@ if TYPE_CHECKING:
 # Tier classification (SRC-016–SRC-021)
 # ===========================================================================
 
+
 class TestTierClassification:
     """
     Validate URL-to-tier mapping across all five tiers and edge cases.
@@ -86,7 +87,10 @@ class TestTierClassification:
 
     def test_unknown_domain_returns_unknown(self, sample_agent_config: AgentConfig) -> None:
         """Unrecognised domain returns 'unknown' (not an error — just unclassified)."""
-        assert _classify_tier("https://obscure-blog.example.com/post", sample_agent_config) == "unknown"
+        assert (
+            _classify_tier("https://obscure-blog.example.com/post", sample_agent_config)
+            == "unknown"
+        )
 
     def test_custom_tier_1a_takes_priority(self, sample_agent_config: AgentConfig) -> None:
         """Tier 1a custom sources have highest priority over all other tiers (SRC-017)."""
@@ -118,6 +122,7 @@ class TestTierClassification:
 # ===========================================================================
 # Publication date extraction (SRC-011)
 # ===========================================================================
+
 
 class TestPubDateExtraction:
     """
@@ -169,6 +174,7 @@ class TestPubDateExtraction:
 # Headline extraction
 # ===========================================================================
 
+
 class TestHeadlineExtraction:
     """
     Validate headline extraction from HTML content.
@@ -211,6 +217,7 @@ class TestHeadlineExtraction:
 # SearchResult → ArticleRecord conversion (SRC-011, SRC-012, SRC-049)
 # ===========================================================================
 
+
 class TestSearchResultToRecord:
     """
     Validate the _search_result_to_record conversion function.
@@ -219,11 +226,13 @@ class TestSearchResultToRecord:
 
     def _make_result(self, url: str, title: str = "Title", snippet: str = ""):
         from ai_news_agent.llm.base import SearchResult
+
         return SearchResult(url=url, title=title, snippet=snippet, source="example.com")
 
     def test_valid_result_produces_article_record(self) -> None:
         """Valid SearchResult with URL → ArticleRecord with all required fields."""
         from ai_news_agent.storage.models import ArticleRecord
+
         fetched = datetime(2026, 5, 10, tzinfo=UTC)
         result = _search_result_to_record(
             self._make_result("https://reuters.com/article"),
@@ -291,6 +300,7 @@ class TestSearchResultToRecord:
 # WebFetcher tier query construction (SRC-016–SRC-021, SRC-116)
 # ===========================================================================
 
+
 class TestTierQueryConstruction:
     """
     Validate that _build_tier_queries generates correct tier labels and
@@ -300,6 +310,7 @@ class TestTierQueryConstruction:
 
     def _make_fetcher(self, config: AgentConfig, dummy_llm) -> WebFetcher:
         from ai_news_agent.llm.search_tools import AbstractSearchTool
+
         mock_tool = MagicMock(spec=AbstractSearchTool)
         return WebFetcher(config=config, llm_client=dummy_llm, search_tool=mock_tool)
 
@@ -366,6 +377,7 @@ class TestTierQueryConstruction:
 # WebFetcher.fetch_all (SRC-053, SRC-060, SRC-012, SRC-016–SRC-021, SRC-049)
 # ===========================================================================
 
+
 class TestWebFetcherFetchAll:
     """
     Integration tests for WebFetcher.fetch_all with mocked search tool.
@@ -374,9 +386,7 @@ class TestWebFetcherFetchAll:
             SRC-016–SRC-021 (tier refinement)
     """
 
-    def _make_fetcher(
-        self, config: AgentConfig, dummy_llm, search_results=None
-    ) -> WebFetcher:
+    def _make_fetcher(self, config: AgentConfig, dummy_llm, search_results=None) -> WebFetcher:
         from ai_news_agent.llm.search_tools import AbstractSearchTool
 
         mock_tool = MagicMock(spec=AbstractSearchTool)
@@ -398,7 +408,12 @@ class TestWebFetcherFetchAll:
             dummy_llm,
             search_results=[
                 SearchResult(url="", title="No URL Article", snippet="...", source="unknown"),
-                SearchResult(url="https://reuters.com/valid", title="Valid", snippet="...", source="reuters.com"),
+                SearchResult(
+                    url="https://reuters.com/valid",
+                    title="Valid",
+                    snippet="...",
+                    source="reuters.com",
+                ),
             ],
         )
         articles = fetcher.fetch_all(
@@ -428,7 +443,9 @@ class TestWebFetcherFetchAll:
             window_end=datetime(2026, 5, 9, 23, 59, tzinfo=UTC),
         )
         urls = [a.url for a in articles]
-        assert len(urls) == len(set(urls)), "Duplicate URLs must be deduplicated within a run (SRC-012)"
+        assert len(urls) == len(set(urls)), (
+            "Duplicate URLs must be deduplicated within a run (SRC-012)"
+        )
 
     def test_tier_refinement_applied_to_results(
         self, sample_agent_config: AgentConfig, dummy_llm
@@ -438,6 +455,7 @@ class TestWebFetcherFetchAll:
 
         # The query is for tier "1b" but the URL is openai.com (tier 2)
         from ai_news_agent.llm.search_tools import AbstractSearchTool
+
         mock_tool = MagicMock(spec=AbstractSearchTool)
         mock_tool.search.return_value = [
             SearchResult(
@@ -448,7 +466,9 @@ class TestWebFetcherFetchAll:
             )
         ]
         mock_tool.hydrate_url.return_value = None
-        fetcher = WebFetcher(config=sample_agent_config, llm_client=dummy_llm, search_tool=mock_tool)
+        fetcher = WebFetcher(
+            config=sample_agent_config, llm_client=dummy_llm, search_tool=mock_tool
+        )
 
         articles = fetcher.fetch_all(
             window_start=datetime(2026, 5, 9, tzinfo=UTC),
@@ -475,13 +495,22 @@ class TestWebFetcherFetchAll:
             call_count += 1
             if call_count == 1:
                 raise RuntimeError("Search API timeout")
-            return [SearchResult(url=f"https://reuters.com/article-{call_count}", title="Article", snippet="", source="reuters.com")]
+            return [
+                SearchResult(
+                    url=f"https://reuters.com/article-{call_count}",
+                    title="Article",
+                    snippet="",
+                    source="reuters.com",
+                )
+            ]
 
         mock_tool = MagicMock(spec=AbstractSearchTool)
         mock_tool.search.side_effect = mock_search
         mock_tool.hydrate_url.return_value = None
 
-        fetcher = WebFetcher(config=sample_agent_config, llm_client=dummy_llm, search_tool=mock_tool)
+        fetcher = WebFetcher(
+            config=sample_agent_config, llm_client=dummy_llm, search_tool=mock_tool
+        )
         # Should not raise — errors are caught per query
         fetcher.fetch_all(
             window_start=datetime(2026, 5, 9, tzinfo=UTC),
@@ -495,6 +524,7 @@ class TestWebFetcherFetchAll:
     ) -> None:
         """fetch_all always returns a list (may be empty)."""
         from ai_news_agent.storage.models import ArticleRecord
+
         fetcher = self._make_fetcher(sample_agent_config, dummy_llm, search_results=[])
         articles = fetcher.fetch_all(
             window_start=datetime(2026, 5, 9, tzinfo=UTC),
@@ -509,6 +539,7 @@ class TestWebFetcherFetchAll:
 # WebFetcher.fetch_from_tweet_urls (SRC-069–SRC-070)
 # ===========================================================================
 
+
 class TestFetchFromTweetUrls:
     """
     Validate the tweet URL lead-generation pipeline.
@@ -517,6 +548,7 @@ class TestFetchFromTweetUrls:
 
     def _make_fetcher(self, config: AgentConfig, dummy_llm) -> WebFetcher:
         from ai_news_agent.llm.search_tools import AbstractSearchTool
+
         mock_tool = MagicMock(spec=AbstractSearchTool)
         mock_tool.search.return_value = []
         mock_tool.hydrate_url.return_value = "<html><title>AI Breakthrough</title></html>"
@@ -527,6 +559,7 @@ class TestFetchFromTweetUrls:
     ) -> None:
         """Tweet URLs produce ArticleRecord objects (SRC-069–SRC-070)."""
         from ai_news_agent.storage.models import ArticleRecord
+
         fetcher = self._make_fetcher(sample_agent_config, dummy_llm)
         articles = fetcher.fetch_from_tweet_urls(
             urls=["https://reuters.com/ai-story"],
@@ -547,9 +580,7 @@ class TestFetchFromTweetUrls:
         urls = [a.url for a in articles]
         assert len(urls) == len(set(urls)), "Duplicate tweet URLs must be deduplicated"
 
-    def test_empty_urls_skipped(
-        self, sample_agent_config: AgentConfig, dummy_llm
-    ) -> None:
+    def test_empty_urls_skipped(self, sample_agent_config: AgentConfig, dummy_llm) -> None:
         """Empty/blank strings in url list are skipped gracefully."""
         fetcher = self._make_fetcher(sample_agent_config, dummy_llm)
         articles = fetcher.fetch_from_tweet_urls(
@@ -564,11 +595,14 @@ class TestFetchFromTweetUrls:
     ) -> None:
         """If hydrate_url returns None, a stub ArticleRecord is still created from the URL."""
         from ai_news_agent.llm.search_tools import AbstractSearchTool
+
         mock_tool = MagicMock(spec=AbstractSearchTool)
         mock_tool.search.return_value = []
         mock_tool.hydrate_url.return_value = None  # hydration failed
 
-        fetcher = WebFetcher(config=sample_agent_config, llm_client=dummy_llm, search_tool=mock_tool)
+        fetcher = WebFetcher(
+            config=sample_agent_config, llm_client=dummy_llm, search_tool=mock_tool
+        )
         articles = fetcher.fetch_from_tweet_urls(
             urls=["https://techcrunch.com/ai-story"],
             agent_id="test-agent",
@@ -596,11 +630,14 @@ class TestFetchFromTweetUrls:
     ) -> None:
         """HTML <title> tag used as headline when hydrate returns HTML content."""
         from ai_news_agent.llm.search_tools import AbstractSearchTool
+
         mock_tool = MagicMock(spec=AbstractSearchTool)
         mock_tool.search.return_value = []
         mock_tool.hydrate_url.return_value = "<html><title>Reuters AI Report</title></html>"
 
-        fetcher = WebFetcher(config=sample_agent_config, llm_client=dummy_llm, search_tool=mock_tool)
+        fetcher = WebFetcher(
+            config=sample_agent_config, llm_client=dummy_llm, search_tool=mock_tool
+        )
         articles = fetcher.fetch_from_tweet_urls(
             urls=["https://reuters.com/ai-story"],
             agent_id="test-agent",
@@ -638,6 +675,7 @@ class TestFetchFromTweetUrls:
 # ===========================================================================
 # SourcingAgent (mocked sub-components) (SRC-006–SRC-013, SRC-148, SRC-150)
 # ===========================================================================
+
 
 class TestSourcingAgent:
     """
@@ -999,6 +1037,7 @@ class TestSourcingAgent:
 # SourcingAgent with multiple articles + tier distribution (SRC-150)
 # ===========================================================================
 
+
 class TestSourcingRunTierCounts:
     """
     Validate that items_by_tier and items_by_source_class are populated correctly.
@@ -1017,10 +1056,16 @@ class TestSourcingRunTierCounts:
         def make_article(url: str, tier: str) -> ArticleRecord:
             c = normalize_url(url)
             return ArticleRecord(
-                url_hash=url_hash(c), url=c, headline=f"Article {url}",
-                abstract=None, source_name="test", pub_date=datetime(2026, 5, 9, tzinfo=UTC),
+                url_hash=url_hash(c),
+                url=c,
+                headline=f"Article {url}",
+                abstract=None,
+                source_name="test",
+                pub_date=datetime(2026, 5, 9, tzinfo=UTC),
                 fetched_at=datetime(2026, 5, 9, tzinfo=UTC),
-                tier=tier, source_class="web", agent_id="test-agent",
+                tier=tier,
+                source_class="web",
+                agent_id="test-agent",
             )
 
         articles = [
@@ -1039,7 +1084,9 @@ class TestSourcingRunTierCounts:
             MockWeb.return_value.fetch_from_tweet_urls.return_value = []
             MockTwitter.return_value.fetch.return_value = ([], True)
 
-            agent = SourcingAgent(config=sample_agent_config, secrets=sample_secrets, store=tiny_db_store)
+            agent = SourcingAgent(
+                config=sample_agent_config, secrets=sample_secrets, store=tiny_db_store
+            )
             agent._web_fetcher = MockWeb.return_value
             agent._twitter_fetcher = MockTwitter.return_value
             result = agent.run(
@@ -1068,7 +1115,9 @@ class TestSourcingRunTierCounts:
             MockWeb.return_value.fetch_from_tweet_urls.return_value = []
             MockTwitter.return_value.fetch.return_value = ([], True)
 
-            agent = SourcingAgent(config=sample_agent_config, secrets=sample_secrets, store=tiny_db_store)
+            agent = SourcingAgent(
+                config=sample_agent_config, secrets=sample_secrets, store=tiny_db_store
+            )
             agent._web_fetcher = MockWeb.return_value
             agent._twitter_fetcher = MockTwitter.return_value
             result = agent.run(
@@ -1083,6 +1132,7 @@ class TestSourcingRunTierCounts:
 # ===========================================================================
 # CLI entry point (SRC-076–SRC-077)
 # ===========================================================================
+
 
 class TestCLI:
     """
@@ -1120,6 +1170,7 @@ class TestCLI:
             )
 
             from ai_news_agent.sourcing.agent import cli_main
+
             with pytest.raises(SystemExit) as exc_info:
                 cli_main()
 

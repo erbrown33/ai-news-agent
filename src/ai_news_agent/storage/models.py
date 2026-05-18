@@ -23,18 +23,22 @@ from pydantic import BaseModel
 # Cadence definitions — lookback windows (SRC-008–SRC-010, SRC-028–SRC-032)
 # ---------------------------------------------------------------------------
 
+
 class Cadence(StrEnum):
     """
     Supported digest cadences.
     Traces: SRC-008 (lookback windows), SRC-009 (daily), SRC-028–SRC-032
     """
-    DAILY   = "daily"    # SRC-009, SRC-029
-    WEEKLY  = "weekly"   # SRC-030
+
+    DAILY = "daily"  # SRC-009, SRC-029
+    WEEKLY = "weekly"  # SRC-030
     MONTHLY = "monthly"  # SRC-031
-    ANNUAL  = "annual"   # SRC-032
+    ANNUAL = "annual"  # SRC-032
 
 
-def lookback_window(cadence: Cadence, reference: datetime | None = None) -> tuple[datetime, datetime]:
+def lookback_window(
+    cadence: Cadence, reference: datetime | None = None
+) -> tuple[datetime, datetime]:
     """
     Return the ``(window_start, window_end)`` for a cadence relative to
     ``reference`` (defaults to ``datetime.now(UTC)``).
@@ -51,9 +55,7 @@ def lookback_window(cadence: Cadence, reference: datetime | None = None) -> tupl
 
     if cadence == Cadence.DAILY:
         # yesterday 00:00 → 23:59:59 UTC  (SRC-009)
-        day_start = (ref - timedelta(days=1)).replace(
-            hour=0, minute=0, second=0, microsecond=0
-        )
+        day_start = (ref - timedelta(days=1)).replace(hour=0, minute=0, second=0, microsecond=0)
         day_end = day_start.replace(hour=23, minute=59, second=59, microsecond=999999)
         return day_start, day_end
 
@@ -75,8 +77,8 @@ def lookback_window(cadence: Cadence, reference: datetime | None = None) -> tupl
         # Without the modulo, Sun would give 7+1=8 which jumps to 2 weeks ago (SRC-030).
         today = ref.replace(hour=0, minute=0, second=0, microsecond=0)
         days_since_saturday = (today.isoweekday() % 7) + 1
-        last_saturday = today - timedelta(days=days_since_saturday)   # most-recent Saturday
-        last_sunday   = last_saturday - timedelta(days=6)             # Sunday before it
+        last_saturday = today - timedelta(days=days_since_saturday)  # most-recent Saturday
+        last_sunday = last_saturday - timedelta(days=6)  # Sunday before it
         return (
             last_sunday,
             last_saturday.replace(hour=23, minute=59, second=59, microsecond=999999),
@@ -85,7 +87,7 @@ def lookback_window(cadence: Cadence, reference: datetime | None = None) -> tupl
     if cadence == Cadence.MONTHLY:
         # previous month, first through last day (SRC-031)
         first_of_this_month = ref.replace(day=1, hour=0, minute=0, second=0, microsecond=0)
-        last_of_prev_month  = first_of_this_month - timedelta(seconds=1)
+        last_of_prev_month = first_of_this_month - timedelta(seconds=1)
         first_of_prev_month = last_of_prev_month.replace(
             day=1, hour=0, minute=0, second=0, microsecond=0
         )
@@ -98,7 +100,7 @@ def lookback_window(cadence: Cadence, reference: datetime | None = None) -> tupl
         # previous calendar year, Jan 1 through Dec 31 (SRC-032)
         year = ref.year - 1
         start = datetime(year, 1, 1, 0, 0, 0, tzinfo=UTC)
-        end   = datetime(year, 12, 31, 23, 59, 59, 999999, tzinfo=UTC)
+        end = datetime(year, 12, 31, 23, 59, 59, 999999, tzinfo=UTC)
         return start, end
 
     raise ValueError(f"Unknown cadence: {cadence!r}")
@@ -110,9 +112,21 @@ def lookback_window(cadence: Cadence, reference: datetime | None = None) -> tupl
 
 _TRACKING_PARAMS = frozenset(
     {
-        "utm_source", "utm_medium", "utm_campaign", "utm_term", "utm_content",
-        "fbclid", "ref", "source", "campaign", "medium", "content",
-        "gclid", "msclkid", "mc_cid", "mc_eid",
+        "utm_source",
+        "utm_medium",
+        "utm_campaign",
+        "utm_term",
+        "utm_content",
+        "fbclid",
+        "ref",
+        "source",
+        "campaign",
+        "medium",
+        "content",
+        "gclid",
+        "msclkid",
+        "mc_cid",
+        "mc_eid",
     }
 )
 
@@ -164,12 +178,14 @@ def headline_similarity(a: str, b: str) -> float:
     Traces: SRC-012 (secondary dedup signal — architecture §3.3)
     """
     import difflib
+
     return difflib.SequenceMatcher(None, a.lower(), b.lower()).ratio()
 
 
 # ---------------------------------------------------------------------------
 # ArticleRecord — sourcing layer output (SRC-011)
 # ---------------------------------------------------------------------------
+
 
 @dataclass
 class ArticleRecord:
@@ -187,15 +203,15 @@ class ArticleRecord:
 
     # Primary identifier — dedup key (SRC-012)
     url_hash: str
-    url: str          # canonical URL; required (SRC-049 enforced at curation + rendering)
+    url: str  # canonical URL; required (SRC-049 enforced at curation + rendering)
     headline: str
     abstract: str | None
     source_name: str
     pub_date: datetime
-    fetched_at: datetime   # when the sourcing agent retrieved it
-    tier: str              # "1a" | "1b" | "2" | "3" | "4"
-    source_class: str      # "web" | "twitter"  (SRC-150 quality monitoring)
-    agent_id: str          # scopes record to this agent config (SRC-072)
+    fetched_at: datetime  # when the sourcing agent retrieved it
+    tier: str  # "1a" | "1b" | "2" | "3" | "4"
+    source_class: str  # "web" | "twitter"  (SRC-150 quality monitoring)
+    agent_id: str  # scopes record to this agent config (SRC-072)
 
     # Twitter provenance (present only when source_class == "twitter") (SRC-048)
     twitter_handle: str | None = None
@@ -205,6 +221,7 @@ class ArticleRecord:
 # ---------------------------------------------------------------------------
 # TweetSignal — Twitter/X sourcing output (SRC-047, SRC-067–SRC-069)
 # ---------------------------------------------------------------------------
+
 
 @dataclass
 class TweetSignal:
@@ -218,15 +235,16 @@ class TweetSignal:
     handle: str
     text: str
     created_at: datetime
-    linked_urls: list[str]    # hydrated expanded URLs from t.co (SRC-069)
+    linked_urls: list[str]  # hydrated expanded URLs from t.co (SRC-069)
     agent_id: str
     fetched_at: datetime
-    weight: float = 1.0       # handle weight from config (SRC-046)
+    weight: float = 1.0  # handle weight from config (SRC-046)
 
 
 # ---------------------------------------------------------------------------
 # DigestRecord — persisted curation run output (SRC-129, SRC-145, SRC-150)
 # ---------------------------------------------------------------------------
+
 
 @dataclass
 class DigestRecord:
@@ -244,13 +262,13 @@ class DigestRecord:
 
     # Compound key — (agent_id, cadence, run_date) is unique per run (SRC-145)
     agent_id: str
-    cadence: str             # "daily" | "weekly" | "monthly" | "annual"
+    cadence: str  # "daily" | "weekly" | "monthly" | "annual"
     run_date: date
     window_start: datetime
     window_end: datetime
 
     # Prompt provenance (SRC-129)
-    prompt_version: str      # "sha256:<64-char hex>"
+    prompt_version: str  # "sha256:<64-char hex>"
 
     # LLM provenance (SRC-150)
     llm_provider: str
@@ -259,11 +277,11 @@ class DigestRecord:
     # Quality monitoring (SRC-150)
     items_considered: int
     items_included: int
-    items_by_tier: dict[str, int]         # {"1a": n, "1b": n, ...}
-    items_by_source_class: dict[str, int] # {"web": n, "twitter": n}
-    twitter_signal_available: bool        # SRC-148
-    tweet_api_call_count: int             # SRC-150 — 0 if degraded
-    token_usage: int                      # SRC-150 — total tokens consumed
+    items_by_tier: dict[str, int]  # {"1a": n, "1b": n, ...}
+    items_by_source_class: dict[str, int]  # {"web": n, "twitter": n}
+    twitter_signal_available: bool  # SRC-148
+    tweet_api_call_count: int  # SRC-150 — 0 if degraded
+    token_usage: int  # SRC-150 — total tokens consumed
 
     # Output file paths (relative to output_dir) — populated by Rendering Agent
     md_path: str | None = None
@@ -280,6 +298,7 @@ class DigestRecord:
 # CuratedItem — curation → rendering → portal (SRC-048)
 # ---------------------------------------------------------------------------
 
+
 @dataclass
 class CuratedItem:
     """
@@ -290,20 +309,21 @@ class CuratedItem:
 
     headline: str
     source_name: str
-    url: str              # REQUIRED — empty/None = item dropped (SRC-049, SRC-141)
+    url: str  # REQUIRED — empty/None = item dropped (SRC-049, SRC-141)
     pub_date: date
-    why_it_matters: str   # 2–3 sentences (SRC-048, SRC-122)
-    impact_tags: list[str]     # "business_impact" | "workforce_impact" | "policy_impact"
-    tier: str                  # "1a" | "1b" | "2" | "3" | "4"
-    cross_refs: list[str]      # related item URLs (SRC-048)
+    why_it_matters: str  # 2–3 sentences (SRC-048, SRC-122)
+    impact_tags: list[str]  # "business_impact" | "workforce_impact" | "policy_impact"
+    tier: str  # "1a" | "1b" | "2" | "3" | "4"
+    cross_refs: list[str]  # related item URLs (SRC-048)
     twitter_handle: str | None  # SRC-048 — null if web-sourced
-    tweet_url: str | None       # SRC-048 — null if web-sourced
-    prompt_version: str         # "sha256:<64-char hex>" (SRC-129)
+    tweet_url: str | None  # SRC-048 — null if web-sourced
+    prompt_version: str  # "sha256:<64-char hex>" (SRC-129)
 
 
 # ---------------------------------------------------------------------------
 # DigestMetadata — quality monitoring metadata attached to every output (SRC-150)
 # ---------------------------------------------------------------------------
+
 
 @dataclass
 class DigestMetadata:
@@ -314,25 +334,26 @@ class DigestMetadata:
     """
 
     agent_id: str
-    cadence: str         # "daily" | "weekly" | "monthly" | "annual"
+    cadence: str  # "daily" | "weekly" | "monthly" | "annual"
     run_date: date
     window_start: datetime
     window_end: datetime
-    prompt_version: str        # SRC-129 — "sha256:<hex>"
-    llm_provider: str          # SRC-150
-    llm_model: str             # SRC-150
-    items_considered: int      # SRC-150 — total candidates from store
-    items_included: int        # SRC-150 — after LLM selection + URL drop
-    items_by_tier: dict[str, int]         # SRC-150 — {"1a": n, "1b": n, ...}
-    items_by_source_class: dict[str, int] # SRC-150 — {"web": n, "twitter": n}
-    twitter_signal_available: bool        # SRC-148
-    tweet_api_call_count: int             # SRC-150 — 0 if degraded
-    token_usage: int                      # SRC-150 — total tokens consumed
+    prompt_version: str  # SRC-129 — "sha256:<hex>"
+    llm_provider: str  # SRC-150
+    llm_model: str  # SRC-150
+    items_considered: int  # SRC-150 — total candidates from store
+    items_included: int  # SRC-150 — after LLM selection + URL drop
+    items_by_tier: dict[str, int]  # SRC-150 — {"1a": n, "1b": n, ...}
+    items_by_source_class: dict[str, int]  # SRC-150 — {"web": n, "twitter": n}
+    twitter_signal_available: bool  # SRC-148
+    tweet_api_call_count: int  # SRC-150 — 0 if degraded
+    token_usage: int  # SRC-150 — total tokens consumed
 
 
 # ---------------------------------------------------------------------------
 # CurationDiagnostics — explanation surfaced when a digest has few/no items
 # ---------------------------------------------------------------------------
+
 
 @dataclass
 class CurationDiagnostics:
@@ -374,6 +395,7 @@ class CurationDiagnostics:
 # CuratedItemRaw — Pydantic schema matching what the LLM is asked to produce
 # ---------------------------------------------------------------------------
 
+
 class CuratedItemRaw(BaseModel):
     """
     The per-item schema that the LLM is instructed to produce inside the
@@ -384,7 +406,7 @@ class CuratedItemRaw(BaseModel):
     headline: str
     source_name: str
     url: str = ""
-    pub_date: str = ""            # "YYYY-MM-DD"
+    pub_date: str = ""  # "YYYY-MM-DD"
     why_it_matters: str = ""
     impact_tags: list[str] = field(default_factory=list)
     tier: str = ""
@@ -408,6 +430,7 @@ class CuratedItemRaw(BaseModel):
 # CurationResponse — top-level LLM output schema (SRC-061, SRC-120)
 # ---------------------------------------------------------------------------
 
+
 class CurationResponse(BaseModel):
     """
     Top-level schema the LLM is instructed to produce in the ```json block.
@@ -418,6 +441,6 @@ class CurationResponse(BaseModel):
     items: list[CuratedItemRaw] = []
     themes: list[str] = []
     outlook: str = ""
-    predictions: list[str] = []   # annual only (SRC-124)
+    predictions: list[str] = []  # annual only (SRC-124)
 
     model_config = {"extra": "ignore"}

@@ -67,6 +67,7 @@ if TYPE_CHECKING:
 # Helpers
 # ---------------------------------------------------------------------------
 
+
 def _make_article(
     headline: str = "Default Headline",
     source_name: str = "Reuters",
@@ -119,7 +120,8 @@ def _build_llm_payload(
 ) -> str:
     """Build a valid LLM JSON response string."""
     payload = {
-        "items": items or [
+        "items": items
+        or [
             {
                 "headline": "AI Reshapes Enterprise Software",
                 "source_name": "Reuters",
@@ -146,6 +148,7 @@ def _build_llm_payload(
 # ---------------------------------------------------------------------------
 # Part 1: Window computation helpers (SRC-009, SRC-028–SRC-032)
 # ---------------------------------------------------------------------------
+
 
 class TestWindowHelpers:
     """
@@ -193,11 +196,13 @@ class TestWindowHelpers:
         ref = datetime(2026, 5, 11, tzinfo=UTC)  # Monday
         _, end = _weekly_window(ref)
         # isoweekday(): 6 = Saturday
-        assert end.isoweekday() == 6, f"Expected Saturday (6), got {end.isoweekday()} ({end.date()})"
+        assert end.isoweekday() == 6, (
+            f"Expected Saturday (6), got {end.isoweekday()} ({end.date()})"
+        )
 
     # SRC-031: previous calendar month
     def test_monthly_window_is_previous_month(self) -> None:
-        ref = datetime(2026, 5, 1, tzinfo=UTC)   # May 1 → April window
+        ref = datetime(2026, 5, 1, tzinfo=UTC)  # May 1 → April window
         start, end = _monthly_window(ref)
         assert start.month == 4
         assert end.month == 4
@@ -243,6 +248,7 @@ class TestWindowHelpers:
 # ---------------------------------------------------------------------------
 # Part 2: ScorerResult — new return type
 # ---------------------------------------------------------------------------
+
 
 class TestScorerResult:
     """
@@ -405,6 +411,7 @@ class TestScorerResult:
 # Part 3: URL enforcement at Scorer layer (SRC-049, SRC-141)
 # ---------------------------------------------------------------------------
 
+
 class TestURLEnforcement:
     """
     Verify that items lacking a URL are unconditionally dropped.
@@ -416,69 +423,85 @@ class TestURLEnforcement:
         llm = DummyLLMClient()
         scorer = Scorer(llm_client=llm)
         result = scorer.score_and_rank(
-            prompt="prompt", model="gpt-4o",
-            candidates=[sample_article], tweet_signals=[],
-            top_n=5, prompt_version="sha256:test", cadence="daily",
+            prompt="prompt",
+            model="gpt-4o",
+            candidates=[sample_article],
+            tweet_signals=[],
+            top_n=5,
+            prompt_version="sha256:test",
+            cadence="daily",
         )
         for item in result.items:
             assert item.url, f"Item without URL should have been dropped: {item.headline!r}"
 
     def test_no_url_item_is_dropped(self) -> None:
         """Item with empty URL string is dropped (SRC-049, SRC-141)."""
-        payload = _build_llm_payload(items=[
-            {
-                "headline": "Has URL",
-                "source_name": "Reuters",
-                "url": "https://reuters.com/real",
-                "pub_date": "2026-05-09",
-                "why_it_matters": "Real item.",
-                "impact_tags": [],
-                "tier": "1b",
-                "cross_refs": [],
-            },
-            {
-                "headline": "No URL item",
-                "source_name": "Unknown",
-                "url": "",   # MUST be dropped
-                "pub_date": "2026-05-09",
-                "why_it_matters": "Should be dropped.",
-                "impact_tags": [],
-                "tier": "3",
-                "cross_refs": [],
-            },
-        ])
+        payload = _build_llm_payload(
+            items=[
+                {
+                    "headline": "Has URL",
+                    "source_name": "Reuters",
+                    "url": "https://reuters.com/real",
+                    "pub_date": "2026-05-09",
+                    "why_it_matters": "Real item.",
+                    "impact_tags": [],
+                    "tier": "1b",
+                    "cross_refs": [],
+                },
+                {
+                    "headline": "No URL item",
+                    "source_name": "Unknown",
+                    "url": "",  # MUST be dropped
+                    "pub_date": "2026-05-09",
+                    "why_it_matters": "Should be dropped.",
+                    "impact_tags": [],
+                    "tier": "3",
+                    "cross_refs": [],
+                },
+            ]
+        )
         llm = DummyLLMClient(complete_response=payload)
         scorer = Scorer(llm_client=llm)
         article = _make_article()
         result = scorer.score_and_rank(
-            prompt="prompt", model="gpt-4o",
-            candidates=[article], tweet_signals=[],
-            top_n=5, prompt_version="sha256:test", cadence="daily",
+            prompt="prompt",
+            model="gpt-4o",
+            candidates=[article],
+            tweet_signals=[],
+            top_n=5,
+            prompt_version="sha256:test",
+            cadence="daily",
         )
         assert len(result.items) == 1
         assert result.items[0].url == "https://reuters.com/real"
 
     def test_whitespace_only_url_is_dropped(self) -> None:
         """Whitespace-only URL string is dropped (SRC-049)."""
-        payload = _build_llm_payload(items=[
-            {
-                "headline": "Whitespace URL",
-                "source_name": "Reuters",
-                "url": "   ",
-                "pub_date": "2026-05-09",
-                "why_it_matters": "Whitespace URL.",
-                "impact_tags": [],
-                "tier": "1b",
-                "cross_refs": [],
-            },
-        ])
+        payload = _build_llm_payload(
+            items=[
+                {
+                    "headline": "Whitespace URL",
+                    "source_name": "Reuters",
+                    "url": "   ",
+                    "pub_date": "2026-05-09",
+                    "why_it_matters": "Whitespace URL.",
+                    "impact_tags": [],
+                    "tier": "1b",
+                    "cross_refs": [],
+                },
+            ]
+        )
         llm = DummyLLMClient(complete_response=payload)
         scorer = Scorer(llm_client=llm)
         article = _make_article()
         result = scorer.score_and_rank(
-            prompt="prompt", model="gpt-4o",
-            candidates=[article], tweet_signals=[],
-            top_n=5, prompt_version="sha256:test", cadence="daily",
+            prompt="prompt",
+            model="gpt-4o",
+            candidates=[article],
+            tweet_signals=[],
+            top_n=5,
+            prompt_version="sha256:test",
+            cadence="daily",
         )
         assert result.items == [], "Whitespace-URL items must be dropped"
 
@@ -486,6 +509,7 @@ class TestURLEnforcement:
 # ---------------------------------------------------------------------------
 # Part 4: CuratedItem schema compliance (SRC-048)
 # ---------------------------------------------------------------------------
+
 
 class TestCuratedItemSchema:
     """
@@ -498,9 +522,13 @@ class TestCuratedItemSchema:
         llm = DummyLLMClient()
         scorer = Scorer(llm_client=llm)
         result = scorer.score_and_rank(
-            prompt="prompt", model="gpt-4o",
-            candidates=[sample_article], tweet_signals=[],
-            top_n=5, prompt_version="sha256:test", cadence="daily",
+            prompt="prompt",
+            model="gpt-4o",
+            candidates=[sample_article],
+            tweet_signals=[],
+            top_n=5,
+            prompt_version="sha256:test",
+            cadence="daily",
         )
         for item in result.items:
             assert item.headline, "headline required (SRC-048)"
@@ -514,27 +542,33 @@ class TestCuratedItemSchema:
 
     def test_twitter_sourced_item_has_handle_and_tweet_url(self) -> None:
         """Twitter-sourced items include originating handle + tweet URL (SRC-048)."""
-        payload = _build_llm_payload(items=[
-            {
-                "headline": "CEO Announces Product on X",
-                "source_name": "Twitter/X",
-                "url": "https://twitter.com/sama/status/999",
-                "pub_date": "2026-05-09",
-                "why_it_matters": "Executive announcement before press coverage.",
-                "impact_tags": ["business_impact"],
-                "tier": "1b",
-                "cross_refs": [],
-                "twitter_handle": "sama",
-                "tweet_url": "https://twitter.com/sama/status/999",
-            },
-        ])
+        payload = _build_llm_payload(
+            items=[
+                {
+                    "headline": "CEO Announces Product on X",
+                    "source_name": "Twitter/X",
+                    "url": "https://twitter.com/sama/status/999",
+                    "pub_date": "2026-05-09",
+                    "why_it_matters": "Executive announcement before press coverage.",
+                    "impact_tags": ["business_impact"],
+                    "tier": "1b",
+                    "cross_refs": [],
+                    "twitter_handle": "sama",
+                    "tweet_url": "https://twitter.com/sama/status/999",
+                },
+            ]
+        )
         llm = DummyLLMClient(complete_response=payload)
         scorer = Scorer(llm_client=llm)
         article = _make_article()
         result = scorer.score_and_rank(
-            prompt="prompt", model="gpt-4o",
-            candidates=[article], tweet_signals=[],
-            top_n=5, prompt_version="sha256:test", cadence="daily",
+            prompt="prompt",
+            model="gpt-4o",
+            candidates=[article],
+            tweet_signals=[],
+            top_n=5,
+            prompt_version="sha256:test",
+            cadence="daily",
         )
         assert len(result.items) == 1
         item = result.items[0]
@@ -546,9 +580,13 @@ class TestCuratedItemSchema:
         llm = DummyLLMClient()
         scorer = Scorer(llm_client=llm)
         result = scorer.score_and_rank(
-            prompt="prompt", model="gpt-4o",
-            candidates=[sample_article], tweet_signals=[],
-            top_n=5, prompt_version="sha256:test", cadence="daily",
+            prompt="prompt",
+            model="gpt-4o",
+            candidates=[sample_article],
+            tweet_signals=[],
+            top_n=5,
+            prompt_version="sha256:test",
+            cadence="daily",
         )
         for item in result.items:
             if item.twitter_handle is None:
@@ -560,9 +598,13 @@ class TestCuratedItemSchema:
         llm = DummyLLMClient()
         scorer = Scorer(llm_client=llm)
         result = scorer.score_and_rank(
-            prompt="prompt", model="gpt-4o",
-            candidates=[sample_article], tweet_signals=[],
-            top_n=5, prompt_version=version, cadence="daily",
+            prompt="prompt",
+            model="gpt-4o",
+            candidates=[sample_article],
+            tweet_signals=[],
+            top_n=5,
+            prompt_version=version,
+            cadence="daily",
         )
         for item in result.items:
             assert item.prompt_version == version, (
@@ -588,9 +630,13 @@ class TestCuratedItemSchema:
         llm = DummyLLMClient(complete_response=payload)
         scorer = Scorer(llm_client=llm)
         result = scorer.score_and_rank(
-            prompt="prompt", model="gpt-4o",
-            candidates=[sample_article], tweet_signals=[],
-            top_n=7, prompt_version="sha256:test", cadence="weekly",
+            prompt="prompt",
+            model="gpt-4o",
+            candidates=[sample_article],
+            tweet_signals=[],
+            top_n=7,
+            prompt_version="sha256:test",
+            cadence="weekly",
         )
         assert len(result.items) <= 7, "Scorer must truncate to top_n"
 
@@ -624,9 +670,13 @@ class TestCuratedItemSchema:
         scorer = Scorer(llm_client=llm)
         article = _make_article()
         result = scorer.score_and_rank(
-            prompt="prompt", model="gpt-4o",
-            candidates=[article], tweet_signals=[],
-            top_n=10, prompt_version="sha256:test", cadence="daily",
+            prompt="prompt",
+            model="gpt-4o",
+            candidates=[article],
+            tweet_signals=[],
+            top_n=10,
+            prompt_version="sha256:test",
+            cadence="daily",
         )
         assert len(result.items) == 2
         # 1b (weight=0.9) must come before 3 (weight=0.7)
@@ -637,6 +687,7 @@ class TestCuratedItemSchema:
 # ---------------------------------------------------------------------------
 # Part 5: CurationAgent integration — daily cadence (SRC-029)
 # ---------------------------------------------------------------------------
+
 
 class TestCurationAgentDaily:
     """
@@ -652,12 +703,15 @@ class TestCurationAgentDaily:
     ) -> None:
         """CurationAgent.run() returns CurationRunResult (SRC-014)."""
         from ai_news_agent.storage.tinydb_store import TinyDBArticleStore
+
         store = TinyDBArticleStore(tmp_path / "store.json")
         with patch("ai_news_agent.curation.agent.get_llm_client") as mock_factory:
             mock_factory.return_value = DummyLLMClient()
             agent = CurationAgent(
-                config=sample_agent_config, secrets=sample_secrets,
-                store=store, prompts_dir=str(prompts_dir),
+                config=sample_agent_config,
+                secrets=sample_secrets,
+                store=store,
+                prompts_dir=str(prompts_dir),
             )
             result = agent.run(
                 cadence="daily",
@@ -674,12 +728,15 @@ class TestCurationAgentDaily:
     ) -> None:
         """DigestMetadata.cadence == 'daily' for daily runs (SRC-029)."""
         from ai_news_agent.storage.tinydb_store import TinyDBArticleStore
+
         store = TinyDBArticleStore(tmp_path / "store.json")
         with patch("ai_news_agent.curation.agent.get_llm_client") as mock_factory:
             mock_factory.return_value = DummyLLMClient()
             agent = CurationAgent(
-                config=sample_agent_config, secrets=sample_secrets,
-                store=store, prompts_dir=str(prompts_dir),
+                config=sample_agent_config,
+                secrets=sample_secrets,
+                store=store,
+                prompts_dir=str(prompts_dir),
             )
             result = agent.run(
                 cadence="daily",
@@ -696,12 +753,15 @@ class TestCurationAgentDaily:
     ) -> None:
         """DigestMetadata.prompt_version starts with 'sha256:' (SRC-129)."""
         from ai_news_agent.storage.tinydb_store import TinyDBArticleStore
+
         store = TinyDBArticleStore(tmp_path / "store.json")
         with patch("ai_news_agent.curation.agent.get_llm_client") as mock_factory:
             mock_factory.return_value = DummyLLMClient()
             agent = CurationAgent(
-                config=sample_agent_config, secrets=sample_secrets,
-                store=store, prompts_dir=str(prompts_dir),
+                config=sample_agent_config,
+                secrets=sample_secrets,
+                store=store,
+                prompts_dir=str(prompts_dir),
             )
             result = agent.run(
                 cadence="daily",
@@ -720,12 +780,15 @@ class TestCurationAgentDaily:
     ) -> None:
         """DigestMetadata records LLM provider + model for quality monitoring (SRC-150)."""
         from ai_news_agent.storage.tinydb_store import TinyDBArticleStore
+
         store = TinyDBArticleStore(tmp_path / "store.json")
         with patch("ai_news_agent.curation.agent.get_llm_client") as mock_factory:
             mock_factory.return_value = DummyLLMClient()
             agent = CurationAgent(
-                config=sample_agent_config, secrets=sample_secrets,
-                store=store, prompts_dir=str(prompts_dir),
+                config=sample_agent_config,
+                secrets=sample_secrets,
+                store=store,
+                prompts_dir=str(prompts_dir),
             )
             result = agent.run(
                 cadence="daily",
@@ -743,6 +806,7 @@ class TestCurationAgentDaily:
     ) -> None:
         """Articles inserted for the previous day appear as candidates (SRC-008–SRC-010)."""
         from ai_news_agent.storage.tinydb_store import TinyDBArticleStore
+
         store = TinyDBArticleStore(tmp_path / "store.json")
 
         # Insert an article on May 9 — within the daily window for a May 10 run
@@ -754,23 +818,27 @@ class TestCurationAgentDaily:
         )
         store.insert_if_new(article)
 
-        payload = _build_llm_payload(items=[
-            {
-                "headline": "Test Article in Window",
-                "source_name": "Reuters",
-                "url": "https://reuters.com/test-in-window",
-                "pub_date": "2026-05-09",
-                "why_it_matters": "It was in the window.",
-                "impact_tags": ["business_impact"],
-                "tier": "1b",
-                "cross_refs": [],
-            }
-        ])
+        payload = _build_llm_payload(
+            items=[
+                {
+                    "headline": "Test Article in Window",
+                    "source_name": "Reuters",
+                    "url": "https://reuters.com/test-in-window",
+                    "pub_date": "2026-05-09",
+                    "why_it_matters": "It was in the window.",
+                    "impact_tags": ["business_impact"],
+                    "tier": "1b",
+                    "cross_refs": [],
+                }
+            ]
+        )
         with patch("ai_news_agent.curation.agent.get_llm_client") as mock_factory:
             mock_factory.return_value = DummyLLMClient(complete_response=payload)
             agent = CurationAgent(
-                config=sample_agent_config, secrets=sample_secrets,
-                store=store, prompts_dir=str(prompts_dir),
+                config=sample_agent_config,
+                secrets=sample_secrets,
+                store=store,
+                prompts_dir=str(prompts_dir),
             )
             result = agent.run(
                 cadence="daily",
@@ -789,12 +857,15 @@ class TestCurationAgentDaily:
     ) -> None:
         """Empty store → diagnostics block with the 'store is empty' reason."""
         from ai_news_agent.storage.tinydb_store import TinyDBArticleStore
+
         store = TinyDBArticleStore(tmp_path / "store.json")
         with patch("ai_news_agent.curation.agent.get_llm_client") as mock_factory:
             mock_factory.return_value = DummyLLMClient()
             agent = CurationAgent(
-                config=sample_agent_config, secrets=sample_secrets,
-                store=store, prompts_dir=str(prompts_dir),
+                config=sample_agent_config,
+                secrets=sample_secrets,
+                store=store,
+                prompts_dir=str(prompts_dir),
             )
             result = agent.run(
                 cadence="daily",
@@ -823,6 +894,7 @@ class TestCurationAgentDaily:
         motivated this feature.
         """
         from ai_news_agent.storage.tinydb_store import TinyDBArticleStore
+
         store = TinyDBArticleStore(tmp_path / "store.json")
 
         # Insert an article 5 days before the reference — outside the daily window.
@@ -837,8 +909,10 @@ class TestCurationAgentDaily:
         with patch("ai_news_agent.curation.agent.get_llm_client") as mock_factory:
             mock_factory.return_value = DummyLLMClient()
             agent = CurationAgent(
-                config=sample_agent_config, secrets=sample_secrets,
-                store=store, prompts_dir=str(prompts_dir),
+                config=sample_agent_config,
+                secrets=sample_secrets,
+                store=store,
+                prompts_dir=str(prompts_dir),
             )
             result = agent.run(
                 cadence="daily",
@@ -860,6 +934,7 @@ class TestCurationAgentDaily:
     ) -> None:
         """When items_included >= threshold, no diagnostics block is attached."""
         from ai_news_agent.storage.tinydb_store import TinyDBArticleStore
+
         store = TinyDBArticleStore(tmp_path / "store.json")
 
         # Stock the store and have the LLM return four items so we clear the
@@ -867,29 +942,35 @@ class TestCurationAgentDaily:
         items_payload = []
         for i in range(4):
             url = f"https://reuters.com/article-{i}"
-            store.insert_if_new(_make_article(
-                headline=f"Article {i}",
-                url=url,
-                agent_id=sample_agent_config.agent_id,
-                pub_date=datetime(2026, 5, 9, 10, 0, tzinfo=UTC),
-            ))
-            items_payload.append({
-                "headline": f"Article {i}",
-                "source_name": "Reuters",
-                "url": url,
-                "pub_date": "2026-05-09",
-                "why_it_matters": "Material development.",
-                "impact_tags": ["business_impact"],
-                "tier": "1b",
-                "cross_refs": [],
-            })
+            store.insert_if_new(
+                _make_article(
+                    headline=f"Article {i}",
+                    url=url,
+                    agent_id=sample_agent_config.agent_id,
+                    pub_date=datetime(2026, 5, 9, 10, 0, tzinfo=UTC),
+                )
+            )
+            items_payload.append(
+                {
+                    "headline": f"Article {i}",
+                    "source_name": "Reuters",
+                    "url": url,
+                    "pub_date": "2026-05-09",
+                    "why_it_matters": "Material development.",
+                    "impact_tags": ["business_impact"],
+                    "tier": "1b",
+                    "cross_refs": [],
+                }
+            )
 
         payload = _build_llm_payload(items=items_payload)
         with patch("ai_news_agent.curation.agent.get_llm_client") as mock_factory:
             mock_factory.return_value = DummyLLMClient(complete_response=payload)
             agent = CurationAgent(
-                config=sample_agent_config, secrets=sample_secrets,
-                store=store, prompts_dir=str(prompts_dir),
+                config=sample_agent_config,
+                secrets=sample_secrets,
+                store=store,
+                prompts_dir=str(prompts_dir),
             )
             result = agent.run(
                 cadence="daily",
@@ -912,12 +993,15 @@ class TestCurationAgentDaily:
     ) -> None:
         """When twitter_api_available=False, degradation note is set (SRC-148)."""
         from ai_news_agent.storage.tinydb_store import TinyDBArticleStore
+
         store = TinyDBArticleStore(tmp_path / "store.json")
         with patch("ai_news_agent.curation.agent.get_llm_client") as mock_factory:
             mock_factory.return_value = DummyLLMClient()
             agent = CurationAgent(
-                config=sample_agent_config, secrets=sample_secrets,
-                store=store, prompts_dir=str(prompts_dir),
+                config=sample_agent_config,
+                secrets=sample_secrets,
+                store=store,
+                prompts_dir=str(prompts_dir),
             )
             result = agent.run(
                 cadence="daily",
@@ -937,6 +1021,7 @@ class TestCurationAgentDaily:
     ) -> None:
         """When tweet signals in store, twitter_signal_available=True (SRC-148)."""
         from ai_news_agent.storage.tinydb_store import TinyDBArticleStore
+
         store = TinyDBArticleStore(tmp_path / "store.json")
 
         signal = TweetSignal(
@@ -954,8 +1039,10 @@ class TestCurationAgentDaily:
         with patch("ai_news_agent.curation.agent.get_llm_client") as mock_factory:
             mock_factory.return_value = DummyLLMClient()
             agent = CurationAgent(
-                config=sample_agent_config, secrets=sample_secrets,
-                store=store, prompts_dir=str(prompts_dir),
+                config=sample_agent_config,
+                secrets=sample_secrets,
+                store=store,
+                prompts_dir=str(prompts_dir),
             )
             result = agent.run(
                 cadence="daily",
@@ -974,21 +1061,26 @@ class TestCurationAgentDaily:
     ) -> None:
         """metadata.items_considered reflects total candidates retrieved (SRC-150)."""
         from ai_news_agent.storage.tinydb_store import TinyDBArticleStore
+
         store = TinyDBArticleStore(tmp_path / "store.json")
 
         for i in range(3):
-            store.insert_if_new(_make_article(
-                headline=f"Article {i}",
-                url=f"https://reuters.com/article-{i}",
-                agent_id=sample_agent_config.agent_id,
-                pub_date=datetime(2026, 5, 9, i + 8, 0, tzinfo=UTC),
-            ))
+            store.insert_if_new(
+                _make_article(
+                    headline=f"Article {i}",
+                    url=f"https://reuters.com/article-{i}",
+                    agent_id=sample_agent_config.agent_id,
+                    pub_date=datetime(2026, 5, 9, i + 8, 0, tzinfo=UTC),
+                )
+            )
 
         with patch("ai_news_agent.curation.agent.get_llm_client") as mock_factory:
             mock_factory.return_value = DummyLLMClient()
             agent = CurationAgent(
-                config=sample_agent_config, secrets=sample_secrets,
-                store=store, prompts_dir=str(prompts_dir),
+                config=sample_agent_config,
+                secrets=sample_secrets,
+                store=store,
+                prompts_dir=str(prompts_dir),
             )
             result = agent.run(
                 cadence="daily",
@@ -1000,6 +1092,7 @@ class TestCurationAgentDaily:
 # ---------------------------------------------------------------------------
 # Part 6: Weekly curation — themes + look-ahead (SRC-030)
 # ---------------------------------------------------------------------------
+
 
 class TestCurationAgentWeekly:
     """
@@ -1015,6 +1108,7 @@ class TestCurationAgentWeekly:
     ) -> None:
         """Weekly result includes themes from LLM response (SRC-030)."""
         from ai_news_agent.storage.tinydb_store import TinyDBArticleStore
+
         store = TinyDBArticleStore(tmp_path / "store.json")
         payload = _build_llm_payload(
             themes=["Enterprise AI Integration", "LLM Cost Decline"],
@@ -1023,8 +1117,10 @@ class TestCurationAgentWeekly:
         with patch("ai_news_agent.curation.agent.get_llm_client") as mock_factory:
             mock_factory.return_value = DummyLLMClient(complete_response=payload)
             agent = CurationAgent(
-                config=sample_agent_config, secrets=sample_secrets,
-                store=store, prompts_dir=str(prompts_dir),
+                config=sample_agent_config,
+                secrets=sample_secrets,
+                store=store,
+                prompts_dir=str(prompts_dir),
             )
             result = agent.run(
                 cadence="weekly",
@@ -1063,8 +1159,10 @@ class TestCurationAgentWeekly:
         with patch("ai_news_agent.curation.agent.get_llm_client") as mock_factory:
             mock_factory.return_value = DummyLLMClient(complete_response=payload)
             agent = CurationAgent(
-                config=sample_agent_config, secrets=sample_secrets,
-                store=store, prompts_dir=str(prompts_dir),
+                config=sample_agent_config,
+                secrets=sample_secrets,
+                store=store,
+                prompts_dir=str(prompts_dir),
             )
             result = agent.run(
                 cadence="weekly",
@@ -1078,6 +1176,7 @@ class TestCurationAgentWeekly:
 # ---------------------------------------------------------------------------
 # Part 7: Monthly curation — bigger-picture themes + anticipated news (SRC-031)
 # ---------------------------------------------------------------------------
+
 
 class TestCurationAgentMonthly:
     """
@@ -1093,6 +1192,7 @@ class TestCurationAgentMonthly:
     ) -> None:
         """Monthly digest includes themes and outlook (SRC-031)."""
         from ai_news_agent.storage.tinydb_store import TinyDBArticleStore
+
         store = TinyDBArticleStore(tmp_path / "store.json")
         payload = _build_llm_payload(
             themes=["AI Regulation Acceleration", "Model Commoditisation"],
@@ -1101,8 +1201,10 @@ class TestCurationAgentMonthly:
         with patch("ai_news_agent.curation.agent.get_llm_client") as mock_factory:
             mock_factory.return_value = DummyLLMClient(complete_response=payload)
             agent = CurationAgent(
-                config=sample_agent_config, secrets=sample_secrets,
-                store=store, prompts_dir=str(prompts_dir),
+                config=sample_agent_config,
+                secrets=sample_secrets,
+                store=store,
+                prompts_dir=str(prompts_dir),
             )
             result = agent.run(
                 cadence="monthly",
@@ -1140,8 +1242,10 @@ class TestCurationAgentMonthly:
         with patch("ai_news_agent.curation.agent.get_llm_client") as mock_factory:
             mock_factory.return_value = DummyLLMClient()
             agent = CurationAgent(
-                config=config, secrets=sample_secrets,
-                store=store, prompts_dir=str(prompts_dir),
+                config=config,
+                secrets=sample_secrets,
+                store=store,
+                prompts_dir=str(prompts_dir),
             )
             result = agent.run(
                 cadence="monthly",
@@ -1153,6 +1257,7 @@ class TestCurationAgentMonthly:
 # ---------------------------------------------------------------------------
 # Part 8: Annual curation — top-10 + 10 predictions (SRC-032, SRC-124)
 # ---------------------------------------------------------------------------
+
 
 class TestCurationAgentAnnual:
     """
@@ -1168,15 +1273,18 @@ class TestCurationAgentAnnual:
     ) -> None:
         """Annual digest includes predictions list (SRC-032, SRC-124)."""
         from ai_news_agent.storage.tinydb_store import TinyDBArticleStore
+
         store = TinyDBArticleStore(tmp_path / "store.json")
 
         # Insert an article in the annual window (2025) so scorer isn't short-circuited
-        store.insert_if_new(_make_article(
-            headline="Annual Article 2025",
-            url="https://reuters.com/annual-article-2025",
-            agent_id=sample_agent_config.agent_id,
-            pub_date=datetime(2025, 6, 15, 10, 0, tzinfo=UTC),
-        ))
+        store.insert_if_new(
+            _make_article(
+                headline="Annual Article 2025",
+                url="https://reuters.com/annual-article-2025",
+                agent_id=sample_agent_config.agent_id,
+                pub_date=datetime(2025, 6, 15, 10, 0, tzinfo=UTC),
+            )
+        )
 
         preds = [
             "AI agents will handle >20% of enterprise customer service calls.",
@@ -1190,8 +1298,10 @@ class TestCurationAgentAnnual:
         with patch("ai_news_agent.curation.agent.get_llm_client") as mock_factory:
             mock_factory.return_value = DummyLLMClient(complete_response=payload)
             agent = CurationAgent(
-                config=sample_agent_config, secrets=sample_secrets,
-                store=store, prompts_dir=str(prompts_dir),
+                config=sample_agent_config,
+                secrets=sample_secrets,
+                store=store,
+                prompts_dir=str(prompts_dir),
             )
             result = agent.run(
                 cadence="annual",
@@ -1230,8 +1340,10 @@ class TestCurationAgentAnnual:
         with patch("ai_news_agent.curation.agent.get_llm_client") as mock_factory:
             mock_factory.return_value = dummy
             agent = CurationAgent(
-                config=config, secrets=sample_secrets,
-                store=store, prompts_dir=str(prompts_dir),
+                config=config,
+                secrets=sample_secrets,
+                store=store,
+                prompts_dir=str(prompts_dir),
             )
             result = agent.run(
                 cadence="annual",
@@ -1278,8 +1390,10 @@ class TestCurationAgentAnnual:
                 MockScorer.return_value = mock_scorer_instance
 
                 agent = CurationAgent(
-                    config=config, secrets=sample_secrets,
-                    store=store, prompts_dir=str(prompts_dir),
+                    config=config,
+                    secrets=sample_secrets,
+                    store=store,
+                    prompts_dir=str(prompts_dir),
                 )
                 agent.run(
                     cadence="annual",
@@ -1296,6 +1410,7 @@ class TestCurationAgentAnnual:
 # ---------------------------------------------------------------------------
 # Part 9: On-demand re-run with explicit window override (SRC-028)
 # ---------------------------------------------------------------------------
+
 
 class TestOnDemandRerun:
     """
@@ -1315,6 +1430,7 @@ class TestOnDemandRerun:
         Allows historical re-runs without touching reference_time (SRC-028).
         """
         from ai_news_agent.storage.tinydb_store import TinyDBArticleStore
+
         store = TinyDBArticleStore(tmp_path / "store.json")
 
         # Insert article in the explicit window (March 2026)
@@ -1331,8 +1447,10 @@ class TestOnDemandRerun:
         with patch("ai_news_agent.curation.agent.get_llm_client") as mock_factory:
             mock_factory.return_value = DummyLLMClient()
             agent = CurationAgent(
-                config=sample_agent_config, secrets=sample_secrets,
-                store=store, prompts_dir=str(prompts_dir),
+                config=sample_agent_config,
+                secrets=sample_secrets,
+                store=store,
+                prompts_dir=str(prompts_dir),
             )
             result = agent.run(
                 cadence="monthly",
@@ -1356,15 +1474,18 @@ class TestOnDemandRerun:
     ) -> None:
         """Articles outside the explicit window are not retrieved (SRC-008)."""
         from ai_news_agent.storage.tinydb_store import TinyDBArticleStore
+
         store = TinyDBArticleStore(tmp_path / "store.json")
 
         # Insert article in May — outside March window
-        store.insert_if_new(_make_article(
-            headline="May Article",
-            url="https://reuters.com/may-article",
-            agent_id=sample_agent_config.agent_id,
-            pub_date=datetime(2026, 5, 9, 10, 0, tzinfo=UTC),
-        ))
+        store.insert_if_new(
+            _make_article(
+                headline="May Article",
+                url="https://reuters.com/may-article",
+                agent_id=sample_agent_config.agent_id,
+                pub_date=datetime(2026, 5, 9, 10, 0, tzinfo=UTC),
+            )
+        )
 
         march_start = datetime(2026, 3, 1, tzinfo=UTC)
         march_end = datetime(2026, 3, 31, 23, 59, 59, tzinfo=UTC)
@@ -1372,8 +1493,10 @@ class TestOnDemandRerun:
         with patch("ai_news_agent.curation.agent.get_llm_client") as mock_factory:
             mock_factory.return_value = DummyLLMClient()
             agent = CurationAgent(
-                config=sample_agent_config, secrets=sample_secrets,
-                store=store, prompts_dir=str(prompts_dir),
+                config=sample_agent_config,
+                secrets=sample_secrets,
+                store=store,
+                prompts_dir=str(prompts_dir),
             )
             result = agent.run(
                 cadence="monthly",
@@ -1394,14 +1517,17 @@ class TestOnDemandRerun:
     ) -> None:
         """Running curation twice for the same date+cadence produces one DigestRecord (SRC-145)."""
         from ai_news_agent.storage.tinydb_store import TinyDBArticleStore
+
         store = TinyDBArticleStore(tmp_path / "store.json")
         ref = datetime(2026, 5, 10, tzinfo=UTC)
 
         with patch("ai_news_agent.curation.agent.get_llm_client") as mock_factory:
             mock_factory.return_value = DummyLLMClient()
             agent = CurationAgent(
-                config=sample_agent_config, secrets=sample_secrets,
-                store=store, prompts_dir=str(prompts_dir),
+                config=sample_agent_config,
+                secrets=sample_secrets,
+                store=store,
+                prompts_dir=str(prompts_dir),
             )
             agent.run(cadence="daily", reference_time=ref)
             agent.run(cadence="daily", reference_time=ref)  # re-run
@@ -1415,6 +1541,7 @@ class TestOnDemandRerun:
 # ---------------------------------------------------------------------------
 # Part 10: Dry-run mode (SRC-102)
 # ---------------------------------------------------------------------------
+
 
 class TestDryRun:
     """
@@ -1430,12 +1557,15 @@ class TestDryRun:
     ) -> None:
         """dry_run=True is reflected in CurationRunResult.dry_run (SRC-102)."""
         from ai_news_agent.storage.tinydb_store import TinyDBArticleStore
+
         store = TinyDBArticleStore(tmp_path / "store.json")
         with patch("ai_news_agent.curation.agent.get_llm_client") as mock_factory:
             mock_factory.return_value = DummyLLMClient()
             agent = CurationAgent(
-                config=sample_agent_config, secrets=sample_secrets,
-                store=store, prompts_dir=str(prompts_dir),
+                config=sample_agent_config,
+                secrets=sample_secrets,
+                store=store,
+                prompts_dir=str(prompts_dir),
             )
             result = agent.run(cadence="daily", dry_run=True)
         assert result.dry_run is True
@@ -1449,12 +1579,15 @@ class TestDryRun:
     ) -> None:
         """Dry-run mode does not persist DigestRecord to the store (SRC-102)."""
         from ai_news_agent.storage.tinydb_store import TinyDBArticleStore
+
         store = TinyDBArticleStore(tmp_path / "store.json")
         with patch("ai_news_agent.curation.agent.get_llm_client") as mock_factory:
             mock_factory.return_value = DummyLLMClient()
             agent = CurationAgent(
-                config=sample_agent_config, secrets=sample_secrets,
-                store=store, prompts_dir=str(prompts_dir),
+                config=sample_agent_config,
+                secrets=sample_secrets,
+                store=store,
+                prompts_dir=str(prompts_dir),
             )
             agent.run(cadence="daily", dry_run=True)
 
@@ -1470,12 +1603,15 @@ class TestDryRun:
     ) -> None:
         """Dry-run produces a complete CurationRunResult for CI verification (SRC-102)."""
         from ai_news_agent.storage.tinydb_store import TinyDBArticleStore
+
         store = TinyDBArticleStore(tmp_path / "store.json")
         with patch("ai_news_agent.curation.agent.get_llm_client") as mock_factory:
             mock_factory.return_value = DummyLLMClient()
             agent = CurationAgent(
-                config=sample_agent_config, secrets=sample_secrets,
-                store=store, prompts_dir=str(prompts_dir),
+                config=sample_agent_config,
+                secrets=sample_secrets,
+                store=store,
+                prompts_dir=str(prompts_dir),
             )
             result = agent.run(cadence="daily", dry_run=True)
 
@@ -1493,12 +1629,15 @@ class TestDryRun:
     ) -> None:
         """Normal (non-dry-run) mode persists DigestRecord (SRC-145)."""
         from ai_news_agent.storage.tinydb_store import TinyDBArticleStore
+
         store = TinyDBArticleStore(tmp_path / "store.json")
         with patch("ai_news_agent.curation.agent.get_llm_client") as mock_factory:
             mock_factory.return_value = DummyLLMClient()
             agent = CurationAgent(
-                config=sample_agent_config, secrets=sample_secrets,
-                store=store, prompts_dir=str(prompts_dir),
+                config=sample_agent_config,
+                secrets=sample_secrets,
+                store=store,
+                prompts_dir=str(prompts_dir),
             )
             result = agent.run(
                 cadence="daily",
@@ -1515,6 +1654,7 @@ class TestDryRun:
 # Part 11: Quality monitoring metadata (SRC-150)
 # ---------------------------------------------------------------------------
 
+
 class TestQualityMonitoring:
     """
     Traces: SRC-150 (items_by_tier, items_by_source_class, token_usage,
@@ -1530,34 +1670,39 @@ class TestQualityMonitoring:
     ) -> None:
         """metadata.items_by_tier reflects tier distribution of returned items (SRC-150)."""
         from ai_news_agent.storage.tinydb_store import TinyDBArticleStore
+
         store = TinyDBArticleStore(tmp_path / "store.json")
-        payload = _build_llm_payload(items=[
-            {
-                "headline": "1b Article",
-                "source_name": "Reuters",
-                "url": "https://reuters.com/a",
-                "pub_date": "2026-05-09",
-                "why_it_matters": "Matters.",
-                "impact_tags": ["business_impact"],
-                "tier": "1b",
-                "cross_refs": [],
-            },
-            {
-                "headline": "2 Article",
-                "source_name": "OpenAI Blog",
-                "url": "https://openai.com/blog/b",
-                "pub_date": "2026-05-09",
-                "why_it_matters": "Also matters.",
-                "impact_tags": ["business_impact"],
-                "tier": "2",
-                "cross_refs": [],
-            },
-        ])
+        payload = _build_llm_payload(
+            items=[
+                {
+                    "headline": "1b Article",
+                    "source_name": "Reuters",
+                    "url": "https://reuters.com/a",
+                    "pub_date": "2026-05-09",
+                    "why_it_matters": "Matters.",
+                    "impact_tags": ["business_impact"],
+                    "tier": "1b",
+                    "cross_refs": [],
+                },
+                {
+                    "headline": "2 Article",
+                    "source_name": "OpenAI Blog",
+                    "url": "https://openai.com/blog/b",
+                    "pub_date": "2026-05-09",
+                    "why_it_matters": "Also matters.",
+                    "impact_tags": ["business_impact"],
+                    "tier": "2",
+                    "cross_refs": [],
+                },
+            ]
+        )
         with patch("ai_news_agent.curation.agent.get_llm_client") as mock_factory:
             mock_factory.return_value = DummyLLMClient(complete_response=payload)
             agent = CurationAgent(
-                config=sample_agent_config, secrets=sample_secrets,
-                store=store, prompts_dir=str(prompts_dir),
+                config=sample_agent_config,
+                secrets=sample_secrets,
+                store=store,
+                prompts_dir=str(prompts_dir),
             )
             result = agent.run(
                 cadence="daily",
@@ -1575,45 +1720,52 @@ class TestQualityMonitoring:
     ) -> None:
         """metadata.items_by_source_class tracks web vs twitter (SRC-150)."""
         from ai_news_agent.storage.tinydb_store import TinyDBArticleStore
+
         store = TinyDBArticleStore(tmp_path / "store.json")
 
         # Insert a candidate in the daily window so scorer is not short-circuited
-        store.insert_if_new(_make_article(
-            agent_id=sample_agent_config.agent_id,
-            pub_date=datetime(2026, 5, 9, 10, 0, tzinfo=UTC),
-        ))
+        store.insert_if_new(
+            _make_article(
+                agent_id=sample_agent_config.agent_id,
+                pub_date=datetime(2026, 5, 9, 10, 0, tzinfo=UTC),
+            )
+        )
 
-        payload = _build_llm_payload(items=[
-            {
-                "headline": "Web Article",
-                "source_name": "Reuters",
-                "url": "https://reuters.com/web",
-                "pub_date": "2026-05-09",
-                "why_it_matters": "Matters.",
-                "impact_tags": ["business_impact"],
-                "tier": "1b",
-                "cross_refs": [],
-                "twitter_handle": None,
-                "tweet_url": None,
-            },
-            {
-                "headline": "Twitter Article",
-                "source_name": "Twitter/X",
-                "url": "https://twitter.com/sama/status/1",
-                "pub_date": "2026-05-09",
-                "why_it_matters": "Executive announcement.",
-                "impact_tags": ["business_impact"],
-                "tier": "1b",
-                "cross_refs": [],
-                "twitter_handle": "sama",
-                "tweet_url": "https://twitter.com/sama/status/1",
-            },
-        ])
+        payload = _build_llm_payload(
+            items=[
+                {
+                    "headline": "Web Article",
+                    "source_name": "Reuters",
+                    "url": "https://reuters.com/web",
+                    "pub_date": "2026-05-09",
+                    "why_it_matters": "Matters.",
+                    "impact_tags": ["business_impact"],
+                    "tier": "1b",
+                    "cross_refs": [],
+                    "twitter_handle": None,
+                    "tweet_url": None,
+                },
+                {
+                    "headline": "Twitter Article",
+                    "source_name": "Twitter/X",
+                    "url": "https://twitter.com/sama/status/1",
+                    "pub_date": "2026-05-09",
+                    "why_it_matters": "Executive announcement.",
+                    "impact_tags": ["business_impact"],
+                    "tier": "1b",
+                    "cross_refs": [],
+                    "twitter_handle": "sama",
+                    "tweet_url": "https://twitter.com/sama/status/1",
+                },
+            ]
+        )
         with patch("ai_news_agent.curation.agent.get_llm_client") as mock_factory:
             mock_factory.return_value = DummyLLMClient(complete_response=payload)
             agent = CurationAgent(
-                config=sample_agent_config, secrets=sample_secrets,
-                store=store, prompts_dir=str(prompts_dir),
+                config=sample_agent_config,
+                secrets=sample_secrets,
+                store=store,
+                prompts_dir=str(prompts_dir),
             )
             result = agent.run(
                 cadence="daily",
@@ -1639,25 +1791,30 @@ class TestQualityMonitoring:
     ) -> None:
         """tweet_api_call_count equals the number of tweet signals in the window (SRC-150)."""
         from ai_news_agent.storage.tinydb_store import TinyDBArticleStore
+
         store = TinyDBArticleStore(tmp_path / "store.json")
 
         for i in range(3):
-            store.insert_tweet_signal(TweetSignal(
-                tweet_id=f"tweet-{i}",
-                handle="karpathy",
-                text=f"Tweet {i}",
-                created_at=datetime(2026, 5, 9, 10 + i, 0, tzinfo=UTC),
-                linked_urls=[],
-                agent_id=sample_agent_config.agent_id,
-                fetched_at=datetime(2026, 5, 9, 10 + i, 5, tzinfo=UTC),
-                weight=1.0,
-            ))
+            store.insert_tweet_signal(
+                TweetSignal(
+                    tweet_id=f"tweet-{i}",
+                    handle="karpathy",
+                    text=f"Tweet {i}",
+                    created_at=datetime(2026, 5, 9, 10 + i, 0, tzinfo=UTC),
+                    linked_urls=[],
+                    agent_id=sample_agent_config.agent_id,
+                    fetched_at=datetime(2026, 5, 9, 10 + i, 5, tzinfo=UTC),
+                    weight=1.0,
+                )
+            )
 
         with patch("ai_news_agent.curation.agent.get_llm_client") as mock_factory:
             mock_factory.return_value = DummyLLMClient()
             agent = CurationAgent(
-                config=sample_agent_config, secrets=sample_secrets,
-                store=store, prompts_dir=str(prompts_dir),
+                config=sample_agent_config,
+                secrets=sample_secrets,
+                store=store,
+                prompts_dir=str(prompts_dir),
             )
             result = agent.run(
                 cadence="daily",
@@ -1679,16 +1836,20 @@ class TestQualityMonitoring:
         from ai_news_agent.storage.tinydb_store import TinyDBArticleStore
 
         store = TinyDBArticleStore(tmp_path / "store.json")
-        store.insert_if_new(_make_article(
-            agent_id=sample_agent_config.agent_id,
-            pub_date=datetime(2026, 5, 9, 10, 0, tzinfo=UTC),
-        ))
+        store.insert_if_new(
+            _make_article(
+                agent_id=sample_agent_config.agent_id,
+                pub_date=datetime(2026, 5, 9, 10, 0, tzinfo=UTC),
+            )
+        )
 
         with patch("ai_news_agent.curation.agent.get_llm_client") as mock_factory:
             mock_factory.return_value = DummyLLMClient()
             agent = CurationAgent(
-                config=sample_agent_config, secrets=sample_secrets,
-                store=store, prompts_dir=str(prompts_dir),
+                config=sample_agent_config,
+                secrets=sample_secrets,
+                store=store,
+                prompts_dir=str(prompts_dir),
             )
             result = agent.run(
                 cadence="daily",
@@ -1703,6 +1864,7 @@ class TestQualityMonitoring:
 # ---------------------------------------------------------------------------
 # Part 12: DigestRecord persistence and idempotency (SRC-145)
 # ---------------------------------------------------------------------------
+
 
 class TestDigestRecordPersistence:
     """
@@ -1719,14 +1881,17 @@ class TestDigestRecordPersistence:
     ) -> None:
         """DigestRecord is written to the store after a successful run (SRC-145)."""
         from ai_news_agent.storage.tinydb_store import TinyDBArticleStore
+
         store = TinyDBArticleStore(tmp_path / "store.json")
         ref = datetime(2026, 5, 10, tzinfo=UTC)
 
         with patch("ai_news_agent.curation.agent.get_llm_client") as mock_factory:
             mock_factory.return_value = DummyLLMClient()
             agent = CurationAgent(
-                config=sample_agent_config, secrets=sample_secrets,
-                store=store, prompts_dir=str(prompts_dir),
+                config=sample_agent_config,
+                secrets=sample_secrets,
+                store=store,
+                prompts_dir=str(prompts_dir),
             )
             agent.run(cadence="daily", reference_time=ref)
 
@@ -1745,14 +1910,17 @@ class TestDigestRecordPersistence:
     ) -> None:
         """DigestRecord.prompt_version is the SHA-256 hash (SRC-129)."""
         from ai_news_agent.storage.tinydb_store import TinyDBArticleStore
+
         store = TinyDBArticleStore(tmp_path / "store.json")
         ref = datetime(2026, 5, 10, tzinfo=UTC)
 
         with patch("ai_news_agent.curation.agent.get_llm_client") as mock_factory:
             mock_factory.return_value = DummyLLMClient()
             agent = CurationAgent(
-                config=sample_agent_config, secrets=sample_secrets,
-                store=store, prompts_dir=str(prompts_dir),
+                config=sample_agent_config,
+                secrets=sample_secrets,
+                store=store,
+                prompts_dir=str(prompts_dir),
             )
             agent.run(cadence="daily", reference_time=ref)
 
@@ -1771,21 +1939,22 @@ class TestDigestRecordPersistence:
     ) -> None:
         """Running curation twice for same date writes only one record (SRC-145)."""
         from ai_news_agent.storage.tinydb_store import TinyDBArticleStore
+
         store = TinyDBArticleStore(tmp_path / "store.json")
         ref = datetime(2026, 5, 10, tzinfo=UTC)
 
         with patch("ai_news_agent.curation.agent.get_llm_client") as mock_factory:
             mock_factory.return_value = DummyLLMClient()
             agent = CurationAgent(
-                config=sample_agent_config, secrets=sample_secrets,
-                store=store, prompts_dir=str(prompts_dir),
+                config=sample_agent_config,
+                secrets=sample_secrets,
+                store=store,
+                prompts_dir=str(prompts_dir),
             )
             agent.run(cadence="daily", reference_time=ref)
             agent.run(cadence="daily", reference_time=ref)
 
-        all_digests = store.list_digests(
-            agent_id=sample_agent_config.agent_id, cadence="daily"
-        )
+        all_digests = store.list_digests(agent_id=sample_agent_config.agent_id, cadence="daily")
         assert len(all_digests) == 1, (
             "Re-running for the same date produces exactly one DigestRecord (SRC-145)"
         )
@@ -1799,13 +1968,16 @@ class TestDigestRecordPersistence:
     ) -> None:
         """Daily and weekly runs produce separate DigestRecords (SRC-029, SRC-030)."""
         from ai_news_agent.storage.tinydb_store import TinyDBArticleStore
+
         store = TinyDBArticleStore(tmp_path / "store.json")
 
         with patch("ai_news_agent.curation.agent.get_llm_client") as mock_factory:
             mock_factory.return_value = DummyLLMClient()
             agent = CurationAgent(
-                config=sample_agent_config, secrets=sample_secrets,
-                store=store, prompts_dir=str(prompts_dir),
+                config=sample_agent_config,
+                secrets=sample_secrets,
+                store=store,
+                prompts_dir=str(prompts_dir),
             )
             agent.run(cadence="daily", reference_time=datetime(2026, 5, 10, tzinfo=UTC))
             agent.run(cadence="weekly", reference_time=datetime(2026, 5, 11, tzinfo=UTC))
@@ -1819,6 +1991,7 @@ class TestDigestRecordPersistence:
 # ---------------------------------------------------------------------------
 # Part 13: Twitter degradation — API-down vs quiet-window (SRC-148)
 # ---------------------------------------------------------------------------
+
 
 class TestTwitterDegradation:
     """
@@ -1834,12 +2007,15 @@ class TestTwitterDegradation:
     ) -> None:
         """Explicit twitter_api_available=False sets degradation note (SRC-148)."""
         from ai_news_agent.storage.tinydb_store import TinyDBArticleStore
+
         store = TinyDBArticleStore(tmp_path / "store.json")
         with patch("ai_news_agent.curation.agent.get_llm_client") as mock_factory:
             mock_factory.return_value = DummyLLMClient()
             agent = CurationAgent(
-                config=sample_agent_config, secrets=sample_secrets,
-                store=store, prompts_dir=str(prompts_dir),
+                config=sample_agent_config,
+                secrets=sample_secrets,
+                store=store,
+                prompts_dir=str(prompts_dir),
             )
             result = agent.run(
                 cadence="daily",
@@ -1857,12 +2033,15 @@ class TestTwitterDegradation:
     ) -> None:
         """Explicit twitter_api_available=True clears degradation note (SRC-148)."""
         from ai_news_agent.storage.tinydb_store import TinyDBArticleStore
+
         store = TinyDBArticleStore(tmp_path / "store.json")
         with patch("ai_news_agent.curation.agent.get_llm_client") as mock_factory:
             mock_factory.return_value = DummyLLMClient()
             agent = CurationAgent(
-                config=sample_agent_config, secrets=sample_secrets,
-                store=store, prompts_dir=str(prompts_dir),
+                config=sample_agent_config,
+                secrets=sample_secrets,
+                store=store,
+                prompts_dir=str(prompts_dir),
             )
             result = agent.run(
                 cadence="daily",
@@ -1881,12 +2060,15 @@ class TestTwitterDegradation:
     ) -> None:
         """No signals in store → inferred as unavailable (quiet window or API down) (SRC-148)."""
         from ai_news_agent.storage.tinydb_store import TinyDBArticleStore
+
         store = TinyDBArticleStore(tmp_path / "store.json")
         with patch("ai_news_agent.curation.agent.get_llm_client") as mock_factory:
             mock_factory.return_value = DummyLLMClient()
             agent = CurationAgent(
-                config=sample_agent_config, secrets=sample_secrets,
-                store=store, prompts_dir=str(prompts_dir),
+                config=sample_agent_config,
+                secrets=sample_secrets,
+                store=store,
+                prompts_dir=str(prompts_dir),
             )
             result = agent.run(cadence="daily", twitter_api_available=None)
         # No signals → inferred as unavailable
@@ -1902,12 +2084,15 @@ class TestTwitterDegradation:
     ) -> None:
         """Degradation note text references SRC-148 or 'unavailable' (SRC-148)."""
         from ai_news_agent.storage.tinydb_store import TinyDBArticleStore
+
         store = TinyDBArticleStore(tmp_path / "store.json")
         with patch("ai_news_agent.curation.agent.get_llm_client") as mock_factory:
             mock_factory.return_value = DummyLLMClient()
             agent = CurationAgent(
-                config=sample_agent_config, secrets=sample_secrets,
-                store=store, prompts_dir=str(prompts_dir),
+                config=sample_agent_config,
+                secrets=sample_secrets,
+                store=store,
+                prompts_dir=str(prompts_dir),
             )
             result = agent.run(cadence="daily", twitter_api_available=False)
         note = result.twitter_degradation_note
@@ -1919,6 +2104,7 @@ class TestTwitterDegradation:
 # Part 14: Prompt builder integration — all cadences (SRC-115–SRC-124)
 # ---------------------------------------------------------------------------
 
+
 class TestPromptBuilderAllCadences:
     """
     Verify PromptBuilder produces valid prompts for all four cadences.
@@ -1926,9 +2112,7 @@ class TestPromptBuilderAllCadences:
     """
 
     @pytest.mark.parametrize("cadence", ["daily", "weekly", "monthly", "annual"])
-    def test_prompt_built_for_each_cadence(
-        self, cadence: str, prompts_dir: Path
-    ) -> None:
+    def test_prompt_built_for_each_cadence(self, cadence: str, prompts_dir: Path) -> None:
         """Prompt builder produces a non-empty prompt for every cadence (SRC-113)."""
         builder = PromptBuilder(prompts_dir=prompts_dir)
         start = datetime(2026, 5, 1, tzinfo=UTC)
@@ -2044,6 +2228,7 @@ class TestPromptBuilderAllCadences:
 # Part 15: Candidate formatting for LLM context (SRC-027, SRC-048)
 # ---------------------------------------------------------------------------
 
+
 class TestCandidateFormatting:
     """
     Verify the Scorer formats candidates with all required fields for LLM context.
@@ -2088,6 +2273,7 @@ class TestCandidateFormatting:
 # Part 16: CurationAgent construction and configuration
 # ---------------------------------------------------------------------------
 
+
 class TestCurationAgentConstruction:
     """
     Traces: SRC-054 (configurable research LLM), SRC-071–SRC-073 (config system)
@@ -2103,9 +2289,9 @@ class TestCurationAgentConstruction:
         """When no store is provided, TinyDBArticleStore is the default (SRC-053)."""
         from ai_news_agent.storage.tinydb_store import TinyDBArticleStore
 
-        config = sample_agent_config.model_copy(update={
-            "output_dir": str(tmp_path / "outputs" / "test-agent")
-        })
+        config = sample_agent_config.model_copy(
+            update={"output_dir": str(tmp_path / "outputs" / "test-agent")}
+        )
         with patch("ai_news_agent.curation.agent.get_llm_client") as mock_factory:
             mock_factory.return_value = DummyLLMClient()
             agent = CurationAgent(
@@ -2133,12 +2319,15 @@ class TestCurationAgentConstruction:
             )
         assert agent._store is tiny_db_store
 
-    @pytest.mark.parametrize(("cadence", "expected_top_n"), [
-        ("daily",   5),
-        ("weekly",  5),
-        ("monthly", 5),
-        ("annual",  5),
-    ])
+    @pytest.mark.parametrize(
+        ("cadence", "expected_top_n"),
+        [
+            ("daily", 5),
+            ("weekly", 5),
+            ("monthly", 5),
+            ("annual", 5),
+        ],
+    )
     def test_top_n_resolved_from_config(
         self,
         cadence: str,
@@ -2150,6 +2339,7 @@ class TestCurationAgentConstruction:
     ) -> None:
         """top_n is resolved from config per cadence (SRC-029–SRC-032)."""
         from ai_news_agent.storage.tinydb_store import TinyDBArticleStore
+
         store = TinyDBArticleStore(tmp_path / "store.json")
 
         captured: dict[str, int] = {}
@@ -2163,8 +2353,10 @@ class TestCurationAgentConstruction:
             mock_factory.return_value = DummyLLMClient()
             with patch.object(PromptBuilder, "build", capturing_build):
                 agent = CurationAgent(
-                    config=sample_agent_config, secrets=sample_secrets,
-                    store=store, prompts_dir=str(prompts_dir),
+                    config=sample_agent_config,
+                    secrets=sample_secrets,
+                    store=store,
+                    prompts_dir=str(prompts_dir),
                 )
                 agent.run(
                     cadence=cadence,
@@ -2180,6 +2372,7 @@ class TestCurationAgentConstruction:
 # Part 17: Cadence-specific model routing — research LLM (SRC-054)
 # ---------------------------------------------------------------------------
 
+
 class TestModelRouting:
     """
     Traces: SRC-054 (configurable research LLM for monthly/annual)
@@ -2194,12 +2387,15 @@ class TestModelRouting:
     ) -> None:
         """Daily uses default model (gpt-4o) when no cadence override configured."""
         from ai_news_agent.storage.tinydb_store import TinyDBArticleStore
+
         store = TinyDBArticleStore(tmp_path / "store.json")
         with patch("ai_news_agent.curation.agent.get_llm_client") as mock_factory:
             mock_factory.return_value = DummyLLMClient()
             agent = CurationAgent(
-                config=sample_agent_config, secrets=sample_secrets,
-                store=store, prompts_dir=str(prompts_dir),
+                config=sample_agent_config,
+                secrets=sample_secrets,
+                store=store,
+                prompts_dir=str(prompts_dir),
             )
             result = agent.run(
                 cadence="daily",
@@ -2233,8 +2429,10 @@ class TestModelRouting:
         with patch("ai_news_agent.curation.agent.get_llm_client") as mock_factory:
             mock_factory.return_value = DummyLLMClient()
             agent = CurationAgent(
-                config=config, secrets=sample_secrets,
-                store=store, prompts_dir=str(prompts_dir),
+                config=config,
+                secrets=sample_secrets,
+                store=store,
+                prompts_dir=str(prompts_dir),
             )
             result = agent.run(
                 cadence="annual",
@@ -2251,12 +2449,15 @@ class TestModelRouting:
     ) -> None:
         """Weekly without override uses default model (SRC-054)."""
         from ai_news_agent.storage.tinydb_store import TinyDBArticleStore
+
         store = TinyDBArticleStore(tmp_path / "store.json")
         with patch("ai_news_agent.curation.agent.get_llm_client") as mock_factory:
             mock_factory.return_value = DummyLLMClient()
             agent = CurationAgent(
-                config=sample_agent_config, secrets=sample_secrets,
-                store=store, prompts_dir=str(prompts_dir),
+                config=sample_agent_config,
+                secrets=sample_secrets,
+                store=store,
+                prompts_dir=str(prompts_dir),
             )
             result = agent.run(
                 cadence="weekly",

@@ -152,6 +152,7 @@ def export_schemas(export_dir: str | Path = "configs") -> None:
 # Runtime validation helpers
 # ---------------------------------------------------------------------------
 
+
 class SchemaValidationError(Exception):
     """
     Raised when a YAML document fails JSON Schema or Pydantic validation.
@@ -217,9 +218,7 @@ def validate_agent_yaml(
     try:
         data = yaml.safe_load(raw_text) or {}
     except yaml.YAMLError as exc:
-        raise SchemaValidationError(
-            [f"YAML parse error: {exc}"], source=str(resolved)
-        ) from exc
+        raise SchemaValidationError([f"YAML parse error: {exc}"], source=str(resolved)) from exc
 
     # Pydantic validation
     from pydantic import ValidationError
@@ -272,9 +271,7 @@ def validate_scheduler_yaml(path: str | Path) -> SchedulerConfig:
     try:
         data = yaml.safe_load(raw_text) or {}
     except yaml.YAMLError as exc:
-        raise SchemaValidationError(
-            [f"YAML parse error: {exc}"], source=str(resolved)
-        ) from exc
+        raise SchemaValidationError([f"YAML parse error: {exc}"], source=str(resolved)) from exc
 
     from pydantic import ValidationError
 
@@ -300,10 +297,7 @@ def summarise_agent_config(config: AgentConfig) -> str:
     Traces: SRC-072 (config visibility)
     """
     cadence_overrides = (
-        ", ".join(
-            f"{k}={v.model}" for k, v in config.llm.cadence_overrides.items()
-        )
-        or "none"
+        ", ".join(f"{k}={v.model}" for k, v in config.llm.cadence_overrides.items()) or "none"
     )
     handle_list = (
         ", ".join(f"@{h.handle}(×{h.weight})" for h in config.twitter.handles[:5])
@@ -343,6 +337,7 @@ def summarise_agent_config(config: AgentConfig) -> str:
 # ---------------------------------------------------------------------------
 # CLI entry point
 # ---------------------------------------------------------------------------
+
 
 def _cli_main(argv: list[str] | None = None) -> int:
     """
@@ -408,10 +403,7 @@ def _cli_main(argv: list[str] | None = None) -> int:
     parser.add_argument(
         "--json-schema",
         action="store_true",
-        help=(
-            "When used with --validate, also print the JSON Schema to stdout "
-            "for reference."
-        ),
+        help=("When used with --validate, also print the JSON Schema to stdout for reference."),
     )
 
     args = parser.parse_args(argv)
@@ -426,11 +418,7 @@ def _cli_main(argv: list[str] | None = None) -> int:
     config_type = args.type
 
     if args.json_schema:
-        schema = (
-            generate_agent_schema()
-            if config_type == "agent"
-            else generate_scheduler_schema()
-        )
+        schema = generate_agent_schema() if config_type == "agent" else generate_scheduler_schema()
         print(json.dumps(schema, indent=2))
         print()
 

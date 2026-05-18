@@ -41,6 +41,7 @@ import structlog
 
 try:
     import tweepy  # type: ignore[import]
+
     _TWEEPY_AVAILABLE = True
 except ImportError:
     tweepy = None  # type: ignore[assignment]
@@ -77,6 +78,7 @@ _REPLY_RE = re.compile(r"^\s*@\S+")
 # Degradation reason constants — surfaced in logs and digest notes (SRC-148)
 # ---------------------------------------------------------------------------
 
+
 class DegradationReason:
     """
     Named constants for Twitter API degradation reasons.
@@ -87,12 +89,13 @@ class DegradationReason:
 
     Traces: SRC-065 (tier awareness), SRC-148 (graceful degradation)
     """
-    TWEEPY_NOT_INSTALLED  = "tweepy_not_installed"
-    BEARER_TOKEN_MISSING  = "bearer_token_missing"
-    RATE_LIMIT            = "rate_limit_429"          # SRC-065 — API tier issue
-    UNAUTHORIZED          = "unauthorized_401"         # SRC-064 — invalid bearer token
-    TWEEPY_API_ERROR      = "tweepy_api_error"         # other tweepy exception
-    UNEXPECTED_ERROR      = "unexpected_error"
+
+    TWEEPY_NOT_INSTALLED = "tweepy_not_installed"
+    BEARER_TOKEN_MISSING = "bearer_token_missing"
+    RATE_LIMIT = "rate_limit_429"  # SRC-065 — API tier issue
+    UNAUTHORIZED = "unauthorized_401"  # SRC-064 — invalid bearer token
+    TWEEPY_API_ERROR = "tweepy_api_error"  # other tweepy exception
+    UNEXPECTED_ERROR = "unexpected_error"
 
 
 class TwitterClient:
@@ -226,7 +229,8 @@ class TwitterClient:
         if self._client is None:
             log.warning(
                 "twitter_client_unavailable",
-                degradation_reason=self._degradation_reason or DegradationReason.TWEEPY_NOT_INSTALLED,
+                degradation_reason=self._degradation_reason
+                or DegradationReason.TWEEPY_NOT_INSTALLED,
                 agent_id=agent_id,
                 msg="Twitter API disabled — digests produced from web sources only (SRC-148).",
             )

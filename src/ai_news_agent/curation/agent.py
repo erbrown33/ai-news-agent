@@ -129,9 +129,8 @@ def _daily_window(reference: datetime) -> tuple[datetime, datetime]:
 
     Traces: SRC-009, SRC-029
     """
-    yesterday_start = (
-        reference.replace(hour=0, minute=0, second=0, microsecond=0)
-        - timedelta(days=1)
+    yesterday_start = reference.replace(hour=0, minute=0, second=0, microsecond=0) - timedelta(
+        days=1
     )
     return yesterday_start, reference
 
@@ -186,10 +185,10 @@ def _annual_window(reference: datetime) -> tuple[datetime, datetime]:
 
 
 _WINDOW_FN = {
-    "daily":   _daily_window,
-    "weekly":  _weekly_window,
+    "daily": _daily_window,
+    "weekly": _weekly_window,
     "monthly": _monthly_window,
-    "annual":  _annual_window,
+    "annual": _annual_window,
 }
 
 
@@ -224,9 +223,7 @@ def _build_diagnostics(
         by_tier[article.tier] = by_tier.get(article.tier, 0) + 1
 
     reasons: list[str] = []
-    window_str = (
-        f"{window_start.isoformat()} → {window_end.isoformat()}"
-    )
+    window_str = f"{window_start.isoformat()} → {window_end.isoformat()}"
 
     if articles_in_store == 0:
         reasons.append(
@@ -471,10 +468,10 @@ class CurationAgent:
         # Step 4: Resolve top_n from config (SRC-029–SRC-032)
         # ------------------------------------------------------------------
         top_n_map = {
-            "daily":   self._config.limits.daily_top_n,
-            "weekly":  self._config.limits.weekly_top_n,
+            "daily": self._config.limits.daily_top_n,
+            "weekly": self._config.limits.weekly_top_n,
             "monthly": self._config.limits.monthly_top_n,
-            "annual":  self._config.limits.annual_top_n,
+            "annual": self._config.limits.annual_top_n,
         }
         top_n = top_n_map[cadence]
 
@@ -532,16 +529,16 @@ class CurationAgent:
             run_date=reference_time.date(),
             window_start=window_start,
             window_end=window_end,
-            prompt_version=prompt_version,           # SRC-129
+            prompt_version=prompt_version,  # SRC-129
             llm_provider=self._config.llm.provider,  # SRC-150
-            llm_model=model,                          # SRC-150
-            items_considered=len(candidates),         # SRC-150
-            items_included=len(curated_items),        # SRC-150
-            items_by_tier=tier_counts,                # SRC-150
-            items_by_source_class=source_class_counts,# SRC-150
-            twitter_signal_available=twitter_available,# SRC-148
-            tweet_api_call_count=len(tweet_signals),   # SRC-150
-            token_usage=token_usage,                   # SRC-150
+            llm_model=model,  # SRC-150
+            items_considered=len(candidates),  # SRC-150
+            items_included=len(curated_items),  # SRC-150
+            items_by_tier=tier_counts,  # SRC-150
+            items_by_source_class=source_class_counts,  # SRC-150
+            twitter_signal_available=twitter_available,  # SRC-148
+            tweet_api_call_count=len(tweet_signals),  # SRC-150
+            token_usage=token_usage,  # SRC-150
         )
 
         # ------------------------------------------------------------------
@@ -730,10 +727,7 @@ def cli_main() -> None:
     parser.add_argument(
         "--dry-run",
         action="store_true",
-        help=(
-            "Produce a digest but skip all store writes. "
-            "Used for CI smoke testing (SRC-102)."
-        ),
+        help=("Produce a digest but skip all store writes. Used for CI smoke testing (SRC-102)."),
     )
     args = parser.parse_args()
 
@@ -823,8 +817,7 @@ def cli_main() -> None:
 
     if result.dry_run:
         print(
-            "Dry-run mode: no store writes performed. "
-            "Output fields verified non-empty.",
+            "Dry-run mode: no store writes performed. Output fields verified non-empty.",
             file=sys.stderr,
         )
 

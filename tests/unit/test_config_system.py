@@ -74,6 +74,7 @@ from ai_news_agent.config.schema import (
 # Helpers
 # ─────────────────────────────────────────────────────────────────────────────
 
+
 def _write_yaml(path: Path, data: dict[str, Any]) -> Path:
     """Write a YAML file and return the path."""
     path.write_text(yaml.dump(data, default_flow_style=False), encoding="utf-8")
@@ -126,6 +127,7 @@ def _full_agent_yaml(agent_id: str = "full") -> dict[str, Any]:
 # ─────────────────────────────────────────────────────────────────────────────
 # LLMConfig — provider-agnostic layer  (SRC-055–SRC-061)
 # ─────────────────────────────────────────────────────────────────────────────
+
 
 class TestLLMConfig:
     """Traces: SRC-054–SRC-061 (provider-agnostic LLM layer)."""
@@ -201,6 +203,7 @@ class TestLLMConfig:
 # TwitterHandleConfig + TwitterConfig  (SRC-036–SRC-048)
 # ─────────────────────────────────────────────────────────────────────────────
 
+
 class TestTwitterHandleConfig:
     """Traces: SRC-036–SRC-046 (configurable influencer list), SRC-047 (signal role)."""
 
@@ -244,8 +247,15 @@ class TestTwitterHandleConfig:
     def test_all_default_9_handles_valid(self) -> None:
         """All 9 spec-mandated default handles are valid (SRC-037–SRC-045)."""
         default_handles = [
-            "karpathy", "sama", "demishassabis", "DarioAmodei",
-            "ylecun", "AndrewYNg", "fchollet", "drfeifei", "emilymbender",
+            "karpathy",
+            "sama",
+            "demishassabis",
+            "DarioAmodei",
+            "ylecun",
+            "AndrewYNg",
+            "fchollet",
+            "drfeifei",
+            "emilymbender",
         ]
         for handle in default_handles:
             h = TwitterHandleConfig(handle=handle)
@@ -281,10 +291,12 @@ class TestTwitterConfig:
         """Adding/removing/re-weighting handles requires only YAML edits (SRC-046)."""
         # Simulate "adding" by constructing a new list in config
         before = TwitterConfig(handles=[TwitterHandleConfig(handle="karpathy")])
-        after = TwitterConfig(handles=[
-            TwitterHandleConfig(handle="karpathy"),
-            TwitterHandleConfig(handle="timnitgebru", weight=2.0),
-        ])
+        after = TwitterConfig(
+            handles=[
+                TwitterHandleConfig(handle="karpathy"),
+                TwitterHandleConfig(handle="timnitgebru", weight=2.0),
+            ]
+        )
         assert len(after.handles) == len(before.handles) + 1
         assert after.handles[1].handle == "timnitgebru"
         assert after.handles[1].weight == 2.0
@@ -293,6 +305,7 @@ class TestTwitterConfig:
 # ─────────────────────────────────────────────────────────────────────────────
 # SourcesConfig  (SRC-016–SRC-021, SRC-034)
 # ─────────────────────────────────────────────────────────────────────────────
+
 
 class TestSourcesConfig:
     """Traces: SRC-016–SRC-021, SRC-034."""
@@ -349,6 +362,7 @@ class TestSourcesConfig:
 # LimitsConfig  (SRC-029–SRC-032)
 # ─────────────────────────────────────────────────────────────────────────────
 
+
 class TestLimitsConfig:
     """Traces: SRC-029–SRC-032 (top-N limits per cadence)."""
 
@@ -397,6 +411,7 @@ class TestLimitsConfig:
 # ─────────────────────────────────────────────────────────────────────────────
 # AgentConfig  (SRC-071–SRC-073)
 # ─────────────────────────────────────────────────────────────────────────────
+
 
 class TestAgentConfigModel:
     """Traces: SRC-071–SRC-073, SRC-113, SRC-129, SRC-145."""
@@ -521,6 +536,7 @@ class TestAgentConfigModel:
 # SecretScanner  (SRC-073)
 # ─────────────────────────────────────────────────────────────────────────────
 
+
 class TestSecretScanner:
     """Traces: SRC-073 (secrets from env vars ONLY — never in YAML)."""
 
@@ -600,6 +616,7 @@ class TestSecretScanner:
 # load_agent_config  (SRC-071–SRC-073, SRC-145)
 # ─────────────────────────────────────────────────────────────────────────────
 
+
 class TestLoadAgentConfig:
     """Traces: SRC-071 (fail loudly), SRC-073 (no secrets), SRC-145 (placeholder)."""
 
@@ -675,8 +692,17 @@ class TestLoadAgentConfig:
         assert config.llm.model == "gpt-4o"
         # All 9 default handles present (SRC-037–SRC-045)
         handles = {h.handle for h in config.twitter.handles}
-        for expected in ["karpathy", "sama", "demishassabis", "DarioAmodei",
-                         "ylecun", "AndrewYNg", "fchollet", "drfeifei", "emilymbender"]:
+        for expected in [
+            "karpathy",
+            "sama",
+            "demishassabis",
+            "DarioAmodei",
+            "ylecun",
+            "AndrewYNg",
+            "fchollet",
+            "drfeifei",
+            "emilymbender",
+        ]:
             assert expected in handles, f"Missing default handle: @{expected}"
         # All required tier lists present (SRC-017–SRC-021)
         assert "reuters.com" in config.sources.tier_1b
@@ -702,6 +728,7 @@ class TestLoadAgentConfig:
 # ─────────────────────────────────────────────────────────────────────────────
 # load_scheduler_config  (SRC-052, SRC-072, SRC-144, SRC-147)
 # ─────────────────────────────────────────────────────────────────────────────
+
 
 class TestLoadSchedulerConfig:
     """Traces: SRC-052, SRC-072, SRC-144, SRC-147."""
@@ -772,6 +799,7 @@ class TestLoadSchedulerConfig:
 # load_all_enabled_agents  (SRC-072)
 # ─────────────────────────────────────────────────────────────────────────────
 
+
 class TestLoadAllEnabledAgents:
     """Traces: SRC-072 (multi-agent discovery; independent scheduling per agent)."""
 
@@ -785,10 +813,12 @@ class TestLoadAllEnabledAgents:
     def test_only_enabled_agents_loaded(self, tmp_path: Path) -> None:
         """Disabled agents are not returned (SRC-072)."""
         good_yaml = _write_yaml(tmp_path / "good.yaml", _minimal_agent_yaml("good"))
-        cfg = self._sched_cfg([
-            AgentRegistration(id="good", config=str(good_yaml), enabled=True),
-            AgentRegistration(id="disabled", config="/nonexistent.yaml", enabled=False),
-        ])
+        cfg = self._sched_cfg(
+            [
+                AgentRegistration(id="good", config=str(good_yaml), enabled=True),
+                AgentRegistration(id="disabled", config="/nonexistent.yaml", enabled=False),
+            ]
+        )
         result = load_all_enabled_agents(cfg)
         assert "good" in result
         assert "disabled" not in result
@@ -796,10 +826,12 @@ class TestLoadAllEnabledAgents:
     def test_bad_config_does_not_abort_others(self, tmp_path: Path) -> None:
         """One bad config file does not prevent others from loading (SRC-072)."""
         good_yaml = _write_yaml(tmp_path / "good.yaml", _minimal_agent_yaml("good"))
-        cfg = self._sched_cfg([
-            AgentRegistration(id="good", config=str(good_yaml), enabled=True),
-            AgentRegistration(id="bad", config="/nonexistent.yaml", enabled=True),
-        ])
+        cfg = self._sched_cfg(
+            [
+                AgentRegistration(id="good", config=str(good_yaml), enabled=True),
+                AgentRegistration(id="bad", config="/nonexistent.yaml", enabled=True),
+            ]
+        )
         result = load_all_enabled_agents(cfg)
         assert "good" in result
         assert "bad" not in result
@@ -813,10 +845,12 @@ class TestLoadAllEnabledAgents:
         """Multiple enabled agents each get their own AgentConfig (SRC-072)."""
         yaml_a = _write_yaml(tmp_path / "a.yaml", _minimal_agent_yaml("agent-a"))
         yaml_b = _write_yaml(tmp_path / "b.yaml", _full_agent_yaml("agent-b"))
-        cfg = self._sched_cfg([
-            AgentRegistration(id="agent-a", config=str(yaml_a), enabled=True),
-            AgentRegistration(id="agent-b", config=str(yaml_b), enabled=True),
-        ])
+        cfg = self._sched_cfg(
+            [
+                AgentRegistration(id="agent-a", config=str(yaml_a), enabled=True),
+                AgentRegistration(id="agent-b", config=str(yaml_b), enabled=True),
+            ]
+        )
         result = load_all_enabled_agents(cfg)
         assert set(result.keys()) == {"agent-a", "agent-b"}
         assert result["agent-a"].llm.model == "gpt-4o"  # default
@@ -828,9 +862,11 @@ class TestLoadAllEnabledAgents:
         The file's agent_id is used as the dict key (SRC-072).
         """
         yaml_path = _write_yaml(tmp_path / "mismatch.yaml", _minimal_agent_yaml("file-id"))
-        cfg = self._sched_cfg([
-            AgentRegistration(id="registry-id", config=str(yaml_path), enabled=True),
-        ])
+        cfg = self._sched_cfg(
+            [
+                AgentRegistration(id="registry-id", config=str(yaml_path), enabled=True),
+            ]
+        )
         result = load_all_enabled_agents(cfg)
         # File's agent_id wins
         assert "file-id" in result
@@ -840,6 +876,7 @@ class TestLoadAllEnabledAgents:
 # ─────────────────────────────────────────────────────────────────────────────
 # discover_agents_from_scheduler  (SRC-072)
 # ─────────────────────────────────────────────────────────────────────────────
+
 
 class TestDiscoverAgentsFromScheduler:
     """Traces: SRC-072 (scheduler discovers agents without code changes)."""
@@ -858,6 +895,7 @@ class TestDiscoverAgentsFromScheduler:
 # ─────────────────────────────────────────────────────────────────────────────
 # RetryConfig / TriggersConfig / SchedulerConfig  (SRC-144, SRC-052, SRC-147)
 # ─────────────────────────────────────────────────────────────────────────────
+
 
 class TestRetryConfig:
     """Traces: SRC-144 (exponential backoff, 3 retries)."""
@@ -889,11 +927,11 @@ class TestTriggersConfig:
 
     def test_default_cron_expressions(self) -> None:
         t = TriggersConfig()
-        assert t.sourcing_daily == "0 0 * * *"      # 00:00 UTC daily  (SRC-009)
-        assert t.curation_daily == "5 0 * * *"      # 00:05 UTC daily
-        assert t.curation_weekly == "0 1 * * 0"     # 01:00 UTC Sunday
-        assert t.curation_monthly == "0 2 1 * *"    # 02:00 UTC 1st of month
-        assert t.curation_annual == "0 3 1 1 *"     # 03:00 UTC January 1st
+        assert t.sourcing_daily == "0 0 * * *"  # 00:00 UTC daily  (SRC-009)
+        assert t.curation_daily == "5 0 * * *"  # 00:05 UTC daily
+        assert t.curation_weekly == "0 1 * * 0"  # 01:00 UTC Sunday
+        assert t.curation_monthly == "0 2 1 * *"  # 02:00 UTC 1st of month
+        assert t.curation_annual == "0 3 1 1 *"  # 03:00 UTC January 1st
 
     def test_invalid_cron_wrong_field_count(self) -> None:
         with pytest.raises(ValidationError, match="5 fields"):
@@ -925,6 +963,7 @@ class TestAPIConfig:
 # ─────────────────────────────────────────────────────────────────────────────
 # RuntimeSecrets  (SRC-073, SRC-105–SRC-111)
 # ─────────────────────────────────────────────────────────────────────────────
+
 
 class TestRuntimeSecrets:
     """Traces: SRC-073, SRC-105–SRC-111 (secrets from env vars ONLY)."""
@@ -987,6 +1026,7 @@ class TestRuntimeSecrets:
 # ─────────────────────────────────────────────────────────────────────────────
 # JSON Schema generation and validation  (SRC-071, SRC-072)
 # ─────────────────────────────────────────────────────────────────────────────
+
 
 class TestSchemaGeneration:
     """Traces: SRC-071 (fail loudly with schema validation), SRC-072 (per-agent schemas)."""
@@ -1115,10 +1155,12 @@ class TestSummariseAgentConfig:
     def test_summary_contains_handle_count(self) -> None:
         config = AgentConfig(
             agent_id="test",
-            twitter=TwitterConfig(handles=[
-                TwitterHandleConfig(handle="karpathy"),
-                TwitterHandleConfig(handle="sama"),
-            ]),
+            twitter=TwitterConfig(
+                handles=[
+                    TwitterHandleConfig(handle="karpathy"),
+                    TwitterHandleConfig(handle="sama"),
+                ]
+            ),
         )
         summary = summarise_agent_config(config)
         assert "karpathy" in summary
@@ -1142,6 +1184,7 @@ class TestSummariseAgentConfig:
 # ─────────────────────────────────────────────────────────────────────────────
 # Multi-agent discovery end-to-end  (SRC-072)
 # ─────────────────────────────────────────────────────────────────────────────
+
 
 class TestMultiAgentDiscovery:
     """
@@ -1247,16 +1290,19 @@ class TestMultiAgentDiscovery:
 # CLI validator (schema.py __main__)  (SRC-071, SRC-072)
 # ─────────────────────────────────────────────────────────────────────────────
 
+
 class TestSchemaCLI:
     """Traces: SRC-071 (CLI validator), SRC-072 (per-config validation)."""
 
     def test_cli_validate_valid_agent(self) -> None:
         from ai_news_agent.config.schema import _cli_main
+
         rc = _cli_main(["--validate", "configs/default-agent.yaml"])
         assert rc == 0
 
     def test_cli_validate_invalid_agent_exits_1(self, tmp_path: Path) -> None:
         from ai_news_agent.config.schema import _cli_main
+
         bad = tmp_path / "bad.yaml"
         bad.write_text("agent_id: [broken list\n", encoding="utf-8")
         rc = _cli_main(["--validate", str(bad)])
@@ -1264,11 +1310,13 @@ class TestSchemaCLI:
 
     def test_cli_validate_scheduler(self) -> None:
         from ai_news_agent.config.schema import _cli_main
+
         rc = _cli_main(["--validate", "configs/scheduler.yaml", "--type", "scheduler"])
         assert rc == 0
 
     def test_cli_export_schemas(self, tmp_path: Path) -> None:
         from ai_news_agent.config.schema import _cli_main
+
         rc = _cli_main(["--export-dir", str(tmp_path)])
         assert rc == 0
         assert (tmp_path / "agent-config.schema.json").exists()
@@ -1276,19 +1324,26 @@ class TestSchemaCLI:
 
     def test_cli_validate_with_summary_exits_0(self) -> None:
         from ai_news_agent.config.schema import _cli_main
+
         rc = _cli_main(["--validate", "configs/default-agent.yaml", "--summary"])
         assert rc == 0
 
     def test_cli_validate_scheduler_with_summary(self) -> None:
         from ai_news_agent.config.schema import _cli_main
-        rc = _cli_main([
-            "--validate", "configs/scheduler.yaml",
-            "--type", "scheduler",
-            "--summary",
-        ])
+
+        rc = _cli_main(
+            [
+                "--validate",
+                "configs/scheduler.yaml",
+                "--type",
+                "scheduler",
+                "--summary",
+            ]
+        )
         assert rc == 0
 
     def test_cli_validate_missing_file_exits_1(self) -> None:
         from ai_news_agent.config.schema import _cli_main
+
         rc = _cli_main(["--validate", "/nonexistent/file.yaml"])
         assert rc == 1

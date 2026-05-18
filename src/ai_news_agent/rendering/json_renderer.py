@@ -39,6 +39,7 @@ SCHEMA_VERSION = "1.0"
 # Serialisation helpers
 # ---------------------------------------------------------------------------
 
+
 def _serialize(obj: Any) -> Any:
     """Custom JSON serialiser for :class:`date` and :class:`datetime` objects."""
     if isinstance(obj, (date, datetime)):
@@ -58,20 +59,18 @@ def _item_to_dict(item: CuratedItem) -> dict[str, Any]:
     - prompt_version (SRC-129 — per-item traceability)
     """
     return {
-        "headline":       item.headline,
-        "source_name":    item.source_name,
-        "url":            item.url,
-        "pub_date":       (
-            item.pub_date.isoformat()
-            if isinstance(item.pub_date, date)
-            else str(item.pub_date)
+        "headline": item.headline,
+        "source_name": item.source_name,
+        "url": item.url,
+        "pub_date": (
+            item.pub_date.isoformat() if isinstance(item.pub_date, date) else str(item.pub_date)
         ),
         "why_it_matters": item.why_it_matters,
-        "impact_tags":    item.impact_tags,
-        "tier":           item.tier,
-        "cross_refs":     item.cross_refs,
+        "impact_tags": item.impact_tags,
+        "tier": item.tier,
+        "cross_refs": item.cross_refs,
         "twitter_handle": item.twitter_handle,
-        "tweet_url":      item.tweet_url,
+        "tweet_url": item.tweet_url,
         "prompt_version": item.prompt_version,
     }
 
@@ -84,25 +83,23 @@ def _metadata_to_dict(meta: DigestMetadata) -> dict[str, Any]:
     (prompt_version) and SRC-148 (twitter_signal_available).
     """
     return {
-        "agent_id":                 meta.agent_id,
-        "cadence":                  meta.cadence,
-        "run_date":                 (
-            meta.run_date.isoformat()
-            if isinstance(meta.run_date, date)
-            else str(meta.run_date)
+        "agent_id": meta.agent_id,
+        "cadence": meta.cadence,
+        "run_date": (
+            meta.run_date.isoformat() if isinstance(meta.run_date, date) else str(meta.run_date)
         ),
-        "window_start":             meta.window_start.isoformat(),
-        "window_end":               meta.window_end.isoformat(),
-        "prompt_version":           meta.prompt_version,           # SRC-129
-        "llm_provider":             meta.llm_provider,             # SRC-150
-        "llm_model":                meta.llm_model,                # SRC-150
-        "items_considered":         meta.items_considered,         # SRC-150
-        "items_included":           meta.items_included,           # SRC-150
-        "items_by_tier":            meta.items_by_tier,            # SRC-150
-        "items_by_source_class":    meta.items_by_source_class,    # SRC-150
-        "twitter_signal_available": meta.twitter_signal_available, # SRC-148
-        "tweet_api_call_count":     meta.tweet_api_call_count,     # SRC-150
-        "token_usage":              meta.token_usage,              # SRC-150
+        "window_start": meta.window_start.isoformat(),
+        "window_end": meta.window_end.isoformat(),
+        "prompt_version": meta.prompt_version,  # SRC-129
+        "llm_provider": meta.llm_provider,  # SRC-150
+        "llm_model": meta.llm_model,  # SRC-150
+        "items_considered": meta.items_considered,  # SRC-150
+        "items_included": meta.items_included,  # SRC-150
+        "items_by_tier": meta.items_by_tier,  # SRC-150
+        "items_by_source_class": meta.items_by_source_class,  # SRC-150
+        "twitter_signal_available": meta.twitter_signal_available,  # SRC-148
+        "tweet_api_call_count": meta.tweet_api_call_count,  # SRC-150
+        "token_usage": meta.token_usage,  # SRC-150
     }
 
 
@@ -159,11 +156,11 @@ class JsonRenderer:
 
         payload: dict[str, Any] = {
             "schema_version": SCHEMA_VERSION,
-            "metadata":       _metadata_to_dict(meta),
-            "items":          [_item_to_dict(item) for item in valid_items],
-            "themes":         result.themes,
-            "outlook":        result.outlook,
-            "predictions":    result.predictions,   # annual only (SRC-124)
+            "metadata": _metadata_to_dict(meta),
+            "items": [_item_to_dict(item) for item in valid_items],
+            "themes": result.themes,
+            "outlook": result.outlook,
+            "predictions": result.predictions,  # annual only (SRC-124)
         }
 
         if result.twitter_degradation_note:
@@ -172,13 +169,13 @@ class JsonRenderer:
         if result.diagnostics is not None:
             diag = result.diagnostics
             payload["diagnostics"] = {
-                "threshold":                  diag.threshold,
-                "articles_in_store":          diag.articles_in_store,
-                "articles_in_window":         diag.articles_in_window,
+                "threshold": diag.threshold,
+                "articles_in_store": diag.articles_in_store,
+                "articles_in_window": diag.articles_in_window,
                 "articles_in_window_by_tier": diag.articles_in_window_by_tier,
-                "items_dropped_no_url":       diag.items_dropped_no_url,
-                "twitter_signal_available":   diag.twitter_signal_available,
-                "reasons":                    diag.reasons,
+                "items_dropped_no_url": diag.items_dropped_no_url,
+                "twitter_signal_available": diag.twitter_signal_available,
+                "reasons": diag.reasons,
             }
 
         return json.dumps(payload, indent=2, default=_serialize, ensure_ascii=False)
@@ -198,4 +195,5 @@ class JsonRenderer:
                 SRC-140 (naming convention supports future distribution layer)
         """
         from ai_news_agent.rendering.utils import filename_stem
+
         return f"{filename_stem(meta.run_date, meta.cadence)}.json"

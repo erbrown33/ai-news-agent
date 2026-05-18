@@ -28,6 +28,7 @@ if TYPE_CHECKING:
 # AgentConfig schema tests
 # ---------------------------------------------------------------------------
 
+
 class TestAgentConfigModel:
     """Traces: SRC-071–SRC-073 (config model validation)."""
 
@@ -102,7 +103,7 @@ class TestAgentConfigLoader:
         config = load_agent_config("configs/default-agent.yaml")
         assert config.agent_id == "default"
         assert config.llm.provider == "openai"
-        assert len(config.twitter.handles) == 9   # SRC-037–SRC-045: 9 default influencers
+        assert len(config.twitter.handles) == 9  # SRC-037–SRC-045: 9 default influencers
         assert "reuters.com" in config.sources.tier_1b
 
     def test_output_dir_resolved(self) -> None:

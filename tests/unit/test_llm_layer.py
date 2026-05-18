@@ -48,7 +48,8 @@ from ai_news_agent.storage.models import CurationResponse
 def _make_curation_json(items: list[dict] | None = None) -> str:
     """Build a valid ```json...``` LLM response block for CurationResponse."""
     payload = {
-        "items": items or [
+        "items": items
+        or [
             {
                 "headline": "Test Headline",
                 "source_name": "Reuters",
@@ -139,6 +140,7 @@ class TestParseStructuredImpl:
 
     def _parse(self, raw: str) -> CurationResponse:
         from ai_news_agent.llm.openai_client import _parse_structured_impl
+
         return _parse_structured_impl(raw, CurationResponse)
 
     def test_json_fenced_block_extracted(self) -> None:
@@ -173,12 +175,14 @@ class TestParseStructuredImpl:
 
     def test_fallback_object_buried_in_prose(self) -> None:
         """Lenient fallback: JSON object buried between prose lines."""
-        obj = json.dumps({
-            "items": [],
-            "themes": ["Safety"],
-            "outlook": "",
-            "predictions": [],
-        })
+        obj = json.dumps(
+            {
+                "items": [],
+                "themes": ["Safety"],
+                "outlook": "",
+                "predictions": [],
+            }
+        )
         raw = f"Summary of findings:\n{obj}\nEnd of report."
         result = self._parse(raw)
         assert "Safety" in result.themes
@@ -192,12 +196,8 @@ class TestParseStructuredImpl:
 
     def test_multiple_json_blocks_uses_first(self) -> None:
         """When multiple JSON blocks exist, the first one is used."""
-        first = json.dumps({
-            "items": [], "themes": ["First"], "outlook": "", "predictions": []
-        })
-        second = json.dumps({
-            "items": [], "themes": ["Second"], "outlook": "", "predictions": []
-        })
+        first = json.dumps({"items": [], "themes": ["First"], "outlook": "", "predictions": []})
+        second = json.dumps({"items": [], "themes": ["Second"], "outlook": "", "predictions": []})
         raw = f"```json\n{first}\n```\n\nSome text\n\n```json\n{second}\n```"
         result = self._parse(raw)
         assert result.themes == ["First"]
@@ -325,8 +325,10 @@ class TestRetryDecorator:
 
         sleep_calls: list[float] = []
 
-        with patch("ai_news_agent.llm.retry.time.sleep", side_effect=sleep_calls.append), \
-             pytest.raises(LLMError):
+        with (
+            patch("ai_news_agent.llm.retry.time.sleep", side_effect=sleep_calls.append),
+            pytest.raises(LLMError),
+        ):
             always_rate_limited()
 
         # backoff_base=10, attempts: 10*2^0=10, 10*2^1=20
@@ -336,28 +338,34 @@ class TestRetryDecorator:
 class TestIsRetryable:
     """Tests for the ``_is_retryable`` classifier. Traces: SRC-144."""
 
-    @pytest.mark.parametrize(("exc_name", "expected"), [
-        ("RateLimitError", True),
-        ("APIConnectionError", True),
-        ("APITimeoutError", True),
-        ("InternalServerError", True),
-        ("ServiceUnavailableError", True),
-        ("AuthenticationError", False),
-        ("BadRequestError", False),
-        ("ValueError", False),
-    ])
+    @pytest.mark.parametrize(
+        ("exc_name", "expected"),
+        [
+            ("RateLimitError", True),
+            ("APIConnectionError", True),
+            ("APITimeoutError", True),
+            ("InternalServerError", True),
+            ("ServiceUnavailableError", True),
+            ("AuthenticationError", False),
+            ("BadRequestError", False),
+            ("ValueError", False),
+        ],
+    )
     def test_by_exception_class_name(self, exc_name: str, expected: bool) -> None:
         exc = type(exc_name, (Exception,), {})("test message")
         assert _is_retryable(exc) == expected
 
-    @pytest.mark.parametrize(("msg", "expected"), [
-        ("HTTP 429 rate limit exceeded", True),
-        ("connection timed out after 30s", True),
-        ("503 service unavailable", True),
-        ("400 bad request schema error", False),
-        ("401 Unauthorized invalid key", False),
-        ("JSON decode error at line 3", False),
-    ])
+    @pytest.mark.parametrize(
+        ("msg", "expected"),
+        [
+            ("HTTP 429 rate limit exceeded", True),
+            ("connection timed out after 30s", True),
+            ("503 service unavailable", True),
+            ("400 bad request schema error", False),
+            ("401 Unauthorized invalid key", False),
+            ("JSON decode error at line 3", False),
+        ],
+    )
     def test_by_message_content(self, msg: str, expected: bool) -> None:
         exc = Exception(msg)
         assert _is_retryable(exc) == expected
@@ -452,11 +460,13 @@ class TestOpenAILLMClient:
     def test_complete_uses_chat_completions_for_gpt4o(self) -> None:
         """gpt-4o should route to Chat Completions API, not Responses API."""
         from ai_news_agent.llm.openai_client import _uses_responses_api
+
         assert not _uses_responses_api("gpt-4o")
 
     def test_complete_uses_responses_api_for_o3(self) -> None:
         """o3 and other o-series should route to Responses API."""
         from ai_news_agent.llm.openai_client import _uses_responses_api
+
         assert _uses_responses_api("o3")
         assert _uses_responses_api("o1")
         assert _uses_responses_api("o4-mini")
@@ -464,6 +474,7 @@ class TestOpenAILLMClient:
     def test_responses_api_not_triggered_for_gpt_models(self) -> None:
         """gpt-4o, gpt-4o-mini etc. should NOT use Responses API."""
         from ai_news_agent.llm.openai_client import _uses_responses_api
+
         assert not _uses_responses_api("gpt-4o")
         assert not _uses_responses_api("gpt-4o-mini")
         assert not _uses_responses_api("gpt-4-turbo")
@@ -754,7 +765,10 @@ class TestAnthropicLLMClient:
         from ai_news_agent.llm.anthropic_client import AnthropicLLMClient
 
         client = AnthropicLLMClient.__new__(AnthropicLLMClient)
-        with patch.dict("sys.modules", {"anthropic": None}), pytest.raises((ImportError, AttributeError)):  # type: ignore[dict-item]  # noqa: PT011
+        with (
+            patch.dict("sys.modules", {"anthropic": None}),
+            pytest.raises((ImportError, AttributeError)),
+        ):  # type: ignore[dict-item]  # noqa: PT011
             client.__init__(api_key="test")  # type: ignore[misc]
 
 
@@ -859,6 +873,7 @@ class TestGoogleLLMClient:
         mock_model.generate_content.return_value = mock_response
 
         from ai_news_agent.llm.google_client import GoogleLLMClient
+
         client = GoogleLLMClient.__new__(GoogleLLMClient)
         client._genai = mock_genai
         client._api_key = "fake-key"
@@ -898,8 +913,10 @@ class TestAbstractSearchToolContract:
 
     def test_tavily_search_tool_import_error(self) -> None:
         """TavilySearchTool raises ImportError with helpful message when tavily not installed."""
-        with patch.dict("sys.modules", {"tavily": None}), \
-             pytest.raises(ImportError, match="tavily-python"):
+        with (
+            patch.dict("sys.modules", {"tavily": None}),
+            pytest.raises(ImportError, match="tavily-python"),
+        ):
             TavilySearchTool(api_key="test-key")
 
 
@@ -1048,7 +1065,9 @@ class TestNativeOpenAISearchTool:
     def test_parse_heuristic_url_extraction(self) -> None:
         """_parse_search_block falls back to heuristic URL extraction from plain text."""
         tool = self._make_tool()
-        text = "- Reuters AI Story https://reuters.com/ai-story\n- Bloomberg https://bloomberg.com/ai"
+        text = (
+            "- Reuters AI Story https://reuters.com/ai-story\n- Bloomberg https://bloomberg.com/ai"
+        )
         results = tool._parse_search_block(text)
         urls = {r.url for r in results}
         assert "https://reuters.com/ai-story" in urls
@@ -1100,9 +1119,11 @@ class TestFactory:
         cfg = _make_llm_config("openai")
         secrets = _make_secrets(openai_key="sk-test")
 
-        with patch("ai_news_agent.llm.openai_client.openai") as mock_oa, \
-             patch("ai_news_agent.llm.factory.openai") as mock_oa_factory, \
-             patch("ai_news_agent.llm.search_tools.httpx.Client"):
+        with (
+            patch("ai_news_agent.llm.openai_client.openai") as mock_oa,
+            patch("ai_news_agent.llm.factory.openai") as mock_oa_factory,
+            patch("ai_news_agent.llm.search_tools.httpx.Client"),
+        ):
             mock_oa.OpenAI.return_value = MagicMock()
             mock_oa_factory.OpenAI.return_value = MagicMock()
             client = get_llm_client(cfg, secrets)
@@ -1145,8 +1166,10 @@ class TestFactory:
         cfg = _make_llm_config("openai")
         secrets = _make_secrets(openai_key="sk-test")
 
-        with patch("ai_news_agent.llm.factory.openai") as mock_oa, \
-             patch("ai_news_agent.llm.search_tools.httpx.Client"):
+        with (
+            patch("ai_news_agent.llm.factory.openai") as mock_oa,
+            patch("ai_news_agent.llm.search_tools.httpx.Client"),
+        ):
             mock_oa.OpenAI.return_value = MagicMock()
             tool = get_search_tool(cfg, secrets)
 

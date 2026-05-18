@@ -41,6 +41,7 @@ class TestAbstractLLMClientContract:
     def test_parse_structured_extracts_json_block(self, dummy_llm: DummyLLMClient) -> None:
         """parse_structured extracts ```json block and validates schema (SRC-061)."""
         from ai_news_agent.storage.models import CurationResponse
+
         raw = '```json\n{"items": [], "themes": ["test"], "outlook": "", "predictions": []}\n```'
         result = dummy_llm.parse_structured(raw, CurationResponse)
         assert isinstance(result, CurationResponse)
@@ -49,6 +50,7 @@ class TestAbstractLLMClientContract:
     def test_parse_structured_fallback_no_code_fence(self, dummy_llm: DummyLLMClient) -> None:
         """Lenient fallback: parse JSON object without ```json fencing (SRC-061)."""
         from ai_news_agent.storage.models import CurationResponse
+
         raw = '{"items": [], "themes": [], "outlook": "test", "predictions": []}'
         result = dummy_llm.parse_structured(raw, CurationResponse)
         assert result.outlook == "test"
@@ -86,6 +88,7 @@ class TestParseStructuredEdgeCases:
 
     def test_parse_with_prose_before_json(self, dummy_llm: DummyLLMClient) -> None:
         from ai_news_agent.storage.models import CurationResponse
+
         # Prose before the JSON block
         raw = (
             "Here are the curated items:\n"
@@ -99,6 +102,7 @@ class TestParseStructuredEdgeCases:
 
     def test_parse_structured_with_items(self, dummy_llm: DummyLLMClient) -> None:
         from ai_news_agent.storage.models import CurationResponse
+
         payload = {
             "items": [
                 {

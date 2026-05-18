@@ -25,6 +25,7 @@ from ai_news_agent.llm.base import SearchResult
 # AnthropicLLMClient
 # ---------------------------------------------------------------------------
 
+
 class TestAnthropicClient:
     """
     Unit tests for AnthropicLLMClient with mocked anthropic SDK.
@@ -47,6 +48,7 @@ class TestAnthropicClient:
     def anthropic_client(self, mock_anthropic_module):
         """Return an AnthropicLLMClient with a mocked SDK."""
         from ai_news_agent.llm.anthropic_client import AnthropicLLMClient
+
         _, mock_instance = mock_anthropic_module
         return AnthropicLLMClient(api_key="test-ant-key", search_tool=None), mock_instance
 
@@ -127,7 +129,9 @@ class TestAnthropicClient:
 
         mock_search_tool = MagicMock()
         mock_search_tool.search.return_value = [
-            SearchResult(url="https://reuters.com", title="Reuters AI", snippet="AI...", source="reuters.com")
+            SearchResult(
+                url="https://reuters.com", title="Reuters AI", snippet="AI...", source="reuters.com"
+            )
         ]
 
         client = AnthropicLLMClient(api_key="test-key", search_tool=mock_search_tool)
@@ -143,6 +147,7 @@ class TestAnthropicClient:
         Traces: SRC-060
         """
         from ai_news_agent.llm.retry import LLMError
+
         client, _ = anthropic_client
         with pytest.raises(LLMError):
             client.search("AI news")
@@ -168,6 +173,7 @@ class TestAnthropicClient:
 # ---------------------------------------------------------------------------
 # GoogleLLMClient
 # ---------------------------------------------------------------------------
+
 
 class TestGoogleClient:
     """
@@ -199,11 +205,15 @@ class TestGoogleClient:
         Traces: SRC-055
         """
         mock_genai = self._make_mock_genai_module()
-        with patch.dict("sys.modules", {
-            "google": MagicMock(),
-            "google.generativeai": mock_genai,
-        }):
+        with patch.dict(
+            "sys.modules",
+            {
+                "google": MagicMock(),
+                "google.generativeai": mock_genai,
+            },
+        ):
             from ai_news_agent.llm.google_client import GoogleLLMClient
+
             client = GoogleLLMClient(api_key="my-google-key", use_grounding=False)
             # configure is called on the stored _genai reference
             client._genai.configure.assert_called_once_with(api_key="my-google-key")
@@ -214,11 +224,15 @@ class TestGoogleClient:
         Traces: SRC-055
         """
         mock_genai = self._make_mock_genai_module()
-        with patch.dict("sys.modules", {
-            "google": MagicMock(),
-            "google.generativeai": mock_genai,
-        }):
+        with patch.dict(
+            "sys.modules",
+            {
+                "google": MagicMock(),
+                "google.generativeai": mock_genai,
+            },
+        ):
             from ai_news_agent.llm.google_client import GoogleLLMClient
+
             client = GoogleLLMClient(
                 api_key="test-key",
                 search_tool=None,
@@ -243,11 +257,15 @@ class TestGoogleClient:
         Traces: SRC-055, SRC-059 (plain prompts)
         """
         mock_genai = self._make_mock_genai_module()
-        with patch.dict("sys.modules", {
-            "google": MagicMock(),
-            "google.generativeai": mock_genai,
-        }):
+        with patch.dict(
+            "sys.modules",
+            {
+                "google": MagicMock(),
+                "google.generativeai": mock_genai,
+            },
+        ):
             from ai_news_agent.llm.google_client import GoogleLLMClient
+
             client = GoogleLLMClient(
                 api_key="test-key",
                 search_tool=None,
@@ -274,10 +292,13 @@ class TestGoogleClient:
         Traces: SRC-060 (Google search fallback)
         """
         mock_genai = self._make_mock_genai_module()
-        with patch.dict("sys.modules", {
-            "google": MagicMock(),
-            "google.generativeai": mock_genai,
-        }):
+        with patch.dict(
+            "sys.modules",
+            {
+                "google": MagicMock(),
+                "google.generativeai": mock_genai,
+            },
+        ):
             from ai_news_agent.llm.google_client import GoogleLLMClient
 
             mock_search_tool = MagicMock()
@@ -307,11 +328,15 @@ class TestGoogleClient:
         from ai_news_agent.llm.retry import LLMError
 
         mock_genai = self._make_mock_genai_module()
-        with patch.dict("sys.modules", {
-            "google": MagicMock(),
-            "google.generativeai": mock_genai,
-        }):
+        with patch.dict(
+            "sys.modules",
+            {
+                "google": MagicMock(),
+                "google.generativeai": mock_genai,
+            },
+        ):
             from ai_news_agent.llm.google_client import GoogleLLMClient
+
             client = GoogleLLMClient(
                 api_key="test-key",
                 search_tool=None,
@@ -330,11 +355,15 @@ class TestGoogleClient:
         from ai_news_agent.storage.models import CurationResponse
 
         mock_genai = self._make_mock_genai_module()
-        with patch.dict("sys.modules", {
-            "google": MagicMock(),
-            "google.generativeai": mock_genai,
-        }):
+        with patch.dict(
+            "sys.modules",
+            {
+                "google": MagicMock(),
+                "google.generativeai": mock_genai,
+            },
+        ):
             from ai_news_agent.llm.google_client import GoogleLLMClient
+
             client = GoogleLLMClient(
                 api_key="test-key",
                 search_tool=None,
@@ -355,11 +384,14 @@ class TestGoogleClient:
         with patch.dict("sys.modules", {"google": None, "google.generativeai": None}):
             # Re-import to pick up the mocked module
             import importlib
+
             # We need to make the import fail cleanly
             try:
                 import ai_news_agent.llm.google_client as gc_mod
+
                 importlib.reload(gc_mod)
                 from ai_news_agent.llm.google_client import GoogleLLMClient
+
                 with pytest.raises((ImportError, AttributeError)):
                     GoogleLLMClient(api_key="test-key")
             except (ImportError, AttributeError):
@@ -369,6 +401,7 @@ class TestGoogleClient:
 # ---------------------------------------------------------------------------
 # Factory provider paths (Anthropic, Google)
 # ---------------------------------------------------------------------------
+
 
 class TestFactoryProviderPaths:
     """
@@ -386,9 +419,7 @@ class TestFactoryProviderPaths:
         from ai_news_agent.llm.factory import get_llm_client
 
         cfg = LLMConfig(provider="anthropic", model="claude-3-5-sonnet-20241022")
-        secrets = sample_secrets.model_copy(
-            update={"anthropic_api_key": "test-anthropic-key"}
-        )
+        secrets = sample_secrets.model_copy(update={"anthropic_api_key": "test-anthropic-key"})
 
         # Mock anthropic import
         mock_ant = MagicMock()
@@ -409,19 +440,19 @@ class TestFactoryProviderPaths:
         from ai_news_agent.llm.google_client import GoogleLLMClient
 
         cfg = LLMConfig(provider="google", model="gemini-1.5-pro")
-        secrets = sample_secrets.model_copy(
-            update={"google_api_key": "test-google-key"}
-        )
+        secrets = sample_secrets.model_copy(update={"google_api_key": "test-google-key"})
 
         mock_genai = MagicMock()
-        with patch.dict("sys.modules", {
-            "google": MagicMock(),
-            "google.generativeai": mock_genai,
-        }):
+        with patch.dict(
+            "sys.modules",
+            {
+                "google": MagicMock(),
+                "google.generativeai": mock_genai,
+            },
+        ):
             # Google search tool will also try to resolve — mock Brave key
             secrets_with_search = secrets.model_copy(
-                update={"web_search_api_key": "brave-test-key",
-                        "web_search_provider": "brave"}
+                update={"web_search_api_key": "brave-test-key", "web_search_provider": "brave"}
             )
             client = get_llm_client(cfg, secrets_with_search)
         assert isinstance(client, GoogleLLMClient)
@@ -437,9 +468,11 @@ class TestFactoryProviderPaths:
 
         cfg = LLMConfig(provider="anthropic", model="claude-3-5-sonnet-20241022")
         secrets = sample_secrets.model_copy(
-            update={"anthropic_api_key": "test-ant-key",
-                    "web_search_api_key": None,
-                    "web_search_provider": None}
+            update={
+                "anthropic_api_key": "test-ant-key",
+                "web_search_api_key": None,
+                "web_search_provider": None,
+            }
         )
 
         mock_ant = MagicMock()
@@ -456,6 +489,7 @@ class TestFactoryProviderPaths:
 # Serverless one-shot handler
 # ---------------------------------------------------------------------------
 
+
 class TestServerlessHandler:
     """
     Smoke tests for the serverless entry point module.
@@ -468,6 +502,7 @@ class TestServerlessHandler:
         Traces: SRC-080
         """
         from ai_news_agent.scheduler.serverless import cli_main  # noqa: F401
+
         assert callable(cli_main)
 
     def test_serverless_health_check_function_exists(self) -> None:
@@ -476,6 +511,7 @@ class TestServerlessHandler:
         Traces: SRC-080
         """
         import importlib
+
         mod = importlib.import_module("ai_news_agent.scheduler.serverless")
         # At minimum the module should be importable and have cli_main
         assert hasattr(mod, "cli_main"), "serverless module must expose cli_main"
@@ -484,6 +520,7 @@ class TestServerlessHandler:
 # ---------------------------------------------------------------------------
 # Rendering agent — render_and_update_store (production path)
 # ---------------------------------------------------------------------------
+
 
 class TestRenderingAgentProductionPath:
     """
@@ -517,6 +554,7 @@ class TestRenderingAgentProductionPath:
 
         with patch("ai_news_agent.curation.agent.get_llm_client") as mock_factory:
             from tests.conftest import DummyLLMClient
+
             mock_factory.return_value = DummyLLMClient()
 
             agent = CurationAgent(
@@ -549,6 +587,7 @@ class TestRenderingAgentProductionPath:
 # ---------------------------------------------------------------------------
 # TinyDB store edge cases
 # ---------------------------------------------------------------------------
+
 
 class TestTinyDBEdgeCases:
     """
@@ -635,6 +674,7 @@ class TestTinyDBEdgeCases:
 # Scorer edge cases
 # ---------------------------------------------------------------------------
 
+
 class TestScorerEdgeCases:
     """
     Edge cases for Scorer not covered by curation_agent tests.
@@ -678,23 +718,25 @@ class TestScorerEdgeCases:
         tiny_db_store.insert_if_new(record)
 
         # LLM response with a no-URL item
-        no_url_payload = json.dumps({
-            "items": [
-                {
-                    "headline": "No URL — Must Be Dropped",
-                    "source_name": "Unknown",
-                    "url": "",   # empty — SRC-049
-                    "pub_date": "2026-05-09",
-                    "why_it_matters": "Should be dropped.",
-                    "impact_tags": [],
-                    "tier": "3",
-                    "cross_refs": [],
-                }
-            ],
-            "themes": [],
-            "outlook": "",
-            "predictions": [],
-        })
+        no_url_payload = json.dumps(
+            {
+                "items": [
+                    {
+                        "headline": "No URL — Must Be Dropped",
+                        "source_name": "Unknown",
+                        "url": "",  # empty — SRC-049
+                        "pub_date": "2026-05-09",
+                        "why_it_matters": "Should be dropped.",
+                        "impact_tags": [],
+                        "tier": "3",
+                        "cross_refs": [],
+                    }
+                ],
+                "themes": [],
+                "outlook": "",
+                "predictions": [],
+            }
+        )
 
         with patch("ai_news_agent.curation.agent.get_llm_client") as mock_factory:
             mock_factory.return_value = DummyLLMClient(
@@ -762,6 +804,7 @@ class TestScorerEdgeCases:
 # Smoke mock LLM client (SMOKE_TEST_MOCK_LLM=1 — SRC-102)
 # ---------------------------------------------------------------------------
 
+
 class TestSmokeMockLLMClient:
     """
     Unit tests for the ``_SmokeMockLLMClient`` returned by ``get_llm_client``
@@ -782,10 +825,12 @@ class TestSmokeMockLLMClient:
         from ai_news_agent.llm.factory import get_llm_client
 
         cfg = LLMConfig(provider="openai", model="gpt-4o")
-        secrets = RuntimeSecrets.model_validate({
-            "OPENAI_API_KEY": "sk-fake",
-            "TWITTER_BEARER_TOKEN": "fake",
-        })
+        secrets = RuntimeSecrets.model_validate(
+            {
+                "OPENAI_API_KEY": "sk-fake",
+                "TWITTER_BEARER_TOKEN": "fake",
+            }
+        )
         with patch.dict(os.environ, {"SMOKE_TEST_MOCK_LLM": "1"}):
             return get_llm_client(cfg, secrets)
 
@@ -795,6 +840,7 @@ class TestSmokeMockLLMClient:
         Traces: SRC-056, SRC-102
         """
         from ai_news_agent.llm.factory import _SmokeMockLLMClient
+
         client = self._get_mock_client()
         assert isinstance(client, _SmokeMockLLMClient), (
             f"Expected _SmokeMockLLMClient, got {type(client).__name__} (SRC-102)"
@@ -819,9 +865,7 @@ class TestSmokeMockLLMClient:
         items = data["items"]
         assert len(items) > 0, "Expected at least one item in mock response"
         item = items[0]
-        assert item.get("url", "").startswith("http"), (
-            "Mock item must have a valid URL (SRC-049)"
-        )
+        assert item.get("url", "").startswith("http"), "Mock item must have a valid URL (SRC-049)"
 
     def test_smoke_mock_search_returns_search_results(self) -> None:
         """
@@ -834,9 +878,7 @@ class TestSmokeMockLLMClient:
         results = client.search("AI news", n_results=5)
         assert isinstance(results, list), "search() must return a list"
         assert len(results) > 0, "Expected at least one mock search result"
-        assert isinstance(results[0], SearchResult), (
-            "search() must return SearchResult instances"
-        )
+        assert isinstance(results[0], SearchResult), "search() must return SearchResult instances"
         assert results[0].url.startswith("http"), "Mock SearchResult must have valid URL"
 
     def test_smoke_mock_parse_structured(self) -> None:
@@ -864,10 +906,12 @@ class TestSmokeMockLLMClient:
         from ai_news_agent.llm.openai_client import OpenAILLMClient
 
         cfg = LLMConfig(provider="openai", model="gpt-4o")
-        secrets = RuntimeSecrets.model_validate({
-            "OPENAI_API_KEY": "sk-fake-for-test",
-            "TWITTER_BEARER_TOKEN": "fake",
-        })
+        secrets = RuntimeSecrets.model_validate(
+            {
+                "OPENAI_API_KEY": "sk-fake-for-test",
+                "TWITTER_BEARER_TOKEN": "fake",
+            }
+        )
         env_without_mock = {k: v for k, v in os.environ.items() if k != "SMOKE_TEST_MOCK_LLM"}
         with (
             patch.dict(os.environ, env_without_mock, clear=True),

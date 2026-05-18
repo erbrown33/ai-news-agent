@@ -39,6 +39,7 @@ if TYPE_CHECKING:
 # Traces: SRC-098 (mock LLM calls)
 # ---------------------------------------------------------------------------
 
+
 class DummyLLMClient(AbstractLLMClient):
     """
     Test double for AbstractLLMClient.
@@ -81,6 +82,7 @@ class DummyLLMClient(AbstractLLMClient):
     def parse_structured(self, raw: str, schema_cls: type) -> Any:
         """Parse the dummy JSON block — same algorithm as OpenAILLMClient."""
         import re
+
         json_block_re = re.compile(r"```json\s*(.*?)```", re.DOTALL | re.IGNORECASE)
         match = json_block_re.search(raw)
         json_str = match.group(1).strip() if match else raw.strip()
@@ -141,6 +143,7 @@ def _default_search_results() -> list[SearchResult]:
 # ---------------------------------------------------------------------------
 # Fixtures
 # ---------------------------------------------------------------------------
+
 
 @pytest.fixture
 def dummy_llm() -> DummyLLMClient:
@@ -221,7 +224,7 @@ def sample_article_no_url() -> ArticleRecord:
     """An ArticleRecord with empty URL — should be dropped (SRC-049, SRC-141)."""
     return ArticleRecord(
         url_hash="no-url-hash",
-        url="",          # intentionally empty — must be dropped at curation + rendering
+        url="",  # intentionally empty — must be dropped at curation + rendering
         headline="Article With No URL",
         abstract="This should be dropped.",
         source_name="Unknown",
@@ -275,7 +278,7 @@ def sample_curated_item_no_url() -> CuratedItem:
     return CuratedItem(
         headline="Article Without URL",
         source_name="Unknown",
-        url="",    # empty — must be dropped
+        url="",  # empty — must be dropped
         pub_date=date(2026, 5, 10),
         why_it_matters="This item should be dropped by all renderers.",
         impact_tags=[],
@@ -338,6 +341,7 @@ def tiny_db_store(tmp_path: Path):
     Traces: SRC-053 (TinyDB document store)
     """
     from ai_news_agent.storage.tinydb_store import TinyDBArticleStore
+
     db_path = tmp_path / "store.json"
     store = TinyDBArticleStore(db_path)
     yield store

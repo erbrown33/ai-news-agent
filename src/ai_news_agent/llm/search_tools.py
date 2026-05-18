@@ -252,9 +252,7 @@ class NativeOpenAISearchTool(AbstractSearchTool):
                     title = self._clean_title(link_text) or _extract_domain(url) or url
 
                     # Snippet: prefer following line(s), else preceding prose.
-                    snippet = self._collect_snippet(
-                        lines, idx, exclude_text=link_text, title=title
-                    )
+                    snippet = self._collect_snippet(lines, idx, exclude_text=link_text, title=title)
                     if not snippet and last_prose:
                         snippet = self._clean_snippet(last_prose, title=title)
 
@@ -279,9 +277,7 @@ class NativeOpenAISearchTool(AbstractSearchTool):
 
                 before = line[: url_match.start()]
                 title = self._clean_title(before) or _extract_domain(url) or url
-                snippet = self._collect_snippet(
-                    lines, idx, exclude_text=url, title=title
-                )
+                snippet = self._collect_snippet(lines, idx, exclude_text=url, title=title)
                 if not snippet and last_prose:
                     snippet = self._clean_snippet(last_prose, title=title)
 

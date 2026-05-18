@@ -23,7 +23,7 @@ class SearchResult:
     url: str
     title: str
     snippet: str
-    source: str   # domain name (e.g. "reuters.com")
+    source: str  # domain name (e.g. "reuters.com")
 
 
 class AbstractLLMClient(ABC):

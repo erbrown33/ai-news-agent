@@ -63,7 +63,10 @@ class TestPipelineSourcingWindowExpansion:
         return pipeline, store
 
     def test_weekly_run_with_empty_store_expands_to_weekly_window(
-        self, sample_agent_config: AgentConfig, sample_secrets: RuntimeSecrets, tmp_path,
+        self,
+        sample_agent_config: AgentConfig,
+        sample_secrets: RuntimeSecrets,
+        tmp_path,
     ) -> None:
         """
         Fresh-install weekly run: store has zero candidates for the cadence
@@ -71,7 +74,9 @@ class TestPipelineSourcingWindowExpansion:
         instead of letting it default to "today only".
         """
         pipeline, _ = self._build_pipeline(
-            sample_agent_config, sample_secrets, tmp_path,
+            sample_agent_config,
+            sample_secrets,
+            tmp_path,
         )
 
         captured: dict = {}
@@ -81,23 +86,34 @@ class TestPipelineSourcingWindowExpansion:
             captured["window_end"] = window_end
             return _make_sourcing_result()
 
-        with patch("ai_news_agent.pipeline.SourcingAgent") as mock_sourcing_cls, \
-             patch("ai_news_agent.pipeline.CurationAgent") as mock_curation_cls, \
-             patch("ai_news_agent.pipeline.RenderingAgent") as mock_rendering_cls:
+        with (
+            patch("ai_news_agent.pipeline.SourcingAgent") as mock_sourcing_cls,
+            patch("ai_news_agent.pipeline.CurationAgent") as mock_curation_cls,
+            patch("ai_news_agent.pipeline.RenderingAgent") as mock_rendering_cls,
+        ):
             mock_sourcing_cls.return_value.run = MagicMock(
-                side_effect=lambda **kw: (captured.update(kw) or _make_sourcing_result()),
+                side_effect=lambda **kw: captured.update(kw) or _make_sourcing_result(),
             )
             mock_curation_cls.return_value.run = MagicMock(
                 return_value=MagicMock(
                     metadata=MagicMock(
-                        items_considered=0, items_included=0,
-                        items_by_tier={}, items_by_source_class={},
-                        token_usage=0, llm_provider="openai", llm_model="gpt-4o",
+                        items_considered=0,
+                        items_included=0,
+                        items_by_tier={},
+                        items_by_source_class={},
+                        token_usage=0,
+                        llm_provider="openai",
+                        llm_model="gpt-4o",
                         prompt_version="sha256:x",
-                        twitter_signal_available=True, tweet_api_call_count=0,
+                        twitter_signal_available=True,
+                        tweet_api_call_count=0,
                     ),
-                    items=[], themes=[], outlook="", predictions=[],
-                    twitter_degradation_note=None, dry_run=False,
+                    items=[],
+                    themes=[],
+                    outlook="",
+                    predictions=[],
+                    twitter_degradation_note=None,
+                    dry_run=False,
                     diagnostics=None,
                 ),
             )
@@ -106,7 +122,8 @@ class TestPipelineSourcingWindowExpansion:
                     markdown_path="/tmp/x.md",
                     html_path="/tmp/x.html",
                     json_path="/tmp/x.json",
-                    items_rendered=0, items_dropped_no_url=0,
+                    items_rendered=0,
+                    items_dropped_no_url=0,
                 ),
             )
 
@@ -116,12 +133,14 @@ class TestPipelineSourcingWindowExpansion:
         # not just "today 00:00 → now".
         delta_days = (captured["window_end"] - captured["window_start"]).days
         assert delta_days >= 6, (
-            f"Sourcing window must span the weekly cadence (≥6 days), "
-            f"got {delta_days} days"
+            f"Sourcing window must span the weekly cadence (≥6 days), got {delta_days} days"
         )
 
     def test_weekly_run_with_populated_store_does_not_expand(
-        self, sample_agent_config: AgentConfig, sample_secrets: RuntimeSecrets, tmp_path,
+        self,
+        sample_agent_config: AgentConfig,
+        sample_secrets: RuntimeSecrets,
+        tmp_path,
     ) -> None:
         """
         Populated store: pipeline must NOT expand sourcing's window — leave
@@ -136,7 +155,9 @@ class TestPipelineSourcingWindowExpansion:
         )
 
         pipeline, store = self._build_pipeline(
-            sample_agent_config, sample_secrets, tmp_path,
+            sample_agent_config,
+            sample_secrets,
+            tmp_path,
         )
 
         # Insert top_n+ articles inside this week's cadence window so the
@@ -147,40 +168,53 @@ class TestPipelineSourcingWindowExpansion:
         for i in range(sample_agent_config.limits.weekly_top_n + 2):
             raw = f"https://reuters.com/article-{i}"
             canonical = normalize_url(raw)
-            store.insert_if_new(ArticleRecord(
-                url_hash=url_hash(canonical),
-                url=canonical,
-                headline=f"Article {i}",
-                abstract=None,
-                source_name="reuters.com",
-                pub_date=sample_pub,
-                fetched_at=sample_pub,
-                tier="1b",
-                source_class="web",
-                agent_id="test-agent",
-                twitter_handle=None,
-                tweet_url=None,
-            ))
+            store.insert_if_new(
+                ArticleRecord(
+                    url_hash=url_hash(canonical),
+                    url=canonical,
+                    headline=f"Article {i}",
+                    abstract=None,
+                    source_name="reuters.com",
+                    pub_date=sample_pub,
+                    fetched_at=sample_pub,
+                    tier="1b",
+                    source_class="web",
+                    agent_id="test-agent",
+                    twitter_handle=None,
+                    tweet_url=None,
+                )
+            )
 
         captured: dict = {}
 
-        with patch("ai_news_agent.pipeline.SourcingAgent") as mock_sourcing_cls, \
-             patch("ai_news_agent.pipeline.CurationAgent") as mock_curation_cls, \
-             patch("ai_news_agent.pipeline.RenderingAgent") as mock_rendering_cls:
+        with (
+            patch("ai_news_agent.pipeline.SourcingAgent") as mock_sourcing_cls,
+            patch("ai_news_agent.pipeline.CurationAgent") as mock_curation_cls,
+            patch("ai_news_agent.pipeline.RenderingAgent") as mock_rendering_cls,
+        ):
             mock_sourcing_cls.return_value.run = MagicMock(
-                side_effect=lambda **kw: (captured.update(kw) or _make_sourcing_result()),
+                side_effect=lambda **kw: captured.update(kw) or _make_sourcing_result(),
             )
             mock_curation_cls.return_value.run = MagicMock(
                 return_value=MagicMock(
                     metadata=MagicMock(
-                        items_considered=0, items_included=0,
-                        items_by_tier={}, items_by_source_class={},
-                        token_usage=0, llm_provider="openai", llm_model="gpt-4o",
+                        items_considered=0,
+                        items_included=0,
+                        items_by_tier={},
+                        items_by_source_class={},
+                        token_usage=0,
+                        llm_provider="openai",
+                        llm_model="gpt-4o",
                         prompt_version="sha256:x",
-                        twitter_signal_available=True, tweet_api_call_count=0,
+                        twitter_signal_available=True,
+                        tweet_api_call_count=0,
                     ),
-                    items=[], themes=[], outlook="", predictions=[],
-                    twitter_degradation_note=None, dry_run=False,
+                    items=[],
+                    themes=[],
+                    outlook="",
+                    predictions=[],
+                    twitter_degradation_note=None,
+                    dry_run=False,
                     diagnostics=None,
                 ),
             )
@@ -189,7 +223,8 @@ class TestPipelineSourcingWindowExpansion:
                     markdown_path="/tmp/x.md",
                     html_path="/tmp/x.html",
                     json_path="/tmp/x.json",
-                    items_rendered=0, items_dropped_no_url=0,
+                    items_rendered=0,
+                    items_dropped_no_url=0,
                 ),
             )
 
@@ -201,7 +236,10 @@ class TestPipelineSourcingWindowExpansion:
         assert captured.get("window_end") is None
 
     def test_daily_run_never_expands_sourcing_window(
-        self, sample_agent_config: AgentConfig, sample_secrets: RuntimeSecrets, tmp_path,
+        self,
+        sample_agent_config: AgentConfig,
+        sample_secrets: RuntimeSecrets,
+        tmp_path,
     ) -> None:
         """
         Daily cadence keeps the existing behavior — sourcing's own "today"
@@ -209,28 +247,41 @@ class TestPipelineSourcingWindowExpansion:
         covers "yesterday 00:00 → now" for the curate step.
         """
         pipeline, _ = self._build_pipeline(
-            sample_agent_config, sample_secrets, tmp_path,
+            sample_agent_config,
+            sample_secrets,
+            tmp_path,
         )
 
         captured: dict = {}
 
-        with patch("ai_news_agent.pipeline.SourcingAgent") as mock_sourcing_cls, \
-             patch("ai_news_agent.pipeline.CurationAgent") as mock_curation_cls, \
-             patch("ai_news_agent.pipeline.RenderingAgent") as mock_rendering_cls:
+        with (
+            patch("ai_news_agent.pipeline.SourcingAgent") as mock_sourcing_cls,
+            patch("ai_news_agent.pipeline.CurationAgent") as mock_curation_cls,
+            patch("ai_news_agent.pipeline.RenderingAgent") as mock_rendering_cls,
+        ):
             mock_sourcing_cls.return_value.run = MagicMock(
-                side_effect=lambda **kw: (captured.update(kw) or _make_sourcing_result()),
+                side_effect=lambda **kw: captured.update(kw) or _make_sourcing_result(),
             )
             mock_curation_cls.return_value.run = MagicMock(
                 return_value=MagicMock(
                     metadata=MagicMock(
-                        items_considered=0, items_included=0,
-                        items_by_tier={}, items_by_source_class={},
-                        token_usage=0, llm_provider="openai", llm_model="gpt-4o",
+                        items_considered=0,
+                        items_included=0,
+                        items_by_tier={},
+                        items_by_source_class={},
+                        token_usage=0,
+                        llm_provider="openai",
+                        llm_model="gpt-4o",
                         prompt_version="sha256:x",
-                        twitter_signal_available=True, tweet_api_call_count=0,
+                        twitter_signal_available=True,
+                        tweet_api_call_count=0,
                     ),
-                    items=[], themes=[], outlook="", predictions=[],
-                    twitter_degradation_note=None, dry_run=False,
+                    items=[],
+                    themes=[],
+                    outlook="",
+                    predictions=[],
+                    twitter_degradation_note=None,
+                    dry_run=False,
                     diagnostics=None,
                 ),
             )
@@ -239,7 +290,8 @@ class TestPipelineSourcingWindowExpansion:
                     markdown_path="/tmp/x.md",
                     html_path="/tmp/x.html",
                     json_path="/tmp/x.json",
-                    items_rendered=0, items_dropped_no_url=0,
+                    items_rendered=0,
+                    items_dropped_no_url=0,
                 ),
             )
 
@@ -266,7 +318,8 @@ class TestWebFetcherBackfillPubDateFallback:
         ), search_tool
 
     def test_pub_date_falls_to_window_midpoint_for_old_window(
-        self, sample_agent_config: AgentConfig,
+        self,
+        sample_agent_config: AgentConfig,
     ) -> None:
         """
         Window ending 5 days ago: pub_date for snippets without a parseable
@@ -298,12 +351,12 @@ class TestWebFetcherBackfillPubDateFallback:
         # pub_date must land inside the window — not "now".
         for article in articles:
             assert window_start <= article.pub_date <= window_end, (
-                f"Backfill pub_date {article.pub_date} must fall in "
-                f"[{window_start}, {window_end}]"
+                f"Backfill pub_date {article.pub_date} must fall in [{window_start}, {window_end}]"
             )
 
     def test_pub_date_falls_to_fetched_at_for_current_window(
-        self, sample_agent_config: AgentConfig,
+        self,
+        sample_agent_config: AgentConfig,
     ) -> None:
         """
         Window ending "now": the fallback stays as ``fetched_at`` so we don't

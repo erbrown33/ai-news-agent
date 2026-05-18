@@ -68,6 +68,7 @@ from ai_news_agent.storage.models import CuratedItem, DigestMetadata, DigestReco
 # Shared test-data builders
 # ──────────────────────────────────────────────────────────────────────────────
 
+
 def _item(
     headline: str = "GPT-5 Transforms Enterprise Workflows",
     source_name: str = "Reuters",
@@ -150,6 +151,7 @@ def _result(
 # TestSharedUrlValidator
 # ──────────────────────────────────────────────────────────────────────────────
 
+
 class TestSharedUrlValidator:
     """
     ``rendering.utils.is_valid_url`` — the single source-of-truth URL validator
@@ -166,16 +168,19 @@ class TestSharedUrlValidator:
     # Acceptance (True)
     # ------------------------------------------------------------------
 
-    @pytest.mark.parametrize("url", [
-        "https://reuters.com/article",
-        "http://bloomberg.com/news",
-        "HTTPS://WSJ.COM/AI",                 # uppercase scheme
-        "HTTP://EXAMPLE.COM/PATH",             # uppercase scheme
-        "https://example.com/path?q=1&r=2",   # query string
-        "https://example.com/path#section",    # fragment
-        "http://localhost:8080/",              # localhost with port
-        "https://sub.domain.example.org/",     # subdomain
-    ])
+    @pytest.mark.parametrize(
+        "url",
+        [
+            "https://reuters.com/article",
+            "http://bloomberg.com/news",
+            "HTTPS://WSJ.COM/AI",  # uppercase scheme
+            "HTTP://EXAMPLE.COM/PATH",  # uppercase scheme
+            "https://example.com/path?q=1&r=2",  # query string
+            "https://example.com/path#section",  # fragment
+            "http://localhost:8080/",  # localhost with port
+            "https://sub.domain.example.org/",  # subdomain
+        ],
+    )
     def test_valid_urls_accepted(self, url: str) -> None:
         """Valid http(s) URLs are accepted (SRC-049, SRC-141)."""
         assert is_valid_url(url) is True, f"Expected True for: {url!r}"
@@ -184,24 +189,27 @@ class TestSharedUrlValidator:
     # Rejection (False)
     # ------------------------------------------------------------------
 
-    @pytest.mark.parametrize("url", [
-        None,
-        "",
-        "   ",                               # whitespace-only
-        "ftp://example.com/file",            # wrong scheme
-        "//example.com/path",               # protocol-relative
-        "reuters.com/article",              # no scheme at all
-        "/relative/path",                   # relative path
-        "javascript:void(0)",               # injection: JS
-        "javascript:alert(document.cookie)",# injection: JS variant
-        "data:text/html,<h1>xss</h1>",     # injection: data URI
-        "data:application/javascript,alert(1)",  # injection: data + JS
-        "vbscript:msgbox(1)",               # injection: VBScript
-        "file:///etc/passwd",               # file URI
-        "mailto:user@example.com",          # mailto
-        "ssh://server.example.com",         # SSH
-        "#anchor",                          # fragment-only
-    ])
+    @pytest.mark.parametrize(
+        "url",
+        [
+            None,
+            "",
+            "   ",  # whitespace-only
+            "ftp://example.com/file",  # wrong scheme
+            "//example.com/path",  # protocol-relative
+            "reuters.com/article",  # no scheme at all
+            "/relative/path",  # relative path
+            "javascript:void(0)",  # injection: JS
+            "javascript:alert(document.cookie)",  # injection: JS variant
+            "data:text/html,<h1>xss</h1>",  # injection: data URI
+            "data:application/javascript,alert(1)",  # injection: data + JS
+            "vbscript:msgbox(1)",  # injection: VBScript
+            "file:///etc/passwd",  # file URI
+            "mailto:user@example.com",  # mailto
+            "ssh://server.example.com",  # SSH
+            "#anchor",  # fragment-only
+        ],
+    )
     def test_invalid_urls_rejected(self, url: str | None) -> None:
         """Invalid / insecure URLs are rejected (SRC-049, SRC-141)."""
         assert is_valid_url(url) is False, f"Expected False for: {url!r}"
@@ -234,6 +242,7 @@ class TestSharedUrlValidator:
 # TestFilenameConventionFull
 # ──────────────────────────────────────────────────────────────────────────────
 
+
 class TestFilenameConventionFull:
     """
     Filename stem formula + extension per renderer.
@@ -254,11 +263,11 @@ class TestFilenameConventionFull:
     def test_all_extensions_use_same_stem(self, cadence: str) -> None:
         """Stem is identical for MD / HTML / JSON — only extension differs."""
         meta = _meta(cadence=cadence, run_date=date(2026, 5, 11))
-        md_fn   = MarkdownRenderer.filename(meta)
+        md_fn = MarkdownRenderer.filename(meta)
         html_fn = HtmlRenderer.filename(meta)
         json_fn = JsonRenderer.filename(meta)
 
-        md_stem   = md_fn.rsplit(".", 1)[0]
+        md_stem = md_fn.rsplit(".", 1)[0]
         html_stem = html_fn.rsplit(".", 1)[0]
         json_stem = json_fn.rsplit(".", 1)[0]
 
@@ -296,9 +305,7 @@ class TestFilenameConventionFull:
             HtmlRenderer.filename(meta),
             JsonRenderer.filename(meta),
         ):
-            assert "my-special-agent" not in fn, (
-                f"agent_id leaked into filename: {fn}"
-            )
+            assert "my-special-agent" not in fn, f"agent_id leaked into filename: {fn}"
 
     def test_rerun_same_date_produces_same_filename(self) -> None:
         """Same run_date + cadence always → same filename (idempotency, SRC-145)."""
@@ -316,6 +323,7 @@ class TestFilenameConventionFull:
 # ──────────────────────────────────────────────────────────────────────────────
 # TestOutputDirConvention
 # ──────────────────────────────────────────────────────────────────────────────
+
 
 class TestOutputDirConvention:
     """
@@ -379,6 +387,7 @@ class TestOutputDirConvention:
 # ──────────────────────────────────────────────────────────────────────────────
 # TestMarkdownRendererDeep
 # ──────────────────────────────────────────────────────────────────────────────
+
 
 class TestMarkdownRendererDeep:
     """
@@ -452,10 +461,12 @@ class TestMarkdownRendererDeep:
 
     def test_cross_refs_rendered_as_links(self) -> None:
         """Cross-references rendered as Markdown links (SRC-048)."""
-        item = _item(cross_refs=[
-            "https://related.example.com/a",
-            "https://related.example.com/b",
-        ])
+        item = _item(
+            cross_refs=[
+                "https://related.example.com/a",
+                "https://related.example.com/b",
+            ]
+        )
         md = MarkdownRenderer().render(_result(items=[item]))
         assert "https://related.example.com/a" in md
         assert "https://related.example.com/b" in md
@@ -487,8 +498,8 @@ class TestMarkdownRendererDeep:
         """Both window_start and window_end ISO dates in header (SRC-116)."""
         meta = _meta()
         md = MarkdownRenderer().render(_result(metadata=meta))
-        assert "2026-05-10" in md   # window_start date
-        assert "2026-05-11" in md   # run_date (in header)
+        assert "2026-05-10" in md  # window_start date
+        assert "2026-05-11" in md  # run_date (in header)
 
     def test_header_prompt_version_sha256(self) -> None:
         """Prompt version formatted as ``sha256:<hex>`` in header (SRC-129)."""
@@ -512,7 +523,7 @@ class TestMarkdownRendererDeep:
         assert "o3-mini" in md
         assert "sha256:abc001" in md
         assert "100" in md  # items_considered
-        assert "7" in md    # items_included
+        assert "7" in md  # items_included
         assert "Digest Metadata" in md
 
     def test_footer_token_usage_thousands_separator(self) -> None:
@@ -543,9 +554,7 @@ class TestMarkdownRendererDeep:
             headline="Daily Story",
             url="https://example.com/daily-story",
         )
-        md = MarkdownRenderer().render(_result(
-            items=[item], metadata=_meta(cadence="daily")
-        ))
+        md = MarkdownRenderer().render(_result(items=[item], metadata=_meta(cadence="daily")))
         assert "[Daily Story](https://example.com/daily-story)" in md
 
     def test_weekly_themes_before_articles(self) -> None:
@@ -568,7 +577,7 @@ class TestMarkdownRendererDeep:
         md = MarkdownRenderer().render(result)
         # Stories appear before "Looking Ahead"
         stories_pos = md.index("Story One")
-        ahead_pos   = md.index("Looking Ahead")
+        ahead_pos = md.index("Looking Ahead")
         assert stories_pos < ahead_pos
 
     def test_monthly_what_to_watch_before_stories(self) -> None:
@@ -604,6 +613,7 @@ class TestMarkdownRendererDeep:
 # ──────────────────────────────────────────────────────────────────────────────
 # TestHtmlRendererDeep
 # ──────────────────────────────────────────────────────────────────────────────
+
 
 class TestHtmlRendererDeep:
     """
@@ -678,8 +688,10 @@ class TestHtmlRendererDeep:
         assert "EU AI Act Enters Enforcement Phase" in html
         assert "https://ec.europa.eu/ai-act-enforcement" in html
         # Linked as <a href="...">
-        assert 'href="https://ec.europa.eu/ai-act-enforcement"' in html or \
-               "https://ec.europa.eu/ai-act-enforcement" in html
+        assert (
+            'href="https://ec.europa.eu/ai-act-enforcement"' in html
+            or "https://ec.europa.eu/ai-act-enforcement" in html
+        )
 
     def test_item_card_has_class(self) -> None:
         """Item card uses the CSS class ``item-card`` for styling."""
@@ -741,16 +753,18 @@ class TestHtmlRendererDeep:
         html = HtmlRenderer().render(_result(items=[item]))
         # The CSS class name appears in the <style> block, so check the body content
         # specifically — the attribution div should not be in the rendered item card
-        assert '🐦' not in html
+        assert "🐦" not in html
         # No @handle attribution
-        assert 'via\n' not in html
+        assert "via\n" not in html
 
     def test_cross_refs_rendered_as_links(self) -> None:
         """Valid cross-reference URLs rendered as HTML links (SRC-048)."""
-        item = _item(cross_refs=[
-            "https://related.example.com/a",
-            "https://related.example.com/b",
-        ])
+        item = _item(
+            cross_refs=[
+                "https://related.example.com/a",
+                "https://related.example.com/b",
+            ]
+        )
         html = HtmlRenderer().render(_result(items=[item]))
         assert "https://related.example.com/a" in html
         assert "https://related.example.com/b" in html
@@ -765,8 +779,7 @@ class TestHtmlRendererDeep:
     def test_multiple_items_all_rendered(self) -> None:
         """All valid items are rendered (not just the first)."""
         items = [
-            _item(headline=f"Article {i}", url=f"https://example.com/{i}")
-            for i in range(1, 6)
+            _item(headline=f"Article {i}", url=f"https://example.com/{i}") for i in range(1, 6)
         ]
         html = HtmlRenderer().render(_result(items=items))
         for i in range(1, 6):
@@ -871,6 +884,7 @@ class TestHtmlRendererDeep:
 # TestHtmlRendererSecurity
 # ──────────────────────────────────────────────────────────────────────────────
 
+
 class TestHtmlRendererSecurity:
     """
     XSS and URL-injection tests.
@@ -941,19 +955,19 @@ class TestHtmlRendererSecurity:
     def test_url_javascript_scheme_dropped(self) -> None:
         """Item with javascript: URL is dropped by the renderer (SRC-141)."""
         item = _item(url="javascript:alert(document.cookie)")
-        result = _result(items=[
-            _item(headline="Safe Article", url="https://safe.example.com/ok"),
-            item,
-        ])
+        result = _result(
+            items=[
+                _item(headline="Safe Article", url="https://safe.example.com/ok"),
+                item,
+            ]
+        )
         html = HtmlRenderer().render(result)
         assert "javascript:alert" not in html
         assert "Safe Article" in html
 
     def test_degradation_note_xss_escaped(self) -> None:
         """Twitter degradation note with XSS payload is escaped (SRC-148)."""
-        result = _result(
-            twitter_degradation_note='<script>alert("degrade")</script>'
-        )
+        result = _result(twitter_degradation_note='<script>alert("degrade")</script>')
         html = HtmlRenderer().render(result)
         assert "<script>alert" not in html
 
@@ -974,6 +988,7 @@ class TestHtmlRendererSecurity:
 # ──────────────────────────────────────────────────────────────────────────────
 # TestJsonRendererDeep
 # ──────────────────────────────────────────────────────────────────────────────
+
 
 class TestJsonRendererDeep:
     """
@@ -1034,9 +1049,19 @@ class TestJsonRendererDeep:
         data = json.loads(JsonRenderer().render(_result(items=[item])))
         assert len(data["items"]) == 1
         item_d = data["items"][0]
-        for field in ("headline", "source_name", "url", "pub_date",
-                      "why_it_matters", "impact_tags", "tier",
-                      "cross_refs", "twitter_handle", "tweet_url", "prompt_version"):
+        for field in (
+            "headline",
+            "source_name",
+            "url",
+            "pub_date",
+            "why_it_matters",
+            "impact_tags",
+            "tier",
+            "cross_refs",
+            "twitter_handle",
+            "tweet_url",
+            "prompt_version",
+        ):
             assert field in item_d, f"Missing field: {field}"
 
     def test_item_pub_date_iso8601(self) -> None:
@@ -1082,10 +1107,7 @@ class TestJsonRendererDeep:
 
     def test_multiple_items_ordered(self) -> None:
         """Items are serialised in the order they appear in result.items."""
-        items = [
-            _item(headline=f"Story {i}", url=f"https://example.com/{i}")
-            for i in range(1, 4)
-        ]
+        items = [_item(headline=f"Story {i}", url=f"https://example.com/{i}") for i in range(1, 4)]
         data = json.loads(JsonRenderer().render(_result(items=items)))
         headlines = [i["headline"] for i in data["items"]]
         assert headlines == ["Story 1", "Story 2", "Story 3"]
@@ -1108,11 +1130,21 @@ class TestJsonRendererDeep:
         data = json.loads(JsonRenderer().render(_result(metadata=meta)))
         m = data["metadata"]
         for field in (
-            "agent_id", "cadence", "run_date", "window_start", "window_end",
-            "prompt_version", "llm_provider", "llm_model",
-            "items_considered", "items_included",
-            "items_by_tier", "items_by_source_class",
-            "twitter_signal_available", "tweet_api_call_count", "token_usage",
+            "agent_id",
+            "cadence",
+            "run_date",
+            "window_start",
+            "window_end",
+            "prompt_version",
+            "llm_provider",
+            "llm_model",
+            "items_considered",
+            "items_included",
+            "items_by_tier",
+            "items_by_source_class",
+            "twitter_signal_available",
+            "tweet_api_call_count",
+            "token_usage",
         ):
             assert field in m, f"Missing metadata field: {field}"
 
@@ -1225,6 +1257,7 @@ class TestJsonRendererDeep:
 # TestJsonSchemaContract
 # ──────────────────────────────────────────────────────────────────────────────
 
+
 class TestJsonSchemaContract:
     """
     JSON schema stability and versioning contract.
@@ -1259,9 +1292,17 @@ class TestJsonSchemaContract:
         assert len(data["items"]) > 0
         item_keys = set(data["items"][0].keys())
         required = {
-            "headline", "source_name", "url", "pub_date",
-            "why_it_matters", "impact_tags", "tier",
-            "cross_refs", "twitter_handle", "tweet_url", "prompt_version",
+            "headline",
+            "source_name",
+            "url",
+            "pub_date",
+            "why_it_matters",
+            "impact_tags",
+            "tier",
+            "cross_refs",
+            "twitter_handle",
+            "tweet_url",
+            "prompt_version",
         }
         assert required.issubset(item_keys)
 
@@ -1270,11 +1311,21 @@ class TestJsonSchemaContract:
         data = json.loads(JsonRenderer().render(_result()))
         meta_keys = set(data["metadata"].keys())
         required = {
-            "agent_id", "cadence", "run_date", "window_start", "window_end",
-            "prompt_version", "llm_provider", "llm_model",
-            "items_considered", "items_included",
-            "items_by_tier", "items_by_source_class",
-            "twitter_signal_available", "tweet_api_call_count", "token_usage",
+            "agent_id",
+            "cadence",
+            "run_date",
+            "window_start",
+            "window_end",
+            "prompt_version",
+            "llm_provider",
+            "llm_model",
+            "items_considered",
+            "items_included",
+            "items_by_tier",
+            "items_by_source_class",
+            "twitter_signal_available",
+            "tweet_api_call_count",
+            "token_usage",
         }
         assert required.issubset(meta_keys)
 
@@ -1288,6 +1339,7 @@ class TestJsonSchemaContract:
 # ──────────────────────────────────────────────────────────────────────────────
 # TestRenderingAgentFull
 # ──────────────────────────────────────────────────────────────────────────────
+
 
 class TestRenderingAgentFull:
     """
@@ -1382,9 +1434,7 @@ class TestRenderingAgentFull:
         assert len(list(tmp_path.iterdir())) == 3
 
     @pytest.mark.parametrize("cadence", ["daily", "weekly", "monthly", "annual"])
-    def test_all_cadences_render_without_exception(
-        self, cadence: str, tmp_path: Path
-    ) -> None:
+    def test_all_cadences_render_without_exception(self, cadence: str, tmp_path: Path) -> None:
         """All four cadences render without raising an exception (SRC-102)."""
         result = _result(
             metadata=_meta(cadence=cadence),
@@ -1401,6 +1451,7 @@ class TestRenderingAgentFull:
 # ──────────────────────────────────────────────────────────────────────────────
 # TestRenderingAgentDryRunFull
 # ──────────────────────────────────────────────────────────────────────────────
+
 
 class TestRenderingAgentDryRunFull:
     """
@@ -1452,6 +1503,7 @@ class TestRenderingAgentDryRunFull:
 # ──────────────────────────────────────────────────────────────────────────────
 # TestRenderingAgentStoreFull
 # ──────────────────────────────────────────────────────────────────────────────
+
 
 class TestRenderingAgentStoreFull:
     """
@@ -1532,12 +1584,12 @@ class TestRenderingAgentStoreFull:
         store = MagicMock()
         store.get_digest.return_value = existing
 
-        RenderingAgent(output_dir=tmp_path).render_and_update_store(
-            _result(metadata=meta), store
-        )
+        RenderingAgent(output_dir=tmp_path).render_and_update_store(_result(metadata=meta), store)
         get_args = store.get_digest.call_args[1]
-        assert get_args.get("agent_id", None) == "prod-agent" or \
-               store.get_digest.call_args[0][0] == "prod-agent"
+        assert (
+            get_args.get("agent_id", None) == "prod-agent"
+            or store.get_digest.call_args[0][0] == "prod-agent"
+        )
 
     def test_real_store_roundtrip_with_date_run_date(self, tmp_path: Path) -> None:
         """
@@ -1557,16 +1609,14 @@ class TestRenderingAgentStoreFull:
         try:
             store.upsert_digest(self._make_digest_record())
 
-            rendering_result = RenderingAgent(
-                output_dir=tmp_path
-            ).render_and_update_store(_result(), store)
+            rendering_result = RenderingAgent(output_dir=tmp_path).render_and_update_store(
+                _result(), store
+            )
 
             assert rendering_result.markdown_path.exists()
 
             # DigestRecord paths populated via the same date-keyed lookup
-            updated = store.get_digest(
-                "test-agent", "daily", run_date=_meta().run_date
-            )
+            updated = store.get_digest("test-agent", "daily", run_date=_meta().run_date)
             assert updated is not None
             assert updated.md_path is not None
             assert updated.html_path is not None
@@ -1578,6 +1628,7 @@ class TestRenderingAgentStoreFull:
 # ──────────────────────────────────────────────────────────────────────────────
 # TestUrlEnforcementLayering
 # ──────────────────────────────────────────────────────────────────────────────
+
 
 class TestUrlEnforcementLayering:
     """
@@ -1591,14 +1642,17 @@ class TestUrlEnforcementLayering:
     Traces: SRC-049 (non-negotiable URL requirement), SRC-141 (second layer)
     """
 
-    @pytest.mark.parametrize("bad_url", [
-        "",
-        "ftp://files.example.com",
-        "//example.com",
-        "example.com/path",
-        "javascript:void(0)",
-        "/relative/path",
-    ])
+    @pytest.mark.parametrize(
+        "bad_url",
+        [
+            "",
+            "ftp://files.example.com",
+            "//example.com",
+            "example.com/path",
+            "javascript:void(0)",
+            "/relative/path",
+        ],
+    )
     def test_markdown_drops_bad_url(self, bad_url: str) -> None:
         """Markdown renderer drops items with bad URLs (SRC-141)."""
         items = [
@@ -1609,11 +1663,14 @@ class TestUrlEnforcementLayering:
         assert "Good" in md
         assert "Bad URL" not in md
 
-    @pytest.mark.parametrize("bad_url", [
-        "",
-        "ftp://files.example.com",
-        "javascript:alert(1)",
-    ])
+    @pytest.mark.parametrize(
+        "bad_url",
+        [
+            "",
+            "ftp://files.example.com",
+            "javascript:alert(1)",
+        ],
+    )
     def test_html_drops_bad_url(self, bad_url: str) -> None:
         """HTML renderer drops items with bad URLs (SRC-141)."""
         items = [
@@ -1624,11 +1681,14 @@ class TestUrlEnforcementLayering:
         assert "Good" in html
         assert "Bad URL" not in html
 
-    @pytest.mark.parametrize("bad_url", [
-        "",
-        "ftp://files.example.com",
-        "data:text/plain,hello",
-    ])
+    @pytest.mark.parametrize(
+        "bad_url",
+        [
+            "",
+            "ftp://files.example.com",
+            "data:text/plain,hello",
+        ],
+    )
     def test_json_drops_bad_url(self, bad_url: str) -> None:
         """JSON renderer drops items with bad URLs (SRC-141)."""
         items = [
@@ -1648,7 +1708,7 @@ class TestUrlEnforcementLayering:
         ]
         result = _result(items=items)
 
-        md   = MarkdownRenderer().render(result)
+        md = MarkdownRenderer().render(result)
         html = HtmlRenderer().render(result)
         data = json.loads(JsonRenderer().render(result))
 
@@ -1674,6 +1734,7 @@ class TestUrlEnforcementLayering:
 # ──────────────────────────────────────────────────────────────────────────────
 # TestTwitterDegradationFull
 # ──────────────────────────────────────────────────────────────────────────────
+
 
 class TestTwitterDegradationFull:
     """
@@ -1709,7 +1770,7 @@ class TestTwitterDegradationFull:
     def test_no_note_when_twitter_available(self) -> None:
         """No degradation note in any format when Twitter is available."""
         result = _result(twitter_degradation_note=None)
-        md   = MarkdownRenderer().render(result)
+        md = MarkdownRenderer().render(result)
         html = HtmlRenderer().render(result)
         data = json.loads(JsonRenderer().render(result))
 
@@ -1728,7 +1789,7 @@ class TestTwitterDegradationFull:
         """Both MD and HTML files written by RenderingAgent include the note."""
         result = _result(twitter_degradation_note=self.NOTE)
         r = RenderingAgent(output_dir=tmp_path).render(result)
-        md   = r.markdown_path.read_text(encoding="utf-8")
+        md = r.markdown_path.read_text(encoding="utf-8")
         html = r.html_path.read_text(encoding="utf-8")
         assert "unavailable" in md
         assert "unavailable" in html
@@ -1737,6 +1798,7 @@ class TestTwitterDegradationFull:
 # ──────────────────────────────────────────────────────────────────────────────
 # TestMonitoringFieldsFull
 # ──────────────────────────────────────────────────────────────────────────────
+
 
 class TestMonitoringFieldsFull:
     """
@@ -1805,6 +1867,7 @@ class TestMonitoringFieldsFull:
 # TestCrossRefsFull
 # ──────────────────────────────────────────────────────────────────────────────
 
+
 class TestCrossRefsFull:
     """
     Cross-reference links per renderer (SRC-048).
@@ -1814,21 +1877,25 @@ class TestCrossRefsFull:
 
     def test_md_renders_all_valid_cross_refs(self) -> None:
         """All valid cross-ref URLs appear in Markdown output."""
-        item = _item(cross_refs=[
-            "https://ref-a.example.com",
-            "https://ref-b.example.com",
-            "https://ref-c.example.com",
-        ])
+        item = _item(
+            cross_refs=[
+                "https://ref-a.example.com",
+                "https://ref-b.example.com",
+                "https://ref-c.example.com",
+            ]
+        )
         md = MarkdownRenderer().render(_result(items=[item]))
         for ref in ("ref-a", "ref-b", "ref-c"):
             assert ref in md
 
     def test_html_renders_all_valid_cross_refs(self) -> None:
         """All valid cross-ref URLs appear in HTML output."""
-        item = _item(cross_refs=[
-            "https://ref-a.example.com",
-            "https://ref-b.example.com",
-        ])
+        item = _item(
+            cross_refs=[
+                "https://ref-a.example.com",
+                "https://ref-b.example.com",
+            ]
+        )
         html = HtmlRenderer().render(_result(items=[item]))
         assert "ref-a.example.com" in html
         assert "ref-b.example.com" in html
@@ -1862,6 +1929,7 @@ class TestCrossRefsFull:
 # ──────────────────────────────────────────────────────────────────────────────
 # TestCadenceCompleteness
 # ──────────────────────────────────────────────────────────────────────────────
+
 
 class TestCadenceCompleteness:
     """
@@ -1968,6 +2036,7 @@ class TestCadenceCompleteness:
 # TestCLIEntryPoint
 # ──────────────────────────────────────────────────────────────────────────────
 
+
 class TestCLIEntryPoint:
     """
     ``ai-news-render`` CLI: argument parsing, exit codes, and help output.
@@ -1978,6 +2047,7 @@ class TestCLIEntryPoint:
     def test_no_input_exits_0(self) -> None:
         """Running without --input exits 0 (prints help)."""
         from ai_news_agent.rendering.agent import cli_main
+
         with patch("sys.argv", ["ai-news-render"]), pytest.raises(SystemExit) as exc_info:
             cli_main()
         assert exc_info.value.code == 0
@@ -1985,19 +2055,25 @@ class TestCLIEntryPoint:
     def test_missing_input_file_exits_2(self, tmp_path: Path) -> None:
         """--input pointing to non-existent file exits 2."""
         from ai_news_agent.rendering.agent import cli_main
+
         missing = str(tmp_path / "does-not-exist.json")
-        with patch("sys.argv", ["ai-news-render", "--input", missing]), \
-             pytest.raises(SystemExit) as exc_info:
+        with (
+            patch("sys.argv", ["ai-news-render", "--input", missing]),
+            pytest.raises(SystemExit) as exc_info,
+        ):
             cli_main()
         assert exc_info.value.code == 2
 
     def test_invalid_json_input_exits_2(self, tmp_path: Path) -> None:
         """--input with invalid JSON content exits 2."""
         from ai_news_agent.rendering.agent import cli_main
+
         bad_json = tmp_path / "bad.json"
         bad_json.write_text("not valid JSON {{{{", encoding="utf-8")
-        with patch("sys.argv", ["ai-news-render", "--input", str(bad_json)]), \
-             pytest.raises(SystemExit) as exc_info:
+        with (
+            patch("sys.argv", ["ai-news-render", "--input", str(bad_json)]),
+            pytest.raises(SystemExit) as exc_info,
+        ):
             cli_main()
         assert exc_info.value.code == 2
 
@@ -2005,6 +2081,7 @@ class TestCLIEntryPoint:
 # ──────────────────────────────────────────────────────────────────────────────
 # TestCLIRender
 # ──────────────────────────────────────────────────────────────────────────────
+
 
 class TestCLIRender:
     """
@@ -2063,11 +2140,19 @@ class TestCLIRender:
         output_dir = tmp_path / "rendered"
         self._write_digest_json(input_path)
 
-        with patch("sys.argv", [
-            "ai-news-render",
-            "--input", str(input_path),
-            "--output-dir", str(output_dir),
-        ]), pytest.raises(SystemExit) as exc_info:
+        with (
+            patch(
+                "sys.argv",
+                [
+                    "ai-news-render",
+                    "--input",
+                    str(input_path),
+                    "--output-dir",
+                    str(output_dir),
+                ],
+            ),
+            pytest.raises(SystemExit) as exc_info,
+        ):
             cli_main()
         assert exc_info.value.code == 0
         assert (output_dir / "2026-05-11-daily.md").exists()
@@ -2081,10 +2166,17 @@ class TestCLIRender:
         input_path = tmp_path / "digest.json"
         self._write_digest_json(input_path)
 
-        with patch("sys.argv", [
-            "ai-news-render",
-            "--input", str(input_path),
-        ]), pytest.raises(SystemExit) as exc_info:
+        with (
+            patch(
+                "sys.argv",
+                [
+                    "ai-news-render",
+                    "--input",
+                    str(input_path),
+                ],
+            ),
+            pytest.raises(SystemExit) as exc_info,
+        ):
             cli_main()
         assert exc_info.value.code == 0
         # Files should be in tmp_path (same dir as input)
@@ -2099,12 +2191,20 @@ class TestCLIRender:
         output_dir.mkdir()
         self._write_digest_json(input_path)
 
-        with patch("sys.argv", [
-            "ai-news-render",
-            "--input", str(input_path),
-            "--output-dir", str(output_dir),
-            "--dry-run",
-        ]), pytest.raises(SystemExit) as exc_info:
+        with (
+            patch(
+                "sys.argv",
+                [
+                    "ai-news-render",
+                    "--input",
+                    str(input_path),
+                    "--output-dir",
+                    str(output_dir),
+                    "--dry-run",
+                ],
+            ),
+            pytest.raises(SystemExit) as exc_info,
+        ):
             cli_main()
         assert exc_info.value.code == 0
         # No permanent files written
@@ -2118,11 +2218,19 @@ class TestCLIRender:
         output_dir = tmp_path / "out"
         self._write_digest_json(input_path)
 
-        with patch("sys.argv", [
-            "ai-news-render",
-            "--input", str(input_path),
-            "--output-dir", str(output_dir),
-        ]), pytest.raises(SystemExit):
+        with (
+            patch(
+                "sys.argv",
+                [
+                    "ai-news-render",
+                    "--input",
+                    str(input_path),
+                    "--output-dir",
+                    str(output_dir),
+                ],
+            ),
+            pytest.raises(SystemExit),
+        ):
             cli_main()
 
         md_file = output_dir / "2026-05-11-daily.md"
@@ -2133,6 +2241,7 @@ class TestCLIRender:
 # ──────────────────────────────────────────────────────────────────────────────
 # TestIdempotency
 # ──────────────────────────────────────────────────────────────────────────────
+
 
 class TestIdempotency:
     """
@@ -2177,6 +2286,7 @@ class TestIdempotency:
 # ──────────────────────────────────────────────────────────────────────────────
 # TestItemCardAllFields
 # ──────────────────────────────────────────────────────────────────────────────
+
 
 class TestItemCardAllFields:
     """
@@ -2254,6 +2364,7 @@ class TestItemCardAllFields:
 # TestEmptyStateGraceful
 # ──────────────────────────────────────────────────────────────────────────────
 
+
 class TestEmptyStateGraceful:
     """
     All empty-list / empty-string edge cases must not raise exceptions and
@@ -2313,6 +2424,7 @@ class TestEmptyStateGraceful:
 # TestJsonSerializerEdgeCases
 # ──────────────────────────────────────────────────────────────────────────────
 
+
 class TestJsonSerializerEdgeCases:
     """
     Tests for the ``_serialize`` function and JSON encoder edge-cases.
@@ -2323,12 +2435,14 @@ class TestJsonSerializerEdgeCases:
     def test_serialize_raises_for_unknown_type(self) -> None:
         """``_serialize`` raises TypeError for non-date, non-datetime types."""
         from ai_news_agent.rendering.json_renderer import _serialize
+
         with pytest.raises(TypeError, match="not JSON serializable"):
             _serialize(object())
 
     def test_serialize_datetime_returns_isoformat(self) -> None:
         """``_serialize`` returns ISO-8601 string for datetime objects."""
         from ai_news_agent.rendering.json_renderer import _serialize
+
         dt = datetime(2026, 5, 11, 12, 0, 0, tzinfo=UTC)
         result = _serialize(dt)
         assert result == "2026-05-11T12:00:00+00:00"
@@ -2336,6 +2450,7 @@ class TestJsonSerializerEdgeCases:
     def test_serialize_date_returns_isoformat(self) -> None:
         """``_serialize`` returns ISO-8601 string for date objects."""
         from ai_news_agent.rendering.json_renderer import _serialize
+
         d = date(2026, 5, 11)
         result = _serialize(d)
         assert result == "2026-05-11"
@@ -2350,6 +2465,7 @@ class TestJsonSerializerEdgeCases:
 # ──────────────────────────────────────────────────────────────────────────────
 # TestLoadCurationResultEdgeCases
 # ──────────────────────────────────────────────────────────────────────────────
+
 
 class TestLoadCurationResultEdgeCases:
     """
@@ -2411,8 +2527,10 @@ class TestLoadCurationResultEdgeCases:
         input_path = tmp_path / "bad_date.json"
         self._write_json(input_path, payload)
 
-        with patch("sys.argv", ["ai-news-render", "--input", str(input_path)]), \
-             pytest.raises(SystemExit) as exc_info:
+        with (
+            patch("sys.argv", ["ai-news-render", "--input", str(input_path)]),
+            pytest.raises(SystemExit) as exc_info,
+        ):
             cli_main()
         assert exc_info.value.code == 2
 
@@ -2422,19 +2540,21 @@ class TestLoadCurationResultEdgeCases:
 
         payload = self._base_payload()
         # Add a second item with an invalid pub_date
-        payload["items"].append({
-            "headline": "Bad Date Article",
-            "source_name": "Test",
-            "url": "https://test.example.com/baddate",
-            "pub_date": "NOT-A-DATE",  # invalid
-            "why_it_matters": "Bad date.",
-            "impact_tags": [],
-            "tier": "1b",
-            "cross_refs": [],
-            "twitter_handle": None,
-            "tweet_url": None,
-            "prompt_version": "sha256:edgecases",
-        })
+        payload["items"].append(
+            {
+                "headline": "Bad Date Article",
+                "source_name": "Test",
+                "url": "https://test.example.com/baddate",
+                "pub_date": "NOT-A-DATE",  # invalid
+                "why_it_matters": "Bad date.",
+                "impact_tags": [],
+                "tier": "1b",
+                "cross_refs": [],
+                "twitter_handle": None,
+                "tweet_url": None,
+                "prompt_version": "sha256:edgecases",
+            }
+        )
         input_path = tmp_path / "bad_item_date.json"
         self._write_json(input_path, payload)
 

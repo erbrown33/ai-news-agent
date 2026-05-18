@@ -89,14 +89,14 @@ class StoreFactory:
         output_dir.mkdir(parents=True, exist_ok=True)
 
         filename = _EXT.get(backend, "store.json")
-        db_path  = output_dir / filename
+        db_path = output_dir / filename
 
         logger.debug(
             "store_factory_create",
             extra={
                 "agent_id": agent_cfg.agent_id,
-                "backend":  backend,
-                "db_path":  str(db_path),
+                "backend": backend,
+                "db_path": str(db_path),
             },
         )
         return StoreFactory.from_backend(backend, db_path)
@@ -125,8 +125,7 @@ class StoreFactory:
         if backend not in _BACKENDS:
             registered = ", ".join(sorted(_BACKENDS))
             raise ValueError(
-                f"Unknown store backend {backend!r}. "
-                f"Registered backends: {registered}"
+                f"Unknown store backend {backend!r}. Registered backends: {registered}"
             )
         store_cls = _BACKENDS[backend]
         return store_cls(db_path)  # type: ignore[call-arg]
@@ -152,9 +151,7 @@ class StoreFactory:
                 SRC-088–SRC-089 (cloud-equivalent storage tiers)
         """
         if not issubclass(store_cls, AbstractArticleStore):
-            raise TypeError(
-                f"{store_cls.__name__} must be a subclass of AbstractArticleStore"
-            )
+            raise TypeError(f"{store_cls.__name__} must be a subclass of AbstractArticleStore")
         _BACKENDS[name.lower().strip()] = store_cls
 
     @staticmethod

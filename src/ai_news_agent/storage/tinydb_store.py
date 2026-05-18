@@ -72,7 +72,7 @@ def _parse_date(value: str | date) -> date:
 def _article_to_doc(article: ArticleRecord) -> dict:
     """Serialise an ``ArticleRecord`` to a JSON-safe dict for TinyDB."""
     doc = asdict(article)
-    doc["pub_date"]   = article.pub_date.isoformat()
+    doc["pub_date"] = article.pub_date.isoformat()
     doc["fetched_at"] = article.fetched_at.isoformat()
     return doc
 
@@ -120,25 +120,25 @@ def _doc_to_tweet(doc: dict) -> TweetSignal:
 def _digest_to_doc(record: DigestRecord) -> dict:
     """Serialise a ``DigestRecord`` to a JSON-safe dict for TinyDB."""
     return {
-        "digest_key":               record.digest_key,
-        "agent_id":                 record.agent_id,
-        "cadence":                  record.cadence,
-        "run_date":                 record.run_date.isoformat(),
-        "window_start":             record.window_start.isoformat(),
-        "window_end":               record.window_end.isoformat(),
-        "prompt_version":           record.prompt_version,
-        "llm_provider":             record.llm_provider,
-        "llm_model":                record.llm_model,
-        "items_considered":         record.items_considered,
-        "items_included":           record.items_included,
-        "items_by_tier":            record.items_by_tier,
-        "items_by_source_class":    record.items_by_source_class,
+        "digest_key": record.digest_key,
+        "agent_id": record.agent_id,
+        "cadence": record.cadence,
+        "run_date": record.run_date.isoformat(),
+        "window_start": record.window_start.isoformat(),
+        "window_end": record.window_end.isoformat(),
+        "prompt_version": record.prompt_version,
+        "llm_provider": record.llm_provider,
+        "llm_model": record.llm_model,
+        "items_considered": record.items_considered,
+        "items_included": record.items_included,
+        "items_by_tier": record.items_by_tier,
+        "items_by_source_class": record.items_by_source_class,
         "twitter_signal_available": record.twitter_signal_available,
-        "tweet_api_call_count":     record.tweet_api_call_count,
-        "token_usage":              record.token_usage,
-        "md_path":                  record.md_path,
-        "html_path":                record.html_path,
-        "json_path":                record.json_path,
+        "tweet_api_call_count": record.tweet_api_call_count,
+        "token_usage": record.token_usage,
+        "md_path": record.md_path,
+        "html_path": record.html_path,
+        "json_path": record.json_path,
     }
 
 
@@ -190,10 +190,10 @@ class TinyDBArticleStore(AbstractArticleStore):
         resolved = Path(db_path)
         resolved.parent.mkdir(parents=True, exist_ok=True)
         self._db_path = resolved
-        self._db       = TinyDB(str(resolved))
+        self._db = TinyDB(str(resolved))
         self._articles = self._db.table("articles")
-        self._tweets   = self._db.table("tweets")
-        self._digests  = self._db.table("digests")
+        self._tweets = self._db.table("tweets")
+        self._digests = self._db.table("digests")
 
     # ------------------------------------------------------------------
     # Resource lifecycle
@@ -248,11 +248,11 @@ class TinyDBArticleStore(AbstractArticleStore):
                 logger.warning(
                     "near_duplicate_detected",
                     extra={
-                        "agent_id":        candidate.agent_id,
-                        "new_url":         candidate.url,
-                        "existing_url":    doc.get("url", ""),
-                        "similarity":      round(sim, 3),
-                        "new_headline":    candidate.headline,
+                        "agent_id": candidate.agent_id,
+                        "new_url": candidate.url,
+                        "existing_url": doc.get("url", ""),
+                        "similarity": round(sim, 3),
+                        "new_headline": candidate.headline,
                         "existing_headline": doc.get("headline", ""),
                     },
                 )
@@ -318,10 +318,7 @@ class TinyDBArticleStore(AbstractArticleStore):
         """
         q = Query()
         docs = self._articles.search(q.agent_id == agent_id)
-        return sum(
-            1 for doc in docs
-            if window_start <= _parse_dt(doc["pub_date"]) <= window_end
-        )
+        return sum(1 for doc in docs if window_start <= _parse_dt(doc["pub_date"]) <= window_end)
 
     def get_stats(
         self,
@@ -443,18 +440,14 @@ class TinyDBArticleStore(AbstractArticleStore):
         """
         q = Query()
         if run_date is not None:
-            run_date_key = (
-                run_date.date() if isinstance(run_date, datetime) else run_date
-            )
+            run_date_key = run_date.date() if isinstance(run_date, datetime) else run_date
             docs = self._digests.search(
                 (q.agent_id == agent_id)
                 & (q.cadence == cadence)
                 & (q.run_date == run_date_key.isoformat())
             )
         else:
-            docs = self._digests.search(
-                (q.agent_id == agent_id) & (q.cadence == cadence)
-            )
+            docs = self._digests.search((q.agent_id == agent_id) & (q.cadence == cadence))
 
         if not docs:
             return None
@@ -476,9 +469,7 @@ class TinyDBArticleStore(AbstractArticleStore):
         """
         q = Query()
         if cadence is not None:
-            docs = self._digests.search(
-                (q.agent_id == agent_id) & (q.cadence == cadence)
-            )
+            docs = self._digests.search((q.agent_id == agent_id) & (q.cadence == cadence))
         else:
             docs = self._digests.search(q.agent_id == agent_id)
 

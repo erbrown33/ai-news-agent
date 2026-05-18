@@ -39,10 +39,10 @@ Cadence = Literal["daily", "weekly", "monthly", "annual"]
 
 #: Maps cadence names to prompt filenames under prompts/.
 _PROMPT_FILES: dict[str, str] = {
-    "daily":   "daily.md",
-    "weekly":  "weekly.md",
+    "daily": "daily.md",
+    "weekly": "weekly.md",
     "monthly": "monthly.md",
-    "annual":  "annual.md",
+    "annual": "annual.md",
 }
 
 # ---------------------------------------------------------------------------
@@ -186,10 +186,7 @@ def _format_tier_articles(
         if article.abstract:
             entry += f"\n   Abstract: {article.abstract[:250]}"
         if article.twitter_handle:
-            entry += (
-                f"\n   _(Surfaced via @{article.twitter_handle} — "
-                f"tweet: {article.tweet_url})_"
-            )
+            entry += f"\n   _(Surfaced via @{article.twitter_handle} — tweet: {article.tweet_url})_"
         lines.append(entry)
         lines.append("")  # blank line between items
 
@@ -222,10 +219,10 @@ class PromptManifest:
             SRC-129 (each digest records the prompt version used)
     """
 
-    daily:   str = ""
-    weekly:  str = ""
+    daily: str = ""
+    weekly: str = ""
     monthly: str = ""
-    annual:  str = ""
+    annual: str = ""
 
     #: UTC datetime when this manifest was generated
     generated_at: str = ""
@@ -262,10 +259,10 @@ class PromptManifest:
     def to_dict(self) -> dict[str, str]:
         """Return all hashes as a plain dict (suitable for JSON serialisation)."""
         return {
-            "daily":        self.daily,
-            "weekly":       self.weekly,
-            "monthly":      self.monthly,
-            "annual":       self.annual,
+            "daily": self.daily,
+            "weekly": self.weekly,
+            "monthly": self.monthly,
+            "annual": self.annual,
             "generated_at": self.generated_at,
         }
 
@@ -311,10 +308,10 @@ class PromptManifest:
     def get(self, cadence: str) -> str:
         """Return the hash for a specific cadence. Raises ``KeyError`` for unknown cadences."""
         mapping = {
-            "daily":   self.daily,
-            "weekly":  self.weekly,
+            "daily": self.daily,
+            "weekly": self.weekly,
             "monthly": self.monthly,
-            "annual":  self.annual,
+            "annual": self.annual,
         }
         if cadence not in mapping:
             raise KeyError(f"Unknown cadence: {cadence!r}")
@@ -350,10 +347,10 @@ def compute_all_hashes(prompts_dir: str | Path = "prompts") -> dict[str, str]:
     """
     manifest = PromptManifest.from_dir(Path(prompts_dir))
     return {
-        "daily":   manifest.daily,
-        "weekly":  manifest.weekly,
+        "daily": manifest.daily,
+        "weekly": manifest.weekly,
         "monthly": manifest.monthly,
-        "annual":  manifest.annual,
+        "annual": manifest.annual,
     }
 
 
@@ -484,9 +481,9 @@ class PromptBuilder:
 
         tier_1a_text = _format_tier_articles(all_candidates, "1a")
         tier_1b_text = _format_tier_articles(all_candidates, "1b")
-        tier_2_text  = _format_tier_articles(all_candidates, "2")
-        tier_3_text  = _format_tier_articles(all_candidates, "3")
-        tier_4_text  = _format_tier_articles(all_candidates, "4")
+        tier_2_text = _format_tier_articles(all_candidates, "2")
+        tier_3_text = _format_tier_articles(all_candidates, "3")
+        tier_4_text = _format_tier_articles(all_candidates, "4")
 
         # ------------------------------------------------------------------
         # Step 4: Format the Twitter signal section (SRC-119, SRC-148)
@@ -504,7 +501,7 @@ class PromptBuilder:
         # ------------------------------------------------------------------
         # Step 6: Year variables for annual prompt (SRC-032, SRC-124)
         # ------------------------------------------------------------------
-        year       = window_start.year
+        year = window_start.year
         year_plus_1 = year + 1
 
         # ------------------------------------------------------------------
@@ -512,21 +509,21 @@ class PromptBuilder:
         # ------------------------------------------------------------------
         substitutions: dict[str, str] = {
             # ISO date window (SRC-116)
-            "{{window_start_iso}}":       window_start.date().isoformat(),
-            "{{window_end_iso}}":         window_end.date().isoformat(),
+            "{{window_start_iso}}": window_start.date().isoformat(),
+            "{{window_end_iso}}": window_end.date().isoformat(),
             # Tier-separated article lists (SRC-016–SRC-021)
-            "{{tier_1a_articles}}":       tier_1a_text,
-            "{{tier_1b_articles}}":       tier_1b_text,
-            "{{tier_2_articles}}":        tier_2_text,
-            "{{tier_3_articles}}":        tier_3_text,
-            "{{tier_4_articles}}":        tier_4_text,
+            "{{tier_1a_articles}}": tier_1a_text,
+            "{{tier_1b_articles}}": tier_1b_text,
+            "{{tier_2_articles}}": tier_2_text,
+            "{{tier_3_articles}}": tier_3_text,
+            "{{tier_4_articles}}": tier_4_text,
             # Twitter signal section (SRC-119, SRC-148)
             "{{twitter_signal_section}}": twitter_section,
             # Search budget directive (SRC-121)
             "{{search_budget_directive}}": search_budget_directive,
             # Selection size and year variables
-            "{{top_n}}":       str(top_n),
-            "{{year}}":        str(year),
+            "{{top_n}}": str(top_n),
+            "{{year}}": str(year),
             "{{year_plus_1}}": str(year_plus_1),
         }
 
@@ -557,9 +554,7 @@ class PromptBuilder:
         filename = _PROMPT_FILES[cadence]
         prompt_path = self._prompts_dir / filename
         if not prompt_path.exists():
-            raise FileNotFoundError(
-                f"Prompt file not found: {prompt_path!r} (SRC-113)"
-            )
+            raise FileNotFoundError(f"Prompt file not found: {prompt_path!r} (SRC-113)")
         return _sha256_file(prompt_path)
 
     def get_manifest(self) -> PromptManifest:
@@ -676,11 +671,9 @@ def _cli_prompt_hashes() -> None:
         mismatches: list[str] = []
         for cadence in ("daily", "weekly", "monthly", "annual"):
             current_hash = current.get(cadence)
-            saved_hash   = saved.get(cadence)
+            saved_hash = saved.get(cadence)
             if current_hash != saved_hash:
-                mismatches.append(
-                    f"  {cadence:8s}: saved={saved_hash!r}  current={current_hash!r}"
-                )
+                mismatches.append(f"  {cadence:8s}: saved={saved_hash!r}  current={current_hash!r}")
 
         if mismatches:
             print(

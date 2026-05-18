@@ -57,7 +57,10 @@ from ai_news_agent.storage.tinydb_store import TinyDBArticleStore
 # Helpers
 # ---------------------------------------------------------------------------
 
-def _make_article(agent_id: str, url: str = "https://reuters.com/e2e-pipeline-test") -> ArticleRecord:
+
+def _make_article(
+    agent_id: str, url: str = "https://reuters.com/e2e-pipeline-test"
+) -> ArticleRecord:
     """Create a valid ArticleRecord with the given URL."""
     canonical = normalize_url(url)
     return ArticleRecord(
@@ -77,6 +80,7 @@ def _make_article(agent_id: str, url: str = "https://reuters.com/e2e-pipeline-te
 # ---------------------------------------------------------------------------
 # Pipeline dry-run tests (SRC-102)
 # ---------------------------------------------------------------------------
+
 
 @pytest.mark.integration
 class TestDryRunMode:
@@ -109,12 +113,14 @@ class TestDryRunMode:
 
         scratch_dir = tmp_path / "scratch"
 
-        with patch("ai_news_agent.pipeline.SourcingAgent") as MockSourcingAgent, \
-             patch("ai_news_agent.curation.agent.get_llm_client") as mock_llm_factory:
-
+        with (
+            patch("ai_news_agent.pipeline.SourcingAgent") as MockSourcingAgent,
+            patch("ai_news_agent.curation.agent.get_llm_client") as mock_llm_factory,
+        ):
             # Sourcing returns a minimal result (skipped in the test flow via dry_run store)
             mock_src_instance = MockSourcingAgent.return_value
             from ai_news_agent.sourcing.agent import SourcingRunResult
+
             mock_src_instance.run.return_value = SourcingRunResult(
                 agent_id=sample_agent_config.agent_id,
                 run_at=datetime(2026, 5, 9, tzinfo=UTC),
@@ -189,6 +195,7 @@ class TestDryRunMode:
 
         # Patch sample_agent_config output_dir to point to our controlled path
         from ai_news_agent.config.models import AgentConfig
+
         agent_cfg = AgentConfig(
             agent_id=sample_agent_config.agent_id,
             llm=sample_agent_config.llm,
@@ -204,10 +211,12 @@ class TestDryRunMode:
 
         scratch_dir = tmp_path / "scratch"
 
-        with patch("ai_news_agent.pipeline.SourcingAgent") as MockSourcingAgent, \
-             patch("ai_news_agent.curation.agent.get_llm_client") as mock_llm_factory:
-
+        with (
+            patch("ai_news_agent.pipeline.SourcingAgent") as MockSourcingAgent,
+            patch("ai_news_agent.curation.agent.get_llm_client") as mock_llm_factory,
+        ):
             from ai_news_agent.sourcing.agent import SourcingRunResult
+
             mock_src_instance = MockSourcingAgent.return_value
             mock_src_instance.run.return_value = SourcingRunResult(
                 agent_id=agent_cfg.agent_id,
@@ -271,9 +280,12 @@ class TestDryRunMode:
         article = _make_article(sample_agent_config.agent_id)
         store.insert_if_new(article)
 
-        with patch("ai_news_agent.pipeline.SourcingAgent") as MockSourcing, \
-             patch("ai_news_agent.curation.agent.get_llm_client") as mock_factory:
+        with (
+            patch("ai_news_agent.pipeline.SourcingAgent") as MockSourcing,
+            patch("ai_news_agent.curation.agent.get_llm_client") as mock_factory,
+        ):
             from ai_news_agent.sourcing.agent import SourcingRunResult
+
             MockSourcing.return_value.run.return_value = SourcingRunResult(
                 agent_id=sample_agent_config.agent_id,
                 run_at=datetime(2026, 5, 9, tzinfo=UTC),
@@ -308,8 +320,8 @@ class TestDryRunMode:
         assert result.markdown_path is not None
         # Files must be INSIDE the provided scratch_dir
         assert result.markdown_path.parent == scratch_dir
-        assert result.html_path.parent == scratch_dir       # type: ignore[union-attr]
-        assert result.json_path.parent == scratch_dir       # type: ignore[union-attr]
+        assert result.html_path.parent == scratch_dir  # type: ignore[union-attr]
+        assert result.json_path.parent == scratch_dir  # type: ignore[union-attr]
 
         store.close()
 
@@ -317,6 +329,7 @@ class TestDryRunMode:
 # ---------------------------------------------------------------------------
 # §8.2 Quality monitoring fields (SRC-150)
 # ---------------------------------------------------------------------------
+
 
 @pytest.mark.integration
 class TestMonitoringFields:
@@ -362,9 +375,12 @@ class TestMonitoringFields:
         store.insert_if_new(article)
         scratch = tmp_path / "scratch"
 
-        with patch("ai_news_agent.pipeline.SourcingAgent") as MockSourcing, \
-             patch("ai_news_agent.curation.agent.get_llm_client") as mock_factory:
+        with (
+            patch("ai_news_agent.pipeline.SourcingAgent") as MockSourcing,
+            patch("ai_news_agent.curation.agent.get_llm_client") as mock_factory,
+        ):
             from ai_news_agent.sourcing.agent import SourcingRunResult
+
             MockSourcing.return_value.run.return_value = SourcingRunResult(
                 agent_id=sample_agent_config.agent_id,
                 run_at=datetime(2026, 5, 9, tzinfo=UTC),
@@ -440,9 +456,12 @@ class TestMonitoringFields:
         store.insert_if_new(article)
         scratch = tmp_path / "scratch"
 
-        with patch("ai_news_agent.pipeline.SourcingAgent") as MockSourcing, \
-             patch("ai_news_agent.curation.agent.get_llm_client") as mock_factory:
+        with (
+            patch("ai_news_agent.pipeline.SourcingAgent") as MockSourcing,
+            patch("ai_news_agent.curation.agent.get_llm_client") as mock_factory,
+        ):
             from ai_news_agent.sourcing.agent import SourcingRunResult
+
             MockSourcing.return_value.run.return_value = SourcingRunResult(
                 agent_id=sample_agent_config.agent_id,
                 run_at=datetime(2026, 5, 9, tzinfo=UTC),
@@ -483,16 +502,16 @@ class TestMonitoringFields:
             "agent_id",
             "cadence",
             "run_date",
-            "prompt_version",     # SRC-129
-            "llm_provider",       # SRC-150
-            "llm_model",          # SRC-150
-            "items_considered",   # SRC-150
-            "items_included",     # SRC-150
-            "items_by_tier",      # SRC-150
+            "prompt_version",  # SRC-129
+            "llm_provider",  # SRC-150
+            "llm_model",  # SRC-150
+            "items_considered",  # SRC-150
+            "items_included",  # SRC-150
+            "items_by_tier",  # SRC-150
             "items_by_source_class",  # SRC-150
-            "token_usage",        # SRC-150
+            "token_usage",  # SRC-150
             "twitter_signal_available",  # SRC-148
-            "tweet_api_call_count",      # SRC-150
+            "tweet_api_call_count",  # SRC-150
         ]
         for field_name in required_fields:
             assert field_name in meta, (
@@ -508,6 +527,7 @@ class TestMonitoringFields:
 # ---------------------------------------------------------------------------
 # Prompt version traceability (SRC-129)
 # ---------------------------------------------------------------------------
+
 
 @pytest.mark.integration
 class TestPromptVersionTraceability:
@@ -532,9 +552,12 @@ class TestPromptVersionTraceability:
         store.insert_if_new(article)
         scratch = tmp_path / "scratch"
 
-        with patch("ai_news_agent.pipeline.SourcingAgent") as MockSourcing, \
-             patch("ai_news_agent.curation.agent.get_llm_client") as mock_factory:
+        with (
+            patch("ai_news_agent.pipeline.SourcingAgent") as MockSourcing,
+            patch("ai_news_agent.curation.agent.get_llm_client") as mock_factory,
+        ):
             from ai_news_agent.sourcing.agent import SourcingRunResult
+
             MockSourcing.return_value.run.return_value = SourcingRunResult(
                 agent_id=sample_agent_config.agent_id,
                 run_at=datetime(2026, 5, 9, tzinfo=UTC),
@@ -571,15 +594,11 @@ class TestPromptVersionTraceability:
 
         # Must appear in all three formats (SRC-129)
         md_text = result.markdown_path.read_text(encoding="utf-8")  # type: ignore[union-attr]
-        html_text = result.html_path.read_text(encoding="utf-8")    # type: ignore[union-attr]
+        html_text = result.html_path.read_text(encoding="utf-8")  # type: ignore[union-attr]
         json_data = json.loads(result.json_path.read_text(encoding="utf-8"))  # type: ignore[union-attr]
 
-        assert prompt_version in md_text, (
-            "Prompt version missing from Markdown output (SRC-129)"
-        )
-        assert prompt_version in html_text, (
-            "Prompt version missing from HTML output (SRC-129)"
-        )
+        assert prompt_version in md_text, "Prompt version missing from Markdown output (SRC-129)"
+        assert prompt_version in html_text, "Prompt version missing from HTML output (SRC-129)"
         assert json_data["metadata"]["prompt_version"] == prompt_version, (
             "Prompt version mismatch in JSON metadata (SRC-129)"
         )
@@ -590,6 +609,7 @@ class TestPromptVersionTraceability:
 # ---------------------------------------------------------------------------
 # URL enforcement (SRC-049, SRC-141)
 # ---------------------------------------------------------------------------
+
 
 @pytest.mark.integration
 class TestURLEnforcement:
@@ -614,34 +634,39 @@ class TestURLEnforcement:
         """
         import json as json_mod
 
-        no_url_response = json_mod.dumps({
-            "items": [
-                {
-                    "headline": "No URL Item — Pipeline Must Drop This",
-                    "source_name": "Unknown Source",
-                    "url": "",
-                    "pub_date": "2026-05-09",
-                    "why_it_matters": "This item has no URL and must be dropped.",
-                    "impact_tags": ["business_impact"],
-                    "tier": "3",
-                    "cross_refs": [],
-                    "twitter_handle": None,
-                    "tweet_url": None,
-                }
-            ],
-            "themes": [],
-            "outlook": "",
-            "predictions": [],
-        })
+        no_url_response = json_mod.dumps(
+            {
+                "items": [
+                    {
+                        "headline": "No URL Item — Pipeline Must Drop This",
+                        "source_name": "Unknown Source",
+                        "url": "",
+                        "pub_date": "2026-05-09",
+                        "why_it_matters": "This item has no URL and must be dropped.",
+                        "impact_tags": ["business_impact"],
+                        "tier": "3",
+                        "cross_refs": [],
+                        "twitter_handle": None,
+                        "tweet_url": None,
+                    }
+                ],
+                "themes": [],
+                "outlook": "",
+                "predictions": [],
+            }
+        )
 
         store = TinyDBArticleStore(tmp_path / "store.json")
         article = _make_article(sample_agent_config.agent_id)
         store.insert_if_new(article)
         scratch = tmp_path / "scratch"
 
-        with patch("ai_news_agent.pipeline.SourcingAgent") as MockSourcing, \
-             patch("ai_news_agent.curation.agent.get_llm_client") as mock_factory:
+        with (
+            patch("ai_news_agent.pipeline.SourcingAgent") as MockSourcing,
+            patch("ai_news_agent.curation.agent.get_llm_client") as mock_factory,
+        ):
             from ai_news_agent.sourcing.agent import SourcingRunResult
+
             MockSourcing.return_value.run.return_value = SourcingRunResult(
                 agent_id=sample_agent_config.agent_id,
                 run_at=datetime(2026, 5, 9, tzinfo=UTC),
@@ -675,8 +700,8 @@ class TestURLEnforcement:
 
         assert result.success is True
 
-        md = result.markdown_path.read_text(encoding="utf-8")   # type: ignore[union-attr]
-        html = result.html_path.read_text(encoding="utf-8")     # type: ignore[union-attr]
+        md = result.markdown_path.read_text(encoding="utf-8")  # type: ignore[union-attr]
+        html = result.html_path.read_text(encoding="utf-8")  # type: ignore[union-attr]
         json_data = json.loads(result.json_path.read_text(encoding="utf-8"))  # type: ignore[union-attr]
 
         # No-URL item must be absent from all formats (SRC-049, SRC-141)
@@ -695,6 +720,7 @@ class TestURLEnforcement:
 # ---------------------------------------------------------------------------
 # Date-stamped filenames (SRC-145)
 # ---------------------------------------------------------------------------
+
 
 @pytest.mark.integration
 class TestIdempotentFilenames:
@@ -722,9 +748,12 @@ class TestIdempotentFilenames:
 
         ref_time = datetime(2026, 5, 9, 0, 0, tzinfo=UTC)
 
-        with patch("ai_news_agent.pipeline.SourcingAgent") as MockSourcing, \
-             patch("ai_news_agent.curation.agent.get_llm_client") as mock_factory:
+        with (
+            patch("ai_news_agent.pipeline.SourcingAgent") as MockSourcing,
+            patch("ai_news_agent.curation.agent.get_llm_client") as mock_factory,
+        ):
             from ai_news_agent.sourcing.agent import SourcingRunResult
+
             MockSourcing.return_value.run.return_value = SourcingRunResult(
                 agent_id=sample_agent_config.agent_id,
                 run_at=ref_time,
@@ -767,6 +796,7 @@ class TestIdempotentFilenames:
             assert fname.endswith(ext), f"Wrong extension: {fname}"
             assert "daily" in fname, f"Cadence missing from filename: {fname}"
             import re
+
             assert re.search(r"\d{4}-\d{2}-\d{2}", fname), (
                 f"Date pattern YYYY-MM-DD missing from filename: {fname}"
             )
@@ -783,6 +813,7 @@ class TestIdempotentFilenames:
 # ---------------------------------------------------------------------------
 # All cadences complete (SRC-029–SRC-032)
 # ---------------------------------------------------------------------------
+
 
 @pytest.mark.integration
 @pytest.mark.parametrize("cadence", ["daily", "weekly", "monthly", "annual"])
@@ -808,19 +839,23 @@ def test_all_cadences_complete(
 
     # Reference times that trigger meaningful lookback windows
     ref_map = {
-        "daily":   datetime(2026, 5, 10, 1, 0, tzinfo=UTC),   # triggers yesterday window
-        "weekly":  datetime(2026, 5, 11, 1, 0, tzinfo=UTC),   # Monday: covers prior Sun-Sat
-        "monthly": datetime(2026, 5, 1, 2, 0, tzinfo=UTC),    # 1st: covers April
-        "annual":  datetime(2026, 1, 1, 3, 0, tzinfo=UTC),    # Jan 1: covers prior year
+        "daily": datetime(2026, 5, 10, 1, 0, tzinfo=UTC),  # triggers yesterday window
+        "weekly": datetime(2026, 5, 11, 1, 0, tzinfo=UTC),  # Monday: covers prior Sun-Sat
+        "monthly": datetime(2026, 5, 1, 2, 0, tzinfo=UTC),  # 1st: covers April
+        "annual": datetime(2026, 1, 1, 3, 0, tzinfo=UTC),  # Jan 1: covers prior year
     }
     ref_time = ref_map[cadence]
 
     from ai_news_agent.curation.agent import _WINDOW_FN
+
     ws, we = _WINDOW_FN[cadence](ref_time)
 
-    with patch("ai_news_agent.pipeline.SourcingAgent") as MockSourcing, \
-         patch("ai_news_agent.curation.agent.get_llm_client") as mock_factory:
+    with (
+        patch("ai_news_agent.pipeline.SourcingAgent") as MockSourcing,
+        patch("ai_news_agent.curation.agent.get_llm_client") as mock_factory,
+    ):
         from ai_news_agent.sourcing.agent import SourcingRunResult
+
         MockSourcing.return_value.run.return_value = SourcingRunResult(
             agent_id=sample_agent_config.agent_id,
             run_at=ref_time,
@@ -850,9 +885,7 @@ def test_all_cadences_complete(
             scratch_dir=scratch,
         )
 
-    assert result.success is True, (
-        f"Pipeline failed for cadence={cadence!r}: {result.errors}"
-    )
+    assert result.success is True, f"Pipeline failed for cadence={cadence!r}: {result.errors}"
     assert result.cadence == cadence
     assert result.markdown_path is not None
     assert result.markdown_path.exists()
@@ -864,6 +897,7 @@ def test_all_cadences_complete(
 # ---------------------------------------------------------------------------
 # Twitter degradation propagation (SRC-148)
 # ---------------------------------------------------------------------------
+
 
 @pytest.mark.integration
 class TestTwitterDegradation:
@@ -892,9 +926,12 @@ class TestTwitterDegradation:
         store.insert_if_new(article)
         scratch = tmp_path / "scratch"
 
-        with patch("ai_news_agent.pipeline.SourcingAgent") as MockSourcing, \
-             patch("ai_news_agent.curation.agent.get_llm_client") as mock_factory:
+        with (
+            patch("ai_news_agent.pipeline.SourcingAgent") as MockSourcing,
+            patch("ai_news_agent.curation.agent.get_llm_client") as mock_factory,
+        ):
             from ai_news_agent.sourcing.agent import SourcingRunResult
+
             # Sourcing reports Twitter unavailable (SRC-148)
             MockSourcing.return_value.run.return_value = SourcingRunResult(
                 agent_id=sample_agent_config.agent_id,
@@ -949,9 +986,12 @@ class TestTwitterDegradation:
         store = TinyDBArticleStore(tmp_path / "store.json")
         scratch = tmp_path / "scratch"
 
-        with patch("ai_news_agent.pipeline.SourcingAgent") as MockSourcing, \
-             patch("ai_news_agent.curation.agent.get_llm_client") as mock_factory:
+        with (
+            patch("ai_news_agent.pipeline.SourcingAgent") as MockSourcing,
+            patch("ai_news_agent.curation.agent.get_llm_client") as mock_factory,
+        ):
             from ai_news_agent.sourcing.agent import SourcingRunResult
+
             MockSourcing.return_value.run.return_value = SourcingRunResult(
                 agent_id=sample_agent_config.agent_id,
                 run_at=datetime(2026, 5, 9, tzinfo=UTC),
@@ -993,6 +1033,7 @@ class TestTwitterDegradation:
 # Window override / on-demand re-run (SRC-028, SRC-147)
 # ---------------------------------------------------------------------------
 
+
 @pytest.mark.integration
 class TestWindowOverride:
     """
@@ -1018,7 +1059,7 @@ class TestWindowOverride:
         store = TinyDBArticleStore(tmp_path / "store.json")
 
         custom_start = datetime(2026, 4, 1, 0, 0, tzinfo=UTC)
-        custom_end   = datetime(2026, 4, 30, 23, 59, 59, tzinfo=UTC)
+        custom_end = datetime(2026, 4, 30, 23, 59, 59, tzinfo=UTC)
 
         # Insert an article inside the custom window
         canonical = normalize_url("https://reuters.com/window-override-test")
@@ -1037,9 +1078,12 @@ class TestWindowOverride:
         store.insert_if_new(article)
         scratch = tmp_path / "scratch"
 
-        with patch("ai_news_agent.pipeline.SourcingAgent") as MockSourcing, \
-             patch("ai_news_agent.curation.agent.get_llm_client") as mock_factory:
+        with (
+            patch("ai_news_agent.pipeline.SourcingAgent") as MockSourcing,
+            patch("ai_news_agent.curation.agent.get_llm_client") as mock_factory,
+        ):
             from ai_news_agent.sourcing.agent import SourcingRunResult
+
             MockSourcing.return_value.run.return_value = SourcingRunResult(
                 agent_id=sample_agent_config.agent_id,
                 run_at=datetime(2026, 5, 1, tzinfo=UTC),
@@ -1089,6 +1133,7 @@ class TestWindowOverride:
 # Skip sourcing mode
 # ---------------------------------------------------------------------------
 
+
 @pytest.mark.integration
 class TestSkipSourcing:
     """
@@ -1113,8 +1158,10 @@ class TestSkipSourcing:
         store.insert_if_new(article)
         scratch = tmp_path / "scratch"
 
-        with patch("ai_news_agent.pipeline.SourcingAgent") as MockSourcing, \
-             patch("ai_news_agent.curation.agent.get_llm_client") as mock_factory:
+        with (
+            patch("ai_news_agent.pipeline.SourcingAgent") as MockSourcing,
+            patch("ai_news_agent.curation.agent.get_llm_client") as mock_factory,
+        ):
             mock_factory.return_value = DummyLLMClient()
 
             pipeline = Pipeline(
@@ -1149,6 +1196,7 @@ class TestSkipSourcing:
 # ---------------------------------------------------------------------------
 # build_pipeline factory
 # ---------------------------------------------------------------------------
+
 
 @pytest.mark.integration
 class TestBuildPipelineFactory:
@@ -1189,9 +1237,12 @@ class TestBuildPipelineFactory:
         store.insert_if_new(article)
         scratch = tmp_path / "scratch"
 
-        with patch("ai_news_agent.pipeline.SourcingAgent") as MockSourcing, \
-             patch("ai_news_agent.curation.agent.get_llm_client") as mock_factory:
+        with (
+            patch("ai_news_agent.pipeline.SourcingAgent") as MockSourcing,
+            patch("ai_news_agent.curation.agent.get_llm_client") as mock_factory,
+        ):
             from ai_news_agent.sourcing.agent import SourcingRunResult
+
             MockSourcing.return_value.run.return_value = SourcingRunResult(
                 agent_id=sample_agent_config.agent_id,
                 run_at=datetime(2026, 5, 9, tzinfo=UTC),
@@ -1230,6 +1281,7 @@ class TestBuildPipelineFactory:
 # Pipeline deduplication across runs (SRC-012)
 # ---------------------------------------------------------------------------
 
+
 @pytest.mark.integration
 class TestPipelineDeduplication:
     """
@@ -1251,11 +1303,13 @@ class TestPipelineDeduplication:
         article = _make_article(sample_agent_config.agent_id)
         store.insert_if_new(article)
 
-        initial_count = len(store.get_window(
-            agent_id=sample_agent_config.agent_id,
-            window_start=datetime(2026, 5, 9, 0, 0, tzinfo=UTC),
-            window_end=datetime(2026, 5, 9, 23, 59, tzinfo=UTC),
-        ))
+        initial_count = len(
+            store.get_window(
+                agent_id=sample_agent_config.agent_id,
+                window_start=datetime(2026, 5, 9, 0, 0, tzinfo=UTC),
+                window_end=datetime(2026, 5, 9, 23, 59, tzinfo=UTC),
+            )
+        )
         assert initial_count == 1
 
         # Insert the same article again — should be a duplicate
@@ -1263,11 +1317,13 @@ class TestPipelineDeduplication:
         assert was_inserted is False, "Duplicate insertion should return False (SRC-012)"
 
         # Count must remain 1
-        final_count = len(store.get_window(
-            agent_id=sample_agent_config.agent_id,
-            window_start=datetime(2026, 5, 9, 0, 0, tzinfo=UTC),
-            window_end=datetime(2026, 5, 9, 23, 59, tzinfo=UTC),
-        ))
+        final_count = len(
+            store.get_window(
+                agent_id=sample_agent_config.agent_id,
+                window_start=datetime(2026, 5, 9, 0, 0, tzinfo=UTC),
+                window_end=datetime(2026, 5, 9, 23, 59, tzinfo=UTC),
+            )
+        )
         assert final_count == 1, (
             f"Expected 1 article after deduplication, got {final_count} (SRC-012)"
         )
@@ -1279,6 +1335,7 @@ class TestPipelineDeduplication:
 # PipelineRunResult dataclass
 # ---------------------------------------------------------------------------
 
+
 @pytest.mark.unit
 class TestPipelineRunResult:
     """
@@ -1289,9 +1346,7 @@ class TestPipelineRunResult:
         """_populate_from_sourcing maps all SourcingRunResult fields."""
         from ai_news_agent.sourcing.agent import SourcingRunResult
 
-        result = PipelineRunResult(
-            agent_id="test-agent", cadence="daily", run_at=datetime.now(UTC)
-        )
+        result = PipelineRunResult(agent_id="test-agent", cadence="daily", run_at=datetime.now(UTC))
         sourcing = SourcingRunResult(
             agent_id="test-agent",
             run_at=datetime.now(UTC),
@@ -1319,9 +1374,7 @@ class TestPipelineRunResult:
         """_populate_from_sourcing with Twitter degraded sets available=False."""
         from ai_news_agent.sourcing.agent import SourcingRunResult
 
-        result = PipelineRunResult(
-            agent_id="test-agent", cadence="daily", run_at=datetime.now(UTC)
-        )
+        result = PipelineRunResult(agent_id="test-agent", cadence="daily", run_at=datetime.now(UTC))
         sourcing = SourcingRunResult(
             agent_id="test-agent",
             run_at=datetime.now(UTC),
@@ -1341,9 +1394,7 @@ class TestPipelineRunResult:
 
     def test_result_defaults(self) -> None:
         """PipelineRunResult initialises with safe defaults."""
-        result = PipelineRunResult(
-            agent_id="test", cadence="daily", run_at=datetime.now(UTC)
-        )
+        result = PipelineRunResult(agent_id="test", cadence="daily", run_at=datetime.now(UTC))
         assert result.articles_fetched == 0
         assert result.items_considered == 0
         assert result.items_included == 0

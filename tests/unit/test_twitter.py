@@ -43,6 +43,7 @@ from ai_news_agent.twitter.client import (
 # Helpers
 # ---------------------------------------------------------------------------
 
+
 def _make_client(handles: list[TwitterHandleConfig] | None = None) -> TwitterClient:
     """
     Construct a TwitterClient with a mocked tweepy.Client.
@@ -96,6 +97,7 @@ def _make_entities(urls: list[dict]) -> MagicMock:
 # Construction (SRC-063, SRC-064)
 # ===========================================================================
 
+
 class TestTwitterClientConstruction:
     """Traces: SRC-063 (tweepy), SRC-064 (bearer token from env var)."""
 
@@ -147,6 +149,7 @@ class TestTwitterClientConstruction:
 # Graceful degradation (SRC-148)
 # ===========================================================================
 
+
 class TestGracefulDegradation:
     """Traces: SRC-148 (Twitter unavailable → continue with web sources)."""
 
@@ -193,6 +196,7 @@ class TestGracefulDegradation:
 # ===========================================================================
 # _is_substantive filter (SRC-068)
 # ===========================================================================
+
 
 class TestIsSubstantive:
     """
@@ -241,7 +245,9 @@ class TestIsSubstantive:
         """Long original tweet (≥ 50 chars, no URL) → True (SRC-068)."""
         client = self._client()
         # Exactly 50+ chars, no URL, not a reply, not an RT
-        tweet = _make_tweet("This is a substantive original thought about AI policy and its impact.")
+        tweet = _make_tweet(
+            "This is a substantive original thought about AI policy and its impact."
+        )
         assert client._is_substantive(tweet) is True
 
     def test_exactly_50_chars_is_kept(self) -> None:
@@ -279,6 +285,7 @@ class TestIsSubstantive:
 # _hydrate_urls (SRC-069)
 # ===========================================================================
 
+
 class TestHydrateUrls:
     """
     Validate expanded URL extraction from tweet entities.
@@ -291,9 +298,11 @@ class TestHydrateUrls:
     def test_expanded_urls_returned(self) -> None:
         """expanded_url values from entities.urls are returned."""
         client = self._client()
-        entities = _make_entities([
-            {"expanded_url": "https://reuters.com/ai-article", "url": "https://t.co/abc"},
-        ])
+        entities = _make_entities(
+            [
+                {"expanded_url": "https://reuters.com/ai-article", "url": "https://t.co/abc"},
+            ]
+        )
         tweet = _make_tweet("Check this out https://t.co/abc", entities=entities)
         urls = client._hydrate_urls(tweet)
         assert "https://reuters.com/ai-article" in urls
@@ -301,11 +310,16 @@ class TestHydrateUrls:
     def test_twitter_self_links_excluded(self) -> None:
         """twitter.com and x.com links are excluded (media cards, profile links)."""
         client = self._client()
-        entities = _make_entities([
-            {"expanded_url": "https://twitter.com/karpathy/status/123", "url": "https://t.co/a"},
-            {"expanded_url": "https://x.com/sama/status/456", "url": "https://t.co/b"},
-            {"expanded_url": "https://reuters.com/article", "url": "https://t.co/c"},
-        ])
+        entities = _make_entities(
+            [
+                {
+                    "expanded_url": "https://twitter.com/karpathy/status/123",
+                    "url": "https://t.co/a",
+                },
+                {"expanded_url": "https://x.com/sama/status/456", "url": "https://t.co/b"},
+                {"expanded_url": "https://reuters.com/article", "url": "https://t.co/c"},
+            ]
+        )
         tweet = _make_tweet("text", entities=entities)
         urls = client._hydrate_urls(tweet)
         assert "https://reuters.com/article" in urls
@@ -332,10 +346,12 @@ class TestHydrateUrls:
     def test_duplicate_expanded_urls_deduplicated(self) -> None:
         """Same expanded_url appearing twice → deduplicated in result (SRC-012)."""
         client = self._client()
-        entities = _make_entities([
-            {"expanded_url": "https://reuters.com/article"},
-            {"expanded_url": "https://reuters.com/article"},
-        ])
+        entities = _make_entities(
+            [
+                {"expanded_url": "https://reuters.com/article"},
+                {"expanded_url": "https://reuters.com/article"},
+            ]
+        )
         tweet = _make_tweet("text", entities=entities)
         urls = client._hydrate_urls(tweet)
         assert len(urls) == 1
@@ -358,6 +374,7 @@ class TestHydrateUrls:
 # ===========================================================================
 # _normalize (SRC-011, SRC-046)
 # ===========================================================================
+
 
 class TestNormalize:
     """
@@ -414,9 +431,11 @@ class TestNormalize:
         """linked_urls populated from _hydrate_urls output."""
         client = _make_client()
         handle_cfg = TwitterHandleConfig(handle="drfeifei", weight=1.0)
-        entities = _make_entities([
-            {"expanded_url": "https://stanforddaily.com/ai-article"},
-        ])
+        entities = _make_entities(
+            [
+                {"expanded_url": "https://stanforddaily.com/ai-article"},
+            ]
+        )
         tweet = _make_tweet("Read this. https://t.co/abc", tweet_id="333", entities=entities)
         signal = client._normalize(tweet, handle_cfg, "test-agent")
         assert "https://stanforddaily.com/ai-article" in signal.linked_urls
@@ -441,6 +460,7 @@ class TestNormalize:
 # ===========================================================================
 # _fetch_tweets (SRC-067)
 # ===========================================================================
+
 
 class TestFetchTweets:
     """
@@ -520,6 +540,7 @@ class TestFetchTweets:
 # _resolve_user (SRC-067)
 # ===========================================================================
 
+
 class TestResolveUser:
     """
     Validate user resolution (handle → user object).
@@ -561,6 +582,7 @@ class TestResolveUser:
 # fetch_signals end-to-end (SRC-067–SRC-069)
 # ===========================================================================
 
+
 class TestFetchSignals:
     """
     End-to-end tests for fetch_signals with mocked tweepy internals.
@@ -597,10 +619,12 @@ class TestFetchSignals:
         """Non-substantive tweets (RTs, replies) are filtered before normalisation."""
         client = _make_client()
         client._resolve_user = MagicMock(return_value=MagicMock(id="12345"))
-        client._fetch_tweets = MagicMock(return_value=[
-            _make_tweet("RT @karpathy: Some news"),  # bare RT → filtered
-            _make_tweet("@sama What do you think?"),  # reply → filtered
-        ])
+        client._fetch_tweets = MagicMock(
+            return_value=[
+                _make_tweet("RT @karpathy: Some news"),  # bare RT → filtered
+                _make_tweet("@sama What do you think?"),  # reply → filtered
+            ]
+        )
 
         signals, _ = client.fetch_signals(
             window_start=datetime(2026, 5, 9, tzinfo=UTC),
@@ -615,12 +639,14 @@ class TestFetchSignals:
 
         client = _make_client()
         client._resolve_user = MagicMock(return_value=MagicMock(id="12345"))
-        client._fetch_tweets = MagicMock(return_value=[
-            _make_tweet(
-                "Fascinating paper on enterprise AI. https://arxiv.org/abs/test",
-                tweet_id="99988",
-            ),
-        ])
+        client._fetch_tweets = MagicMock(
+            return_value=[
+                _make_tweet(
+                    "Fascinating paper on enterprise AI. https://arxiv.org/abs/test",
+                    tweet_id="99988",
+                ),
+            ]
+        )
 
         signals, available = client.fetch_signals(
             window_start=datetime(2026, 5, 9, tzinfo=UTC),
@@ -686,6 +712,7 @@ class TestFetchSignals:
 # ===========================================================================
 # TwitterFetcher wrapper (SRC-047)
 # ===========================================================================
+
 
 class TestTwitterFetcher:
     """

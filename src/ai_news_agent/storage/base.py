@@ -273,6 +273,7 @@ class AbstractArticleStore(ABC):
 # StoreStats — aggregated window statistics (SRC-150)
 # ---------------------------------------------------------------------------
 
+
 class StoreStats:
     """
     Aggregated article statistics over a window — returned by

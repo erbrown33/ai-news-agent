@@ -77,6 +77,7 @@ def is_valid_url(url: str | None) -> bool:
 # Filename helpers (SRC-145, SRC-140)
 # ---------------------------------------------------------------------------
 
+
 def filename_stem(run_date: object, cadence: str) -> str:
     """
     Return the shared filename stem used by all three renderers.

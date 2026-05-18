@@ -113,7 +113,7 @@ class RenderingAgent:
                         Pattern: ``{output_dir}/{YYYY-MM-DD}-{cadence}.{ext}``
         """
         self._output_dir = Path(output_dir)
-        self._md_renderer   = MarkdownRenderer()
+        self._md_renderer = MarkdownRenderer()
         self._html_renderer = HtmlRenderer()
         self._json_renderer = JsonRenderer()
 
@@ -147,23 +147,25 @@ class RenderingAgent:
         # Render all three formats
         # Each renderer applies its own URL validation (SRC-141) so content is
         # consistent.  We count once here for the monitoring log.
-        md_content   = self._md_renderer.render(result)
+        md_content = self._md_renderer.render(result)
         html_content = self._html_renderer.render(result)
         json_content = self._json_renderer.render(result)
 
         # Build output paths (SRC-145 — date-stamped, idempotent)
-        md_path   = self._output_dir / MarkdownRenderer.filename(meta)
+        md_path = self._output_dir / MarkdownRenderer.filename(meta)
         html_path = self._output_dir / HtmlRenderer.filename(meta)
         json_path = self._output_dir / JsonRenderer.filename(meta)
 
-        md_path.write_text(md_content,   encoding="utf-8")
+        md_path.write_text(md_content, encoding="utf-8")
         html_path.write_text(html_content, encoding="utf-8")
         json_path.write_text(json_content, encoding="utf-8")
 
         # Count items with a valid http(s) URL — shared logic with renderers
         items_with_url = sum(
-            1 for item in result.items
-            if item.url and (
+            1
+            for item in result.items
+            if item.url
+            and (
                 item.url.strip().lower().startswith("http://")
                 or item.url.strip().lower().startswith("https://")
             )
@@ -296,6 +298,7 @@ class RenderingAgent:
 # CurationRunResult deserialiser — reconstructs the dataclass from JSON
 # ---------------------------------------------------------------------------
 
+
 def _load_curation_result(path: Path) -> CurationRunResult:
     """
     Load a :class:`CurationRunResult` that was serialised to JSON by the
@@ -341,14 +344,12 @@ def _load_curation_result(path: Path) -> CurationRunResult:
     try:
         run_date_raw = meta_raw.get("run_date", "1970-01-01")
         run_date = (
-            date.fromisoformat(run_date_raw)
-            if isinstance(run_date_raw, str)
-            else run_date_raw
+            date.fromisoformat(run_date_raw) if isinstance(run_date_raw, str) else run_date_raw
         )
         window_start_raw = meta_raw.get("window_start", "1970-01-01T00:00:00+00:00")
-        window_end_raw   = meta_raw.get("window_end",   "1970-01-01T23:59:59+00:00")
+        window_end_raw = meta_raw.get("window_end", "1970-01-01T23:59:59+00:00")
         window_start = datetime.fromisoformat(window_start_raw)
-        window_end   = datetime.fromisoformat(window_end_raw)
+        window_end = datetime.fromisoformat(window_end_raw)
 
         metadata = DigestMetadata(
             agent_id=meta_raw.get("agent_id", "unknown"),
@@ -377,9 +378,7 @@ def _load_curation_result(path: Path) -> CurationRunResult:
         try:
             pub_date_str = raw_item.get("pub_date", "1970-01-01")
             pub_date = (
-                date.fromisoformat(pub_date_str)
-                if isinstance(pub_date_str, str)
-                else pub_date_str
+                date.fromisoformat(pub_date_str) if isinstance(pub_date_str, str) else pub_date_str
             )
             items.append(
                 CuratedItem(
@@ -393,9 +392,7 @@ def _load_curation_result(path: Path) -> CurationRunResult:
                     cross_refs=raw_item.get("cross_refs", []),
                     twitter_handle=raw_item.get("twitter_handle"),
                     tweet_url=raw_item.get("tweet_url"),
-                    prompt_version=raw_item.get(
-                        "prompt_version", metadata.prompt_version
-                    ),
+                    prompt_version=raw_item.get("prompt_version", metadata.prompt_version),
                 )
             )
         except (KeyError, ValueError, TypeError) as exc:
@@ -405,18 +402,15 @@ def _load_curation_result(path: Path) -> CurationRunResult:
     diag_raw = data.get("diagnostics")
     if isinstance(diag_raw, dict):
         from ai_news_agent.storage.models import CurationDiagnostics
+
         try:
             diagnostics = CurationDiagnostics(
                 threshold=int(diag_raw.get("threshold", 0)),
                 articles_in_store=int(diag_raw.get("articles_in_store", 0)),
                 articles_in_window=int(diag_raw.get("articles_in_window", 0)),
-                articles_in_window_by_tier=dict(
-                    diag_raw.get("articles_in_window_by_tier", {})
-                ),
+                articles_in_window_by_tier=dict(diag_raw.get("articles_in_window_by_tier", {})),
                 items_dropped_no_url=int(diag_raw.get("items_dropped_no_url", 0)),
-                twitter_signal_available=bool(
-                    diag_raw.get("twitter_signal_available", True)
-                ),
+                twitter_signal_available=bool(diag_raw.get("twitter_signal_available", True)),
                 reasons=list(diag_raw.get("reasons", [])),
             )
         except (KeyError, ValueError, TypeError) as exc:
@@ -437,6 +431,7 @@ def _load_curation_result(path: Path) -> CurationRunResult:
 # ---------------------------------------------------------------------------
 # CLI entry point
 # ---------------------------------------------------------------------------
+
 
 def cli_main() -> None:
     """

@@ -21,6 +21,7 @@ Covers:
 
 Traces: SRC-059, SRC-070, SRC-112–SRC-131
 """
+
 from __future__ import annotations
 
 import hashlib
@@ -163,7 +164,11 @@ class TestFormatTwitterSection:
         section = _format_twitter_section(signals=[], twitter_api_available=False)
         assert "unavailable" in section.lower()
         # Must not suggest the window was quiet — this was an API failure
-        assert "SRC-148" in section or "unreachable" in section.lower() or "unavailable" in section.lower()
+        assert (
+            "SRC-148" in section
+            or "unreachable" in section.lower()
+            or "unavailable" in section.lower()
+        )
 
     def test_quiet_window_produces_different_message_than_api_down(self) -> None:
         """Empty signals with API available produces a different note than API-down (SRC-148)."""
@@ -183,7 +188,7 @@ class TestFormatTwitterSection:
         high = _make_tweet(handle="high_weight", weight=2.0)
         section = _format_twitter_section(signals=[low, high], twitter_api_available=True)
         pos_high = section.index("high_weight")
-        pos_low  = section.index("low_weight")
+        pos_low = section.index("low_weight")
         assert pos_high < pos_low, "High-weight handle must appear before low-weight"
 
     def test_section_contains_handle_text_and_tweet(self) -> None:
@@ -308,9 +313,7 @@ class TestFormatTierArticles:
         """Articles from other tiers are not included in this tier's section."""
         tier2_article = _make_article("2", index=1)
         tier3_article = _make_article("3", index=1)
-        result = _format_tier_articles(
-            candidates=[tier2_article, tier3_article], tier_key="2"
-        )
+        result = _format_tier_articles(candidates=[tier2_article, tier3_article], tier_key="2")
         assert "example-2.com" in result
         assert "example-3.com" not in result
 
@@ -328,7 +331,7 @@ class TestPromptBuilderBuild:
         """Use the real prompts directory for all tests in this class."""
         self._builder = PromptBuilder(prompts_dir=REAL_PROMPTS_DIR)
         self._start = datetime(2026, 5, 9, 0, 0, tzinfo=UTC)
-        self._end   = datetime(2026, 5, 9, 23, 59, tzinfo=UTC)
+        self._end = datetime(2026, 5, 9, 23, 59, tzinfo=UTC)
 
     def _build(
         self,
@@ -363,15 +366,15 @@ class TestPromptBuilderBuild:
         """No unreplaced date placeholders remain after injection (SRC-116)."""
         for cadence in ("daily", "weekly", "monthly", "annual"):
             start = datetime(2026, 5, 4, 0, 0, tzinfo=UTC)
-            end   = datetime(2026, 5, 10, 23, 59, tzinfo=UTC)
+            end = datetime(2026, 5, 10, 23, 59, tzinfo=UTC)
             prompt, _ = self._build(cadence=cadence, window_start=start, window_end=end)
             assert "{{window_start_iso}}" not in prompt, f"{cadence}: start placeholder unreplaced"
-            assert "{{window_end_iso}}" not in prompt,   f"{cadence}: end placeholder unreplaced"
+            assert "{{window_end_iso}}" not in prompt, f"{cadence}: end placeholder unreplaced"
 
     def test_iso_dates_correct_in_weekly_prompt(self) -> None:
         """Weekly prompt receives correct Sunday–Saturday ISO dates (SRC-116, SRC-030)."""
-        start = datetime(2026, 5, 3, 0, 0, tzinfo=UTC)   # Sunday
-        end   = datetime(2026, 5, 9, 23, 59, tzinfo=UTC)  # Saturday
+        start = datetime(2026, 5, 3, 0, 0, tzinfo=UTC)  # Sunday
+        end = datetime(2026, 5, 9, 23, 59, tzinfo=UTC)  # Saturday
         prompt, _ = self._build(cadence="weekly", window_start=start, window_end=end)
         assert "2026-05-03" in prompt
         assert "2026-05-09" in prompt
@@ -379,7 +382,7 @@ class TestPromptBuilderBuild:
     def test_iso_dates_correct_in_monthly_prompt(self) -> None:
         """Monthly prompt receives correct first-to-last day ISO dates (SRC-116, SRC-031)."""
         start = datetime(2026, 4, 1, 0, 0, tzinfo=UTC)
-        end   = datetime(2026, 4, 30, 23, 59, tzinfo=UTC)
+        end = datetime(2026, 4, 30, 23, 59, tzinfo=UTC)
         prompt, _ = self._build(cadence="monthly", window_start=start, window_end=end)
         assert "2026-04-01" in prompt
         assert "2026-04-30" in prompt
@@ -387,7 +390,7 @@ class TestPromptBuilderBuild:
     def test_iso_dates_correct_in_annual_prompt(self) -> None:
         """Annual prompt receives correct Jan 1–Dec 31 ISO dates (SRC-116, SRC-032)."""
         start = datetime(2025, 1, 1, 0, 0, tzinfo=UTC)
-        end   = datetime(2025, 12, 31, 23, 59, tzinfo=UTC)
+        end = datetime(2025, 12, 31, 23, 59, tzinfo=UTC)
         prompt, _ = self._build(cadence="annual", window_start=start, window_end=end)
         assert "2025-01-01" in prompt
         assert "2025-12-31" in prompt
@@ -486,7 +489,13 @@ class TestPromptBuilderBuild:
             # Must contain "not cite" or "do not cite" or equivalent
             has_instruction = any(
                 phrase in lower
-                for phrase in ["not cite", "do not cite", "not a primary source", "lead-gen", "lead generation"]
+                for phrase in [
+                    "not cite",
+                    "do not cite",
+                    "not a primary source",
+                    "lead-gen",
+                    "lead generation",
+                ]
             )
             assert has_instruction, (
                 f"{cadence} prompt missing 'do not cite tweet' instruction (SRC-070, SRC-119)"
@@ -523,8 +532,15 @@ class TestPromptBuilderBuild:
 
     def test_json_schema_contains_required_fields(self) -> None:
         """JSON schema block contains all required fields (SRC-048, SRC-120)."""
-        required_fields = ["headline", "source_name", "url", "pub_date",
-                           "why_it_matters", "impact_tags", "tier"]
+        required_fields = [
+            "headline",
+            "source_name",
+            "url",
+            "pub_date",
+            "why_it_matters",
+            "impact_tags",
+            "tier",
+        ]
         for cadence in ("daily", "weekly", "monthly", "annual"):
             prompt, _ = self._build(cadence=cadence)
             for field_name in required_fields:
@@ -549,7 +565,7 @@ class TestPromptBuilderBuild:
     def test_annual_json_schema_has_predictions(self) -> None:
         """Annual JSON schema includes predictions field (SRC-032, SRC-124)."""
         start = datetime(2025, 1, 1, tzinfo=UTC)
-        end   = datetime(2025, 12, 31, tzinfo=UTC)
+        end = datetime(2025, 12, 31, tzinfo=UTC)
         prompt, _ = self._build(cadence="annual", window_start=start, window_end=end)
         assert '"predictions"' in prompt, "Annual prompt missing predictions field (SRC-124)"
 
@@ -567,13 +583,21 @@ class TestPromptBuilderBuild:
         """Daily prompt specifies a normal/limited search budget (SRC-121)."""
         prompt, _ = self._build(cadence="daily")
         lower = prompt.lower()
-        assert "5 additional web search" in lower or "normal search budget" in lower or "up to 5" in lower
+        assert (
+            "5 additional web search" in lower
+            or "normal search budget" in lower
+            or "up to 5" in lower
+        )
 
     def test_weekly_search_budget_is_normal_with_10(self) -> None:
         """Weekly prompt specifies a normal search budget with 10 searches (SRC-121)."""
         prompt, _ = self._build(cadence="weekly")
         lower = prompt.lower()
-        assert "10 additional web search" in lower or "up to 10" in lower or "normal search budget" in lower
+        assert (
+            "10 additional web search" in lower
+            or "up to 10" in lower
+            or "normal search budget" in lower
+        )
 
     def test_monthly_search_budget_is_deep(self) -> None:
         """Monthly prompt specifies a deep search budget (SRC-121)."""
@@ -585,7 +609,7 @@ class TestPromptBuilderBuild:
     def test_annual_search_budget_is_deepest(self) -> None:
         """Annual prompt specifies the deepest search budget (SRC-121)."""
         start = datetime(2025, 1, 1, tzinfo=UTC)
-        end   = datetime(2025, 12, 31, tzinfo=UTC)
+        end = datetime(2025, 12, 31, tzinfo=UTC)
         prompt, _ = self._build(cadence="annual", window_start=start, window_end=end)
         lower = prompt.lower()
         assert "deep" in lower
@@ -629,7 +653,13 @@ class TestPromptBuilderBuild:
             # Must explicitly require working/verifiable URLs
             assert any(
                 phrase in lower
-                for phrase in ["working link", "working url", "verifiable url", "verified url", "must be omitted"]
+                for phrase in [
+                    "working link",
+                    "working url",
+                    "verifiable url",
+                    "verified url",
+                    "must be omitted",
+                ]
             ), f"{cadence} missing working link requirement (SRC-123)"
 
     def test_no_url_items_dropped_instruction(self) -> None:
@@ -646,7 +676,7 @@ class TestPromptBuilderBuild:
     def test_annual_prompt_has_inflection_points_section(self) -> None:
         """Annual prompt contains inflection points section (SRC-124)."""
         start = datetime(2025, 1, 1, tzinfo=UTC)
-        end   = datetime(2025, 12, 31, tzinfo=UTC)
+        end = datetime(2025, 12, 31, tzinfo=UTC)
         prompt, _ = self._build(cadence="annual", window_start=start, window_end=end)
         lower = prompt.lower()
         assert "inflection point" in lower, "Annual prompt missing inflection points (SRC-124)"
@@ -654,7 +684,7 @@ class TestPromptBuilderBuild:
     def test_annual_prompt_has_predictions_section(self) -> None:
         """Annual prompt contains predictions section (SRC-032, SRC-124)."""
         start = datetime(2025, 1, 1, tzinfo=UTC)
-        end   = datetime(2025, 12, 31, tzinfo=UTC)
+        end = datetime(2025, 12, 31, tzinfo=UTC)
         prompt, _ = self._build(cadence="annual", window_start=start, window_end=end)
         lower = prompt.lower()
         assert "prediction" in lower, "Annual prompt missing predictions section (SRC-032)"
@@ -662,7 +692,7 @@ class TestPromptBuilderBuild:
     def test_annual_predictions_specify_10(self) -> None:
         """Annual prompt specifies exactly 10 predictions (SRC-032)."""
         start = datetime(2025, 1, 1, tzinfo=UTC)
-        end   = datetime(2025, 12, 31, tzinfo=UTC)
+        end = datetime(2025, 12, 31, tzinfo=UTC)
         prompt, _ = self._build(cadence="annual", window_start=start, window_end=end)
         assert "10" in prompt
         assert "prediction" in prompt.lower()
@@ -670,7 +700,7 @@ class TestPromptBuilderBuild:
     def test_annual_predictions_require_reasoning(self) -> None:
         """Annual predictions must show explicit reasoning, not assertions (SRC-124)."""
         start = datetime(2025, 1, 1, tzinfo=UTC)
-        end   = datetime(2025, 12, 31, tzinfo=UTC)
+        end = datetime(2025, 12, 31, tzinfo=UTC)
         prompt, _ = self._build(cadence="annual", window_start=start, window_end=end)
         lower = prompt.lower()
         assert "reasoning" in lower or "grounded" in lower or "evidence" in lower
@@ -678,7 +708,7 @@ class TestPromptBuilderBuild:
     def test_annual_predictions_must_be_falsifiable(self) -> None:
         """Annual prompt requires predictions to be specific and falsifiable (SRC-124)."""
         start = datetime(2025, 1, 1, tzinfo=UTC)
-        end   = datetime(2025, 12, 31, tzinfo=UTC)
+        end = datetime(2025, 12, 31, tzinfo=UTC)
         prompt, _ = self._build(cadence="annual", window_start=start, window_end=end)
         lower = prompt.lower()
         assert "falsifiable" in lower or "specific" in lower
@@ -686,7 +716,7 @@ class TestPromptBuilderBuild:
     def test_annual_prompt_has_year_and_year_plus_1(self) -> None:
         """Annual prompt contains both the year and year+1 (SRC-124)."""
         start = datetime(2025, 1, 1, tzinfo=UTC)
-        end   = datetime(2025, 12, 31, tzinfo=UTC)
+        end = datetime(2025, 12, 31, tzinfo=UTC)
         prompt, _ = self._build(cadence="annual", window_start=start, window_end=end)
         assert "2025" in prompt, "Annual prompt missing year (SRC-124)"
         assert "2026" in prompt, "Annual prompt missing year+1 (SRC-124)"
@@ -694,7 +724,7 @@ class TestPromptBuilderBuild:
     def test_annual_year_placeholders_replaced(self) -> None:
         """{{year}} and {{year_plus_1}} placeholders are fully substituted in annual prompt."""
         start = datetime(2025, 1, 1, tzinfo=UTC)
-        end   = datetime(2025, 12, 31, tzinfo=UTC)
+        end = datetime(2025, 12, 31, tzinfo=UTC)
         prompt, _ = self._build(cadence="annual", window_start=start, window_end=end)
         assert "{{year}}" not in prompt
         assert "{{year_plus_1}}" not in prompt
@@ -702,7 +732,7 @@ class TestPromptBuilderBuild:
     def test_annual_themes_for_signal_vs_noise(self) -> None:
         """Annual prompt includes signal vs noise analysis (SRC-124)."""
         start = datetime(2025, 1, 1, tzinfo=UTC)
-        end   = datetime(2025, 12, 31, tzinfo=UTC)
+        end = datetime(2025, 12, 31, tzinfo=UTC)
         prompt, _ = self._build(cadence="annual", window_start=start, window_end=end)
         lower = prompt.lower()
         assert "signal" in lower, "Annual prompt missing 'signal' (SRC-124)"
@@ -711,7 +741,7 @@ class TestPromptBuilderBuild:
     def test_weekly_prompt_has_themes_section(self) -> None:
         """Weekly prompt has dominant themes section (SRC-030)."""
         start = datetime(2026, 5, 3, 0, 0, tzinfo=UTC)
-        end   = datetime(2026, 5, 9, 23, 59, tzinfo=UTC)
+        end = datetime(2026, 5, 9, 23, 59, tzinfo=UTC)
         prompt, _ = self._build(cadence="weekly", window_start=start, window_end=end)
         lower = prompt.lower()
         assert "theme" in lower, "Weekly prompt missing themes section (SRC-030)"
@@ -719,7 +749,7 @@ class TestPromptBuilderBuild:
     def test_weekly_prompt_has_what_to_watch(self) -> None:
         """Weekly prompt has a 'what to watch' forward-looking section (SRC-030)."""
         start = datetime(2026, 5, 3, 0, 0, tzinfo=UTC)
-        end   = datetime(2026, 5, 9, 23, 59, tzinfo=UTC)
+        end = datetime(2026, 5, 9, 23, 59, tzinfo=UTC)
         prompt, _ = self._build(cadence="weekly", window_start=start, window_end=end)
         lower = prompt.lower()
         assert "what to watch" in lower or "next week" in lower, (
@@ -729,7 +759,7 @@ class TestPromptBuilderBuild:
     def test_monthly_prompt_has_anticipated_news(self) -> None:
         """Monthly prompt includes anticipated developments section (SRC-031)."""
         start = datetime(2026, 4, 1, 0, 0, tzinfo=UTC)
-        end   = datetime(2026, 4, 30, 23, 59, tzinfo=UTC)
+        end = datetime(2026, 4, 30, 23, 59, tzinfo=UTC)
         prompt, _ = self._build(cadence="monthly", window_start=start, window_end=end)
         lower = prompt.lower()
         assert "anticipated" in lower or "next month" in lower or "watch for" in lower, (
@@ -781,8 +811,12 @@ class TestPromptBuilderBuild:
     def test_version_changes_when_template_content_changes(self, tmp_path: Path) -> None:
         """Modifying a prompt file changes its version hash (SRC-129)."""
         # Copy real prompts to tmp, modify daily
-        for _cadence, fname in [("daily", "daily.md"), ("weekly", "weekly.md"),
-                                ("monthly", "monthly.md"), ("annual", "annual.md")]:
+        for _cadence, fname in [
+            ("daily", "daily.md"),
+            ("weekly", "weekly.md"),
+            ("monthly", "monthly.md"),
+            ("annual", "annual.md"),
+        ]:
             src = REAL_PROMPTS_DIR / fname
             (tmp_path / fname).write_bytes(src.read_bytes())
 
@@ -812,24 +846,25 @@ class TestPromptBuilderBuild:
         """Tier-separated articles appear in the built prompt (SRC-016–SRC-021)."""
         candidates = [
             _make_article("1b", index=1),
-            _make_article("2",  index=1),
+            _make_article("2", index=1),
         ]
         prompt, _ = self._build(cadence="daily", candidates=candidates)
         assert "Tier 1b Article 1" in prompt, "Tier 1b article missing from prompt"
-        assert "Tier 2 Article 1" in prompt,  "Tier 2 article missing from prompt"
+        assert "Tier 2 Article 1" in prompt, "Tier 2 article missing from prompt"
 
     def test_tier_placeholders_all_replaced(self) -> None:
         """All {{tier_*_articles}} placeholders are replaced in all cadences (SRC-016–SRC-021)."""
         tier_placeholders = [
-            "{{tier_1a_articles}}", "{{tier_1b_articles}}",
-            "{{tier_2_articles}}", "{{tier_3_articles}}", "{{tier_4_articles}}",
+            "{{tier_1a_articles}}",
+            "{{tier_1b_articles}}",
+            "{{tier_2_articles}}",
+            "{{tier_3_articles}}",
+            "{{tier_4_articles}}",
         ]
         for cadence in ("daily", "weekly", "monthly", "annual"):
             prompt, _ = self._build(cadence=cadence)
             for ph in tier_placeholders:
-                assert ph not in prompt, (
-                    f"{cadence}: placeholder {ph!r} was not replaced"
-                )
+                assert ph not in prompt, f"{cadence}: placeholder {ph!r} was not replaced"
 
     def test_empty_tier_shows_placeholder_text(self) -> None:
         """Empty tier produces placeholder text, not blank section."""
@@ -840,7 +875,7 @@ class TestPromptBuilderBuild:
     def test_tier_articles_in_correct_sections(self) -> None:
         """Articles appear under their correct tier section, not cross-contaminated."""
         tier1b = _make_article("1b", index=99)
-        tier3  = _make_article("3",  index=77)
+        tier3 = _make_article("3", index=77)
         prompt, _ = self._build(cadence="daily", candidates=[tier1b, tier3])
         # Both headlines should appear
         assert "Tier 1b Article 99" in prompt
@@ -857,11 +892,11 @@ class TestPromptBuilderBuild:
     def test_no_provider_specific_syntax_in_prompts(self) -> None:
         """Prompts use plain natural language, not provider-specific tokens (SRC-059)."""
         provider_patterns = [
-            r"<\|im_start\|>",   # OpenAI legacy
+            r"<\|im_start\|>",  # OpenAI legacy
             r"<\|im_end\|>",
-            r"\[INST\]",         # Llama/Mistral
+            r"\[INST\]",  # Llama/Mistral
             r"\[/INST\]",
-            r"Human:",           # Claude-specific formatting
+            r"Human:",  # Claude-specific formatting
             r"Assistant:",
         ]
         for cadence in ("daily", "weekly", "monthly", "annual"):
@@ -1009,10 +1044,10 @@ class TestPromptManifest:
         """to_dict() returns a dict with all cadence keys (SRC-129)."""
         manifest = PromptManifest.from_dir(REAL_PROMPTS_DIR)
         d = manifest.to_dict()
-        assert "daily"        in d
-        assert "weekly"       in d
-        assert "monthly"      in d
-        assert "annual"       in d
+        assert "daily" in d
+        assert "weekly" in d
+        assert "monthly" in d
+        assert "annual" in d
         assert "generated_at" in d
 
     def test_save_and_load_roundtrip(self, tmp_path: Path) -> None:
@@ -1022,10 +1057,10 @@ class TestPromptManifest:
         manifest.save(manifest_path)
 
         loaded = PromptManifest.load(manifest_path)
-        assert loaded.daily   == manifest.daily
-        assert loaded.weekly  == manifest.weekly
+        assert loaded.daily == manifest.daily
+        assert loaded.weekly == manifest.weekly
         assert loaded.monthly == manifest.monthly
-        assert loaded.annual  == manifest.annual
+        assert loaded.annual == manifest.annual
 
     def test_saved_manifest_is_valid_json(self, tmp_path: Path) -> None:
         """Saved manifest file is valid JSON (SRC-129)."""
@@ -1047,10 +1082,10 @@ class TestPromptManifest:
     def test_get_method_returns_correct_hash(self) -> None:
         """get(cadence) returns the correct hash for each cadence."""
         manifest = PromptManifest.from_dir(REAL_PROMPTS_DIR)
-        assert manifest.get("daily")   == manifest.daily
-        assert manifest.get("weekly")  == manifest.weekly
+        assert manifest.get("daily") == manifest.daily
+        assert manifest.get("weekly") == manifest.weekly
         assert manifest.get("monthly") == manifest.monthly
-        assert manifest.get("annual")  == manifest.annual
+        assert manifest.get("annual") == manifest.annual
 
     def test_get_method_raises_for_unknown_cadence(self) -> None:
         """get() raises KeyError for unknown cadence name."""
@@ -1093,21 +1128,21 @@ class TestPromptManifest:
         saved = PromptManifest.load(manifest_path)
         current = PromptManifest.from_dir(REAL_PROMPTS_DIR)
 
-        assert current.daily   == saved.daily,   "daily.md hash mismatch with saved manifest"
-        assert current.weekly  == saved.weekly,  "weekly.md hash mismatch with saved manifest"
+        assert current.daily == saved.daily, "daily.md hash mismatch with saved manifest"
+        assert current.weekly == saved.weekly, "weekly.md hash mismatch with saved manifest"
         assert current.monthly == saved.monthly, "monthly.md hash mismatch with saved manifest"
-        assert current.annual  == saved.annual,  "annual.md hash mismatch with saved manifest"
+        assert current.annual == saved.annual, "annual.md hash mismatch with saved manifest"
 
     def test_get_manifest_from_builder_matches_from_dir(self) -> None:
         """PromptBuilder.get_manifest() returns the same manifest as from_dir() (SRC-129)."""
         builder = PromptBuilder(prompts_dir=REAL_PROMPTS_DIR)
         builder_manifest = builder.get_manifest()
-        direct_manifest  = PromptManifest.from_dir(REAL_PROMPTS_DIR)
+        direct_manifest = PromptManifest.from_dir(REAL_PROMPTS_DIR)
 
-        assert builder_manifest.daily   == direct_manifest.daily
-        assert builder_manifest.weekly  == direct_manifest.weekly
+        assert builder_manifest.daily == direct_manifest.daily
+        assert builder_manifest.weekly == direct_manifest.weekly
         assert builder_manifest.monthly == direct_manifest.monthly
-        assert builder_manifest.annual  == direct_manifest.annual
+        assert builder_manifest.annual == direct_manifest.annual
 
 
 # ---------------------------------------------------------------------------
@@ -1133,10 +1168,10 @@ class TestComputeAllHashes:
     def test_values_match_individual_file_hashes(self) -> None:
         """Each returned hash matches the direct _sha256_file() result."""
         result = compute_all_hashes(REAL_PROMPTS_DIR)
-        assert result["daily"]   == _sha256_file(REAL_PROMPTS_DIR / "daily.md")
-        assert result["weekly"]  == _sha256_file(REAL_PROMPTS_DIR / "weekly.md")
+        assert result["daily"] == _sha256_file(REAL_PROMPTS_DIR / "daily.md")
+        assert result["weekly"] == _sha256_file(REAL_PROMPTS_DIR / "weekly.md")
         assert result["monthly"] == _sha256_file(REAL_PROMPTS_DIR / "monthly.md")
-        assert result["annual"]  == _sha256_file(REAL_PROMPTS_DIR / "annual.md")
+        assert result["annual"] == _sha256_file(REAL_PROMPTS_DIR / "annual.md")
 
     def test_raises_for_missing_prompt_directory(self, tmp_path: Path) -> None:
         """FileNotFoundError raised when prompt files are missing."""
@@ -1180,7 +1215,7 @@ class TestPromptContentCompleteness:
         for fname in ("daily.md", "weekly.md", "monthly.md", "annual.md"):
             content = self._read(fname)
             assert "{{window_start_iso}}" in content, f"{fname} missing window_start_iso"
-            assert "{{window_end_iso}}"   in content, f"{fname} missing window_end_iso"
+            assert "{{window_end_iso}}" in content, f"{fname} missing window_end_iso"
 
     def test_all_prompts_have_twitter_signal_placeholder(self) -> None:
         """All prompt files contain the Twitter signal section placeholder (SRC-119)."""
@@ -1210,8 +1245,11 @@ class TestPromptContentCompleteness:
     def test_all_prompts_have_tier_article_placeholders(self) -> None:
         """All prompt files have all five tier article placeholders (SRC-016–SRC-021)."""
         tier_placeholders = [
-            "{{tier_1a_articles}}", "{{tier_1b_articles}}",
-            "{{tier_2_articles}}", "{{tier_3_articles}}", "{{tier_4_articles}}",
+            "{{tier_1a_articles}}",
+            "{{tier_1b_articles}}",
+            "{{tier_2_articles}}",
+            "{{tier_3_articles}}",
+            "{{tier_4_articles}}",
         ]
         for fname in ("daily.md", "weekly.md", "monthly.md", "annual.md"):
             content = self._read(fname)
@@ -1228,12 +1266,16 @@ class TestPromptContentCompleteness:
     def test_daily_prompt_mentions_tier_2_sources(self) -> None:
         """daily.md names Tier 2 sources (YCombinator, Anthropic, etc.) (SRC-019)."""
         lower = self._lower("daily.md")
-        assert any(source in lower for source in ["ycombinator", "anthropic", "openai", "huggingface"])
+        assert any(
+            source in lower for source in ["ycombinator", "anthropic", "openai", "huggingface"]
+        )
 
     def test_daily_prompt_mentions_tier_3_sources(self) -> None:
         """daily.md names Tier 3 sources (TechCrunch, Wired, etc.) (SRC-020)."""
         lower = self._lower("daily.md")
-        assert any(source in lower for source in ["techcrunch", "wired", "mit technology", "the verge"])
+        assert any(
+            source in lower for source in ["techcrunch", "wired", "mit technology", "the verge"]
+        )
 
     def test_daily_prompt_mentions_tier_4_sources(self) -> None:
         """daily.md names Tier 4 sources (Brookings, Stanford HAI, etc.) (SRC-021)."""
@@ -1305,11 +1347,18 @@ class TestPromptContentCompleteness:
     def test_prompts_do_not_have_unreplaced_placeholders_in_template(self) -> None:
         """Template files should only have known {{placeholder}} tokens."""
         known_placeholders = {
-            "{{window_start_iso}}", "{{window_end_iso}}",
-            "{{tier_1a_articles}}", "{{tier_1b_articles}}",
-            "{{tier_2_articles}}", "{{tier_3_articles}}", "{{tier_4_articles}}",
-            "{{twitter_signal_section}}", "{{search_budget_directive}}",
-            "{{top_n}}", "{{year}}", "{{year_plus_1}}",
+            "{{window_start_iso}}",
+            "{{window_end_iso}}",
+            "{{tier_1a_articles}}",
+            "{{tier_1b_articles}}",
+            "{{tier_2_articles}}",
+            "{{tier_3_articles}}",
+            "{{tier_4_articles}}",
+            "{{twitter_signal_section}}",
+            "{{search_budget_directive}}",
+            "{{top_n}}",
+            "{{year}}",
+            "{{year_plus_1}}",
         }
         placeholder_re = re.compile(r"\{\{[a-z_0-9]+\}\}")
         for fname in ("daily.md", "weekly.md", "monthly.md", "annual.md"):

@@ -110,9 +110,12 @@ def _make_daily_digest() -> dict[str, Any]:
 def _make_weekly_digest() -> dict[str, Any]:
     return {
         "schema_version": "1.0",
-        "metadata": {**SAMPLE_METADATA, "cadence": "weekly",
-                     "window_start": "2026-05-04T00:00:00+00:00",
-                     "window_end": "2026-05-10T23:59:59+00:00"},
+        "metadata": {
+            **SAMPLE_METADATA,
+            "cadence": "weekly",
+            "window_start": "2026-05-04T00:00:00+00:00",
+            "window_end": "2026-05-10T23:59:59+00:00",
+        },
         "items": SAMPLE_ITEMS,
         "themes": ["AI Regulation", "Enterprise LLMs", "Foundation Model Race"],
         "outlook": "Expect more regulatory announcements and model capability disclosures next week.",
@@ -123,9 +126,12 @@ def _make_weekly_digest() -> dict[str, Any]:
 def _make_monthly_digest() -> dict[str, Any]:
     return {
         "schema_version": "1.0",
-        "metadata": {**SAMPLE_METADATA, "cadence": "monthly",
-                     "window_start": "2026-04-01T00:00:00+00:00",
-                     "window_end": "2026-04-30T23:59:59+00:00"},
+        "metadata": {
+            **SAMPLE_METADATA,
+            "cadence": "monthly",
+            "window_start": "2026-04-01T00:00:00+00:00",
+            "window_end": "2026-04-30T23:59:59+00:00",
+        },
         "items": SAMPLE_ITEMS,
         "themes": ["Regulatory Shifts", "LLM Cost Wars", "Agentic AI", "AI Safety"],
         "outlook": "Watch for US counterpart legislation and model benchmark announcements in May.",
@@ -136,9 +142,12 @@ def _make_monthly_digest() -> dict[str, Any]:
 def _make_annual_digest() -> dict[str, Any]:
     return {
         "schema_version": "1.0",
-        "metadata": {**SAMPLE_METADATA, "cadence": "annual",
-                     "window_start": "2025-01-01T00:00:00+00:00",
-                     "window_end": "2025-12-31T23:59:59+00:00"},
+        "metadata": {
+            **SAMPLE_METADATA,
+            "cadence": "annual",
+            "window_start": "2025-01-01T00:00:00+00:00",
+            "window_end": "2025-12-31T23:59:59+00:00",
+        },
         "items": SAMPLE_ITEMS,
         "themes": ["AGI Race", "AI Governance", "Model Commoditization"],
         "outlook": "",
@@ -198,6 +207,7 @@ def client(outputs_dir: Path) -> TestClient:
 # ---------------------------------------------------------------------------
 # Tests for route helper utilities
 # ---------------------------------------------------------------------------
+
 
 class TestListAgents:
     """Tests for _list_agents() helper. Traces: SRC-072 (multiple agents)"""
@@ -268,7 +278,7 @@ class TestListDigests:
         agent_dir.mkdir()
         (agent_dir / "notadigest.json").write_text("{}")
         (agent_dir / "badcadence.json").write_text("{}")
-        (agent_dir / "2026-05-11.json").write_text("{}")   # missing cadence
+        (agent_dir / "2026-05-11.json").write_text("{}")  # missing cadence
         digests = _list_digests(tmp_path, "agent")
         assert digests == []
 
@@ -359,6 +369,7 @@ class TestCadenceMeta:
 # Tests for FastAPI routes — integration via TestClient
 # ---------------------------------------------------------------------------
 
+
 class TestIndexRoute:
     """Tests for GET /. Traces: SRC-133, SRC-134"""
 
@@ -434,7 +445,7 @@ class TestDailyDigestRoute:
     def test_contains_monitoring_metadata(self, client: TestClient) -> None:
         """SRC-150 — metadata footer rendered."""
         resp = client.get("/digest/default/2026-05-11/daily")
-        assert "gpt-4o" in resp.text   # llm_model
+        assert "gpt-4o" in resp.text  # llm_model
 
     def test_shows_twitter_handle(self, client: TestClient) -> None:
         """SRC-048 — twitter attribution displayed."""
@@ -675,50 +686,68 @@ class TestTriggerApiRoute:
     """Tests for POST /api/trigger without scheduler. Traces: SRC-028, SRC-147"""
 
     def test_sourcing_trigger_accepted(self, client: TestClient) -> None:
-        resp = client.post("/api/trigger", json={
-            "agent_id": "default",
-            "job_type": "sourcing",
-        })
+        resp = client.post(
+            "/api/trigger",
+            json={
+                "agent_id": "default",
+                "job_type": "sourcing",
+            },
+        )
         assert resp.status_code == 200
         data = resp.json()
         assert data["status"] == "accepted"
 
     def test_curation_trigger_accepted(self, client: TestClient) -> None:
-        resp = client.post("/api/trigger", json={
-            "agent_id": "default",
-            "job_type": "curation",
-            "cadence": "daily",
-        })
+        resp = client.post(
+            "/api/trigger",
+            json={
+                "agent_id": "default",
+                "job_type": "curation",
+                "cadence": "daily",
+            },
+        )
         assert resp.status_code == 200
 
     def test_invalid_job_type_returns_400(self, client: TestClient) -> None:
-        resp = client.post("/api/trigger", json={
-            "agent_id": "default",
-            "job_type": "unknown_type",
-        })
+        resp = client.post(
+            "/api/trigger",
+            json={
+                "agent_id": "default",
+                "job_type": "unknown_type",
+            },
+        )
         assert resp.status_code == 400
 
     def test_curation_missing_cadence_returns_400(self, client: TestClient) -> None:
-        resp = client.post("/api/trigger", json={
-            "agent_id": "default",
-            "job_type": "curation",
-        })
+        resp = client.post(
+            "/api/trigger",
+            json={
+                "agent_id": "default",
+                "job_type": "curation",
+            },
+        )
         assert resp.status_code == 400
 
     def test_curation_invalid_cadence_returns_400(self, client: TestClient) -> None:
-        resp = client.post("/api/trigger", json={
-            "agent_id": "default",
-            "job_type": "curation",
-            "cadence": "hourly",
-        })
+        resp = client.post(
+            "/api/trigger",
+            json={
+                "agent_id": "default",
+                "job_type": "curation",
+                "cadence": "hourly",
+            },
+        )
         assert resp.status_code == 400
 
     def test_trigger_message_references_alternative(self, client: TestClient) -> None:
         """Without runner, message directs to CLI alternative."""
-        data = client.post("/api/trigger", json={
-            "agent_id": "default",
-            "job_type": "sourcing",
-        }).json()
+        data = client.post(
+            "/api/trigger",
+            json={
+                "agent_id": "default",
+                "job_type": "sourcing",
+            },
+        ).json()
         assert "ai-news" in data["message"].lower() or "scheduler" in data["message"].lower()
 
 
@@ -726,12 +755,11 @@ class TestTriggerApiRoute:
 # Tests for Twitter degradation note rendering (SRC-148)
 # ---------------------------------------------------------------------------
 
+
 class TestTwitterDegradation:
     """Tests for Twitter unavailable notice in portal views. Traces: SRC-148"""
 
-    def test_daily_shows_warning_when_twitter_unavailable(
-        self, tmp_path: Path
-    ) -> None:
+    def test_daily_shows_warning_when_twitter_unavailable(self, tmp_path: Path) -> None:
         agent_dir = tmp_path / "agent"
         agent_dir.mkdir()
         digest = _make_daily_digest()
@@ -765,6 +793,7 @@ class TestTwitterDegradation:
 # ---------------------------------------------------------------------------
 # Tests for edge cases and static files
 # ---------------------------------------------------------------------------
+
 
 class TestStaticFiles:
     """Tests for static file serving."""

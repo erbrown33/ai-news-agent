@@ -54,7 +54,7 @@ def _make_article(
     source_class: str = "web",
     headline: str | None = None,
 ) -> ArticleRecord:
-    raw_url   = f"https://reuters.com/article-{url_suffix}"
+    raw_url = f"https://reuters.com/article-{url_suffix}"
     canonical = normalize_url(raw_url)
     return ArticleRecord(
         url_hash=url_hash(canonical),
@@ -116,6 +116,7 @@ def _make_digest(
 # Fixtures — both TinyDB and SQLite backed stores
 # ---------------------------------------------------------------------------
 
+
 @pytest.fixture
 def tiny_store(tmp_path: Path) -> TinyDBArticleStore:
     """TinyDB store backed by a temp file.  Traces: SRC-053 (TinyDB default)."""
@@ -150,6 +151,7 @@ def store(request: pytest.FixtureRequest, tmp_path: Path) -> AbstractArticleStor
 # Backward-compat alias used by conftest.py and other test modules
 # ---------------------------------------------------------------------------
 
+
 @pytest.fixture
 def tiny_db_store(tmp_path: Path) -> TinyDBArticleStore:
     """Alias kept for backward compat with conftest fixtures."""
@@ -161,6 +163,7 @@ def tiny_db_store(tmp_path: Path) -> TinyDBArticleStore:
 # ===========================================================================
 # Section 1: URL normalisation and hashing (SRC-012)
 # ===========================================================================
+
 
 class TestUrlNormalisation:
     """Traces: SRC-012 (canonical URL deduplication)."""
@@ -210,6 +213,7 @@ class TestUrlNormalisation:
 # Section 2: headline_similarity (SRC-012 secondary dedup)
 # ===========================================================================
 
+
 class TestHeadlineSimilarity:
     """Traces: SRC-012 (secondary dedup — Levenshtein headline signal)."""
 
@@ -233,6 +237,7 @@ class TestHeadlineSimilarity:
 # ===========================================================================
 # Section 3: lookback_window helpers (SRC-008–SRC-010, SRC-028–SRC-032)
 # ===========================================================================
+
 
 class TestLookbackWindow:
     """Traces: SRC-008 (lookback windows), SRC-009 (daily), SRC-028–SRC-032."""
@@ -263,8 +268,8 @@ class TestLookbackWindow:
         """Weekly window = previous Sunday–Saturday.  Traces: SRC-030."""
         # REF is Monday 2026-05-11 → previous week is Sun 2026-05-03 → Sat 2026-05-09
         start, end = lookback_window(Cadence.WEEKLY, self.REF)
-        assert start.weekday() == 6   # Sunday (Python: Mon=0, Sun=6)
-        assert end.weekday() == 5     # Saturday
+        assert start.weekday() == 6  # Sunday (Python: Mon=0, Sun=6)
+        assert end.weekday() == 5  # Saturday
         assert end > start
 
     def test_weekly_window_is_7_days(self) -> None:
@@ -316,6 +321,7 @@ class TestLookbackWindow:
 # Section 4: ArticleRecord deduplication (SRC-012) — both backends
 # ===========================================================================
 
+
 class TestInsertIfNew:
     """Traces: SRC-012 (no same article stored twice).  Both backends."""
 
@@ -366,6 +372,7 @@ class TestInsertIfNew:
 # Section 5: Near-duplicate headline warning (SRC-012 §3.3)
 # ===========================================================================
 
+
 class TestNearDuplicateWarning:
     """
     Secondary dedup: articles with ≥0.85 headline similarity log a WARNING
@@ -377,7 +384,7 @@ class TestNearDuplicateWarning:
         self, tiny_store: TinyDBArticleStore, caplog: pytest.LogCaptureFixture
     ) -> None:
         a = _make_article(url_suffix="orig", headline="EU AI Act Enters Enforcement Phase")
-        b = _make_article(url_suffix="amp",  headline="EU AI Act Enters the Enforcement Phase")
+        b = _make_article(url_suffix="amp", headline="EU AI Act Enters the Enforcement Phase")
         tiny_store.insert_if_new(a)
         with caplog.at_level(logging.WARNING):
             inserted = tiny_store.insert_if_new(b)
@@ -388,7 +395,7 @@ class TestNearDuplicateWarning:
         self, sqlite_store: SQLiteArticleStore, caplog: pytest.LogCaptureFixture
     ) -> None:
         a = _make_article(url_suffix="orig", headline="EU AI Act Enters Enforcement Phase")
-        b = _make_article(url_suffix="amp",  headline="EU AI Act Enters the Enforcement Phase")
+        b = _make_article(url_suffix="amp", headline="EU AI Act Enters the Enforcement Phase")
         sqlite_store.insert_if_new(a)
         with caplog.at_level(logging.WARNING):
             inserted = sqlite_store.insert_if_new(b)
@@ -409,6 +416,7 @@ class TestNearDuplicateWarning:
 # ===========================================================================
 # Section 6: get_window / lookback queries (SRC-008–SRC-010)
 # ===========================================================================
+
 
 class TestGetWindow:
     """Traces: SRC-008–SRC-010 (lookback window queries).  Both backends."""
@@ -438,7 +446,7 @@ class TestGetWindow:
     def test_window_boundary_inclusive(self, store: AbstractArticleStore) -> None:
         """Articles exactly at window_start and window_end are included."""
         at_start = _make_article(url_suffix="start", pub_date=_NOW - timedelta(days=1))
-        at_end   = _make_article(url_suffix="end",   pub_date=_NOW)
+        at_end = _make_article(url_suffix="end", pub_date=_NOW)
         store.insert_if_new(at_start)
         store.insert_if_new(at_end)
 
@@ -488,8 +496,12 @@ class TestGetWindow:
         store.insert_if_new(a)
         store.insert_if_new(b)
 
-        results_a = store.get_window("agent-a", _NOW - timedelta(hours=1), _NOW + timedelta(hours=1))
-        results_b = store.get_window("agent-b", _NOW - timedelta(hours=1), _NOW + timedelta(hours=1))
+        results_a = store.get_window(
+            "agent-a", _NOW - timedelta(hours=1), _NOW + timedelta(hours=1)
+        )
+        results_b = store.get_window(
+            "agent-b", _NOW - timedelta(hours=1), _NOW + timedelta(hours=1)
+        )
         assert len(results_a) == 1
         assert results_a[0].agent_id == "agent-a"
         assert len(results_b) == 1
@@ -503,6 +515,7 @@ class TestGetWindow:
 # ===========================================================================
 # Section 7: get_window_by_cadence (SRC-009, SRC-028–SRC-032)
 # ===========================================================================
+
 
 class TestGetWindowByCadence:
     """Convenience cadence wrapper — both backends."""
@@ -561,7 +574,9 @@ class TestGetWindowByCadence:
         assert len(results) == 1
 
     def test_monthly_cadence_excludes_current_month(self, store: AbstractArticleStore) -> None:
-        may_article = _make_article(url_suffix="may", pub_date=datetime.datetime(2026, 5, 5, 12, tzinfo=UTC))
+        may_article = _make_article(
+            url_suffix="may", pub_date=datetime.datetime(2026, 5, 5, 12, tzinfo=UTC)
+        )
         store.insert_if_new(may_article)
 
         results = store.get_window_by_cadence("test-agent", Cadence.MONTHLY, self.REF)
@@ -576,7 +591,9 @@ class TestGetWindowByCadence:
         assert len(results) == 1
 
     def test_annual_cadence_excludes_current_year(self, store: AbstractArticleStore) -> None:
-        year_2026 = _make_article(url_suffix="2026", pub_date=datetime.datetime(2026, 1, 15, 12, tzinfo=UTC))
+        year_2026 = _make_article(
+            url_suffix="2026", pub_date=datetime.datetime(2026, 1, 15, 12, tzinfo=UTC)
+        )
         store.insert_if_new(year_2026)
 
         results = store.get_window_by_cadence("test-agent", Cadence.ANNUAL, self.REF)
@@ -586,6 +603,7 @@ class TestGetWindowByCadence:
 # ===========================================================================
 # Section 8: count_articles + get_stats (SRC-150)
 # ===========================================================================
+
 
 class TestCountAndStats:
     """Traces: SRC-150 (quality monitoring — items_by_tier, items_by_source_class)."""
@@ -607,14 +625,18 @@ class TestCountAndStats:
 
     def test_count_window_empty(self, store: AbstractArticleStore) -> None:
         """count_window returns 0 when no articles exist."""
-        assert store.count_window(
-            "test-agent",
-            _NOW - timedelta(days=7),
-            _NOW,
-        ) == 0
+        assert (
+            store.count_window(
+                "test-agent",
+                _NOW - timedelta(days=7),
+                _NOW,
+            )
+            == 0
+        )
 
     def test_count_window_only_counts_articles_in_range(
-        self, store: AbstractArticleStore,
+        self,
+        store: AbstractArticleStore,
     ) -> None:
         """
         Only articles whose pub_date falls within the inclusive window are
@@ -640,21 +662,40 @@ class TestCountAndStats:
         assert count == 1
 
     def test_count_window_scoped_to_agent(
-        self, store: AbstractArticleStore,
+        self,
+        store: AbstractArticleStore,
     ) -> None:
         """count_window is scoped to a single agent_id (SRC-072)."""
-        store.insert_if_new(_make_article(
-            "agent-a", "x", pub_date=_NOW - timedelta(days=2),
-        ))
-        store.insert_if_new(_make_article(
-            "agent-b", "y", pub_date=_NOW - timedelta(days=2),
-        ))
-        assert store.count_window(
-            "agent-a", _NOW - timedelta(days=7), _NOW,
-        ) == 1
-        assert store.count_window(
-            "agent-c", _NOW - timedelta(days=7), _NOW,
-        ) == 0
+        store.insert_if_new(
+            _make_article(
+                "agent-a",
+                "x",
+                pub_date=_NOW - timedelta(days=2),
+            )
+        )
+        store.insert_if_new(
+            _make_article(
+                "agent-b",
+                "y",
+                pub_date=_NOW - timedelta(days=2),
+            )
+        )
+        assert (
+            store.count_window(
+                "agent-a",
+                _NOW - timedelta(days=7),
+                _NOW,
+            )
+            == 1
+        )
+        assert (
+            store.count_window(
+                "agent-c",
+                _NOW - timedelta(days=7),
+                _NOW,
+            )
+            == 0
+        )
 
     def test_get_stats_returns_store_stats(self, store: AbstractArticleStore) -> None:
         store.insert_if_new(_make_article(url_suffix="1", tier="1b", source_class="web"))
@@ -690,6 +731,7 @@ class TestCountAndStats:
 # Section 9: delete_older_than (store maintenance)
 # ===========================================================================
 
+
 class TestDeleteOlderThan:
     """Store pruning — bounded file size for long-running deployments."""
 
@@ -722,6 +764,7 @@ class TestDeleteOlderThan:
 # ===========================================================================
 # Section 10: TweetSignal deduplication (SRC-067)
 # ===========================================================================
+
 
 class TestTweetSignal:
     """Traces: SRC-067 (tweet dedup), SRC-047 (signal role).  Both backends."""
@@ -789,6 +832,7 @@ class TestTweetSignal:
 # Section 11: DigestRecord — upsert / get / list (SRC-129, SRC-145, SRC-150)
 # ===========================================================================
 
+
 class TestDigestRecord:
     """Traces: SRC-129 (prompt_version), SRC-145 (idempotent), SRC-150 (monitoring)."""
 
@@ -830,9 +874,7 @@ class TestDigestRecord:
         assert retrieved is not None
         assert retrieved.run_date == datetime.date(2026, 5, 10)
 
-    def test_get_digest_by_run_date_accepts_date(
-        self, store: AbstractArticleStore
-    ) -> None:
+    def test_get_digest_by_run_date_accepts_date(self, store: AbstractArticleStore) -> None:
         """
         ``run_date`` matches :attr:`DigestRecord.run_date` (a ``date``).  This
         is the production call path — the Rendering Agent passes
@@ -845,9 +887,7 @@ class TestDigestRecord:
         store.upsert_digest(d1)
         store.upsert_digest(d2)
 
-        retrieved = store.get_digest(
-            "test-agent", "daily", run_date=datetime.date(2026, 5, 10)
-        )
+        retrieved = store.get_digest("test-agent", "daily", run_date=datetime.date(2026, 5, 10))
         assert retrieved is not None
         assert retrieved.run_date == datetime.date(2026, 5, 10)
 
@@ -872,14 +912,14 @@ class TestDigestRecord:
         assert digests[0].run_date >= digests[1].run_date >= digests[2].run_date
 
     def test_list_digests_cadence_filter(self, store: AbstractArticleStore) -> None:
-        store.upsert_digest(_make_digest(cadence="daily",  run_date=datetime.date(2026, 5, 10)))
+        store.upsert_digest(_make_digest(cadence="daily", run_date=datetime.date(2026, 5, 10)))
         store.upsert_digest(_make_digest(cadence="weekly", run_date=datetime.date(2026, 5, 3)))
         store.upsert_digest(_make_digest(cadence="monthly", run_date=datetime.date(2026, 5, 1)))
 
-        daily   = store.list_digests("test-agent", cadence="daily")
-        weekly  = store.list_digests("test-agent", cadence="weekly")
+        daily = store.list_digests("test-agent", cadence="daily")
+        weekly = store.list_digests("test-agent", cadence="weekly")
         monthly = store.list_digests("test-agent", cadence="monthly")
-        all_   = store.list_digests("test-agent")
+        all_ = store.list_digests("test-agent")
 
         assert len(daily) == 1
         assert daily[0].cadence == "daily"
@@ -907,14 +947,14 @@ class TestDigestRecord:
     def test_digest_paths_stored(self, store: AbstractArticleStore) -> None:
         """Output file paths survive roundtrip."""
         record = _make_digest()
-        record.md_path   = "outputs/test-agent/2026-05-11-daily.md"
+        record.md_path = "outputs/test-agent/2026-05-11-daily.md"
         record.html_path = "outputs/test-agent/2026-05-11-daily.html"
         record.json_path = "outputs/test-agent/2026-05-11-daily.json"
         store.upsert_digest(record)
 
         retrieved = store.get_digest("test-agent", "daily")
         assert retrieved is not None
-        assert retrieved.md_path   == "outputs/test-agent/2026-05-11-daily.md"
+        assert retrieved.md_path == "outputs/test-agent/2026-05-11-daily.md"
         assert retrieved.html_path == "outputs/test-agent/2026-05-11-daily.html"
         assert retrieved.json_path == "outputs/test-agent/2026-05-11-daily.json"
 
@@ -927,6 +967,7 @@ class TestDigestRecord:
 # ===========================================================================
 # Section 12: Context-manager protocol
 # ===========================================================================
+
 
 class TestContextManager:
     """Both stores support ``with`` statement."""
@@ -952,6 +993,7 @@ class TestContextManager:
 # ===========================================================================
 # Section 13: Data persistence across close/reopen
 # ===========================================================================
+
 
 class TestPersistence:
     """Writes survive close() + reopen.  Proves data is durable on disk."""
@@ -983,6 +1025,7 @@ class TestPersistence:
 # Section 14: StoreFactory (SRC-053)
 # ===========================================================================
 
+
 class TestStoreFactory:
     """Traces: SRC-053 (pluggable store factory)."""
 
@@ -1006,7 +1049,9 @@ class TestStoreFactory:
             StoreFactory.from_backend("dynamodb", tmp_path / "s.db")
 
     def test_create_from_agent_config_tinydb_default(
-        self, tmp_path: Path, sample_agent_config  # from conftest
+        self,
+        tmp_path: Path,
+        sample_agent_config,  # from conftest
     ) -> None:
         """Default backend is TinyDB.  Traces: SRC-053, SRC-072."""
         store = StoreFactory.create(sample_agent_config, output_base=tmp_path)
@@ -1045,6 +1090,7 @@ class TestStoreFactory:
 # Section 15: ArticleRecord field round-trip (SRC-011)
 # ===========================================================================
 
+
 class TestArticleFieldRoundtrip:
     """
     Every field of ArticleRecord must survive a write→read cycle in both backends.
@@ -1052,7 +1098,7 @@ class TestArticleFieldRoundtrip:
     """
 
     def _full_article(self) -> ArticleRecord:
-        raw_url   = "https://reuters.com/full-roundtrip-test"
+        raw_url = "https://reuters.com/full-roundtrip-test"
         canonical = normalize_url(raw_url)
         return ArticleRecord(
             url_hash=url_hash(canonical),
@@ -1111,6 +1157,7 @@ class TestArticleFieldRoundtrip:
 # Section 17: Defensive branch coverage — naive datetime coercion
 # ===========================================================================
 
+
 class TestNaiveDatetimeCoercion:
     """
     Stores accept timezone-naive datetimes and coerce to UTC internally.
@@ -1118,7 +1165,7 @@ class TestNaiveDatetimeCoercion:
     """
 
     def _make_naive_article(self) -> ArticleRecord:
-        raw_url   = "https://reuters.com/naive-dt-test"
+        raw_url = "https://reuters.com/naive-dt-test"
         canonical = normalize_url(raw_url)
         # pub_date and fetched_at without tzinfo
         naive_dt = datetime.datetime(2026, 5, 10, 12, 0, 0)  # no tzinfo
@@ -1184,21 +1231,25 @@ class TestNaiveDatetimeCoercion:
 # Section 18: CuratedItemRaw default field init (SRC-048)
 # ===========================================================================
 
+
 class TestCuratedItemRawDefaults:
     """CuratedItemRaw provides empty-list defaults for impact_tags and cross_refs."""
 
     def test_impact_tags_defaults_to_empty_list(self) -> None:
         from ai_news_agent.storage.models import CuratedItemRaw
+
         item = CuratedItemRaw(headline="Test", source_name="Reuters")
         assert item.impact_tags == []
 
     def test_cross_refs_defaults_to_empty_list(self) -> None:
         from ai_news_agent.storage.models import CuratedItemRaw
+
         item = CuratedItemRaw(headline="Test", source_name="Reuters")
         assert item.cross_refs == []
 
     def test_explicit_values_preserved(self) -> None:
         from ai_news_agent.storage.models import CuratedItemRaw
+
         item = CuratedItemRaw(
             headline="Test",
             source_name="Reuters",

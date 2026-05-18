@@ -33,13 +33,14 @@ log = structlog.get_logger(__name__)
 # ---------------------------------------------------------------------------
 
 _ENV_VAR = "SCHEDULER_API_KEY"
-_HEADER  = "Authorization"
-_SCHEME  = "Bearer "
+_HEADER = "Authorization"
+_SCHEME = "Bearer "
 
 
 # ---------------------------------------------------------------------------
 # FastAPI dependency
 # ---------------------------------------------------------------------------
+
 
 async def require_scheduler_auth(request: Request) -> None:
     """
@@ -85,7 +86,7 @@ async def require_scheduler_auth(request: Request) -> None:
             headers={"WWW-Authenticate": "Bearer"},
         )
 
-    provided_key = auth_header[len(_SCHEME):]
+    provided_key = auth_header[len(_SCHEME) :]
     if provided_key != expected_key:
         log.warning(
             "scheduler_auth_invalid_key",
@@ -106,6 +107,7 @@ async def require_scheduler_auth(request: Request) -> None:
 # ---------------------------------------------------------------------------
 # Utility: validate key from raw string (used in serverless handler)
 # ---------------------------------------------------------------------------
+
 
 def validate_api_key(provided: str | None) -> bool:
     """

@@ -52,6 +52,7 @@ log = structlog.get_logger(__name__)
 # SourcingRunResult — quality monitoring payload (SRC-150)
 # ---------------------------------------------------------------------------
 
+
 @dataclass
 class SourcingRunResult:
     """
@@ -72,27 +73,28 @@ class SourcingRunResult:
     window_end: datetime
 
     # Article counters (SRC-012, SRC-150)
-    articles_fetched: int           # total raw candidates examined
-    articles_inserted: int          # new (non-duplicate) insertions
-    articles_duplicate: int         # duplicates silently skipped
+    articles_fetched: int  # total raw candidates examined
+    articles_inserted: int  # new (non-duplicate) insertions
+    articles_duplicate: int  # duplicates silently skipped
 
     # Tweet signal counters (SRC-067, SRC-150)
-    tweets_fetched: int             # raw tweet signals collected from all handles
-    tweets_inserted: int            # new (non-duplicate) tweet signals stored
+    tweets_fetched: int  # raw tweet signals collected from all handles
+    tweets_inserted: int  # new (non-duplicate) tweet signals stored
 
     # Twitter API availability (SRC-148)
     twitter_signal_available: bool  # False → web-only degraded mode
 
     # Quality monitoring fields (SRC-150)
-    tweet_api_call_count: int                            # 0 when degraded (SRC-150)
-    items_by_tier: dict[str, int] = field(default_factory=dict)         # SRC-150
-    items_by_source_class: dict[str, int] = field(default_factory=dict) # SRC-150
-    errors: list[str] = field(default_factory=list)     # non-fatal error messages
+    tweet_api_call_count: int  # 0 when degraded (SRC-150)
+    items_by_tier: dict[str, int] = field(default_factory=dict)  # SRC-150
+    items_by_source_class: dict[str, int] = field(default_factory=dict)  # SRC-150
+    errors: list[str] = field(default_factory=list)  # non-fatal error messages
 
 
 # ---------------------------------------------------------------------------
 # SourcingAgent
 # ---------------------------------------------------------------------------
+
 
 class SourcingAgent:
     """
@@ -340,6 +342,7 @@ class SourcingAgent:
 # CLI entry point (SRC-076–SRC-077: local dev manual trigger)
 # ---------------------------------------------------------------------------
 
+
 def cli_main() -> None:
     """
     Command-line entry point: ``ai-news-source``.
@@ -429,6 +432,7 @@ def cli_main() -> None:
         import tempfile  # noqa: E401
 
         from ai_news_agent.storage.tinydb_store import TinyDBArticleStore
+
         with tempfile.TemporaryDirectory() as tmpdir:
             store = TinyDBArticleStore(os.path.join(tmpdir, "dry-run.json"))
             agent = SourcingAgent(config=config, secrets=secrets, store=store)

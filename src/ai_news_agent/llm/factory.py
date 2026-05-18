@@ -52,6 +52,7 @@ if TYPE_CHECKING:
 # Smoke-test mock client (SMOKE_TEST_MOCK_LLM=1 — SRC-102)
 # ---------------------------------------------------------------------------
 
+
 def _make_smoke_mock_response() -> str:
     """Return a deterministic JSON digest response for CI smoke tests (SRC-102)."""
     payload = {
@@ -113,6 +114,7 @@ class _SmokeMockLLMClient:
         budget_hint: str = "normal",
     ) -> list[Any]:
         from ai_news_agent.llm.base import SearchResult
+
         return [
             SearchResult(
                 url="https://example.com/smoke-search-result",
@@ -125,6 +127,7 @@ class _SmokeMockLLMClient:
     def parse_structured(self, raw: str, schema_cls: type) -> Any:
         """Parse the smoke mock JSON block."""
         import re
+
         json_block_re = re.compile(r"```json\s*(.*?)```", re.DOTALL | re.IGNORECASE)
         match = json_block_re.search(raw)
         json_str = match.group(1).strip() if match else raw.strip()
@@ -253,7 +256,6 @@ def get_llm_client(
         return _SmokeMockLLMClient()  # type: ignore[return-value]
 
     match llm_cfg.provider:
-
         case "openai":
             if not secrets.openai_api_key:
                 raise ConfigError(

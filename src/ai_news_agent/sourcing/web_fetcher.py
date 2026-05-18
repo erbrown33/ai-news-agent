@@ -104,9 +104,18 @@ _NATURAL_DATE_RE = re.compile(
     re.IGNORECASE,
 )
 _MONTH_ABBR_MAP = {
-    "january": 1, "february": 2, "march": 3, "april": 4,
-    "may": 5, "june": 6, "july": 7, "august": 8,
-    "september": 9, "october": 10, "november": 11, "december": 12,
+    "january": 1,
+    "february": 2,
+    "march": 3,
+    "april": 4,
+    "may": 5,
+    "june": 6,
+    "july": 7,
+    "august": 8,
+    "september": 9,
+    "october": 10,
+    "november": 11,
+    "december": 12,
 }
 
 
@@ -159,6 +168,7 @@ def _extract_pub_date(snippet: str | None, fetched_at: datetime) -> datetime:
 # ---------------------------------------------------------------------------
 # Domain helpers
 # ---------------------------------------------------------------------------
+
 
 def _strip_www(s: str) -> str:
     """Remove a leading 'www.' prefix from a domain string."""
@@ -231,6 +241,7 @@ def _classify_tier(url: str, config: AgentConfig) -> str:
 # SearchResult → ArticleRecord conversion (SRC-011, SRC-012, SRC-049)
 # ---------------------------------------------------------------------------
 
+
 def _search_result_to_record(
     result: SearchResult,
     tier: str,
@@ -302,6 +313,7 @@ def _search_result_to_record(
 # ---------------------------------------------------------------------------
 # WebFetcher
 # ---------------------------------------------------------------------------
+
 
 class WebFetcher:
     """
@@ -404,8 +416,7 @@ class WebFetcher:
 
         # Build date-scoped query suffix (SRC-116 — concrete ISO dates, not relative phrases)
         date_suffix = (
-            f"since:{window_start.strftime('%Y-%m-%d')} "
-            f"until:{window_end.strftime('%Y-%m-%d')}"
+            f"since:{window_start.strftime('%Y-%m-%d')} until:{window_end.strftime('%Y-%m-%d')}"
         )
 
         all_queries = self._build_tier_queries(date_suffix)
@@ -426,7 +437,7 @@ class WebFetcher:
             for result in results:
                 record = _search_result_to_record(
                     result=result,
-                    tier=tier,       # initial tier from the query context
+                    tier=tier,  # initial tier from the query context
                     agent_id=self._config.agent_id,
                     fetched_at=fetched_at,
                     pub_date_fallback=pub_date_fallback,
@@ -601,10 +612,12 @@ class WebFetcher:
 
         # Tier 1a — targeted queries for each custom domain (SRC-017)
         for domain in self._config.sources.custom:
-            queries.append((
-                "1a",
-                f"site:{domain} AI artificial intelligence news {date_suffix}",
-            ))
+            queries.append(
+                (
+                    "1a",
+                    f"site:{domain} AI artificial intelligence news {date_suffix}",
+                )
+            )
 
         # Tiers 1b–4 — standard thematic queries (SRC-018–SRC-021)
         for tier_key, tier_query_list in _TIER_QUERIES.items():

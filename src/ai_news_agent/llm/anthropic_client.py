@@ -147,7 +147,9 @@ class AnthropicLLMClient(AbstractLLMClient):
 
         # If no user messages exist (system-only), add a minimal user turn
         if not conv_messages:
-            conv_messages = [{"role": "user", "content": "Please proceed with the instructions above."}]
+            conv_messages = [
+                {"role": "user", "content": "Please proceed with the instructions above."}
+            ]
 
         system_text = "\n\n".join(system_parts) if system_parts else None
 

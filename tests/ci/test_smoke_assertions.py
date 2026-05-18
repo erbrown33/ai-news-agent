@@ -46,6 +46,7 @@ import pytest
 # Docker availability helper — defined early because it's used as a decorator
 # ---------------------------------------------------------------------------
 
+
 def _can_run_docker() -> bool:
     """Return True if 'docker info' exits 0 (daemon is running)."""
     try:
@@ -69,27 +70,28 @@ _STEM_RE = re.compile(r"^\d{4}-\d{2}-\d{2}-\w+$")
 
 # §8.2 required metadata fields  (SRC-150)
 REQUIRED_META_FIELDS: list[str] = [
-    "agent_id",               # SRC-072, SRC-150
-    "cadence",                # SRC-150
-    "run_date",               # SRC-150
-    "window_start",           # SRC-028, SRC-150
-    "window_end",             # SRC-028, SRC-150
-    "prompt_version",         # SRC-129
-    "llm_provider",           # SRC-150
-    "llm_model",              # SRC-150
-    "items_considered",       # SRC-150
-    "items_included",         # SRC-150
-    "items_by_tier",          # SRC-150
+    "agent_id",  # SRC-072, SRC-150
+    "cadence",  # SRC-150
+    "run_date",  # SRC-150
+    "window_start",  # SRC-028, SRC-150
+    "window_end",  # SRC-028, SRC-150
+    "prompt_version",  # SRC-129
+    "llm_provider",  # SRC-150
+    "llm_model",  # SRC-150
+    "items_considered",  # SRC-150
+    "items_included",  # SRC-150
+    "items_by_tier",  # SRC-150
     "items_by_source_class",  # SRC-150
-    "token_usage",            # SRC-150
+    "token_usage",  # SRC-150
     "twitter_signal_available",  # SRC-148
-    "tweet_api_call_count",      # SRC-150
+    "tweet_api_call_count",  # SRC-150
 ]
 
 
 # ---------------------------------------------------------------------------
 # Core assertion helper — mirrors the container smoke step in ci.yml
 # ---------------------------------------------------------------------------
+
 
 def _assert_smoke_contract(
     result: Any,
@@ -111,44 +113,39 @@ def _assert_smoke_contract(
     """
     # ── Pipeline success (SRC-102) ──────────────────────────────────────────
     assert result.success is True, (
-        f"Pipeline returned success=False for cadence={cadence!r}. "
-        f"Errors: {result.errors}"
+        f"Pipeline returned success=False for cadence={cadence!r}. Errors: {result.errors}"
     )
-    assert result.cadence == cadence, (
-        f"Expected cadence={cadence!r}, got {result.cadence!r}"
-    )
+    assert result.cadence == cadence, f"Expected cadence={cadence!r}, got {result.cadence!r}"
 
     # ── Three output files exist (SRC-004) ──────────────────────────────────
     assert result.markdown_path is not None, "markdown_path is None (SRC-004)"
-    assert result.html_path     is not None, "html_path is None (SRC-004)"
-    assert result.json_path     is not None, "json_path is None (SRC-004)"
+    assert result.html_path is not None, "html_path is None (SRC-004)"
+    assert result.json_path is not None, "json_path is None (SRC-004)"
 
-    md_path   = Path(result.markdown_path)
+    md_path = Path(result.markdown_path)
     html_path = Path(result.html_path)
     json_path = Path(result.json_path)
 
-    assert md_path.exists(),   f"Markdown file missing: {md_path} (SRC-004)"
-    assert html_path.exists(),  f"HTML file missing: {html_path} (SRC-004)"
-    assert json_path.exists(),  f"JSON file missing: {json_path} (SRC-004)"
+    assert md_path.exists(), f"Markdown file missing: {md_path} (SRC-004)"
+    assert html_path.exists(), f"HTML file missing: {html_path} (SRC-004)"
+    assert json_path.exists(), f"JSON file missing: {json_path} (SRC-004)"
 
     # ── Non-empty check (SRC-102) ───────────────────────────────────────────
-    assert md_path.stat().st_size > 0,   f"{md_path.name} is empty (SRC-102)"
+    assert md_path.stat().st_size > 0, f"{md_path.name} is empty (SRC-102)"
     assert html_path.stat().st_size > 0, f"{html_path.name} is empty (SRC-102)"
     assert json_path.stat().st_size > 0, f"{json_path.name} is empty (SRC-102)"
 
     # ── JSON structure check (SRC-102) ─────────────────────────────────────
     digest = json.loads(json_path.read_text("utf-8"))
     assert "schema_version" in digest, "schema_version missing from JSON (SRC-102)"
-    assert "metadata"       in digest, "metadata block missing from JSON (SRC-102)"
-    assert "items"          in digest, "items array missing from JSON (SRC-102)"
+    assert "metadata" in digest, "metadata block missing from JSON (SRC-102)"
+    assert "items" in digest, "items array missing from JSON (SRC-102)"
 
     meta = digest["metadata"]
 
     # ── §8.2 monitoring fields (SRC-150) ───────────────────────────────────
     missing_fields = [f for f in REQUIRED_META_FIELDS if f not in meta]
-    assert not missing_fields, (
-        f"Required §8.2 metadata fields missing: {missing_fields} (SRC-150)"
-    )
+    assert not missing_fields, f"Required §8.2 metadata fields missing: {missing_fields} (SRC-150)"
 
     # ── prompt_version SHA-256 format (SRC-129) ────────────────────────────
     pv = meta["prompt_version"]
@@ -159,12 +156,10 @@ def _assert_smoke_contract(
 
     # ── URL enforcement: no items without valid URL (SRC-049, SRC-141) ──────
     bad_items = [
-        it for it in digest.get("items", [])
-        if not str(it.get("url", "")).startswith("http")
+        it for it in digest.get("items", []) if not str(it.get("url", "")).startswith("http")
     ]
-    assert not bad_items, (
-        f"{len(bad_items)} item(s) missing valid URL (SRC-049, SRC-141): "
-        + str([it.get("headline", "?") for it in bad_items])
+    assert not bad_items, f"{len(bad_items)} item(s) missing valid URL (SRC-049, SRC-141): " + str(
+        [it.get("headline", "?") for it in bad_items]
     )
 
     # ── twitter_signal_available is boolean (SRC-148) ──────────────────────
@@ -176,8 +171,7 @@ def _assert_smoke_contract(
     # ── Filename convention YYYY-MM-DD-{cadence}.* (SRC-145) ───────────────
     for path_obj in (md_path, html_path, json_path):
         assert _STEM_RE.match(path_obj.stem), (
-            f"Filename {path_obj.name!r} does not match YYYY-MM-DD-cadence "
-            f"pattern (SRC-145)"
+            f"Filename {path_obj.name!r} does not match YYYY-MM-DD-cadence pattern (SRC-145)"
         )
         assert cadence in path_obj.stem, (
             f"Cadence {cadence!r} not present in filename {path_obj.name!r} (SRC-145)"
@@ -188,7 +182,7 @@ def _assert_smoke_contract(
 
     # ── llm_provider + llm_model non-empty (SRC-150) ───────────────────────
     assert meta["llm_provider"], "llm_provider is empty (SRC-150)"
-    assert meta["llm_model"],    "llm_model is empty (SRC-150)"
+    assert meta["llm_model"], "llm_model is empty (SRC-150)"
 
     # ── Numeric §8.2 field types (SRC-150) ─────────────────────────────────
     assert isinstance(meta["token_usage"], int), (
@@ -198,23 +192,24 @@ def _assert_smoke_contract(
         f"token_usage must be non-negative, got {meta['token_usage']} (SRC-150)"
     )
     assert isinstance(meta["items_considered"], int), "items_considered must be int (SRC-150)"
-    assert isinstance(meta["items_included"],   int), "items_included must be int (SRC-150)"
+    assert isinstance(meta["items_included"], int), "items_included must be int (SRC-150)"
     assert isinstance(meta["tweet_api_call_count"], int), (
         "tweet_api_call_count must be int (SRC-150)"
     )
-    assert isinstance(meta["items_by_tier"],         dict), "items_by_tier must be dict (SRC-150)"
+    assert isinstance(meta["items_by_tier"], dict), "items_by_tier must be dict (SRC-150)"
     assert isinstance(meta["items_by_source_class"], dict), (
         "items_by_source_class must be dict (SRC-150)"
     )
 
     # ── window_start / window_end present and non-empty (SRC-028) ──────────
     assert meta["window_start"], "window_start is empty in metadata (SRC-028)"
-    assert meta["window_end"],   "window_end is empty in metadata (SRC-028)"
+    assert meta["window_end"], "window_end is empty in metadata (SRC-028)"
 
 
 # ---------------------------------------------------------------------------
 # Factory fixture: build and run Pipeline in dry-run mode
 # ---------------------------------------------------------------------------
+
 
 @pytest.fixture
 def pipeline_runner(sample_agent_config, sample_secrets, prompts_dir: Path, tmp_path: Path):
@@ -258,10 +253,10 @@ def pipeline_runner(sample_agent_config, sample_secrets, prompts_dir: Path, tmp_
 
         # Reference times per cadence (same as scheduler trigger times)
         ref_times: dict[str, datetime] = {
-            "daily":   datetime(2026, 5, 10, 1, 0, tzinfo=UTC),
-            "weekly":  datetime(2026, 5, 11, 1, 0, tzinfo=UTC),
-            "monthly": datetime(2026, 5, 1,  2, 0, tzinfo=UTC),
-            "annual":  datetime(2026, 1, 1,  3, 0, tzinfo=UTC),
+            "daily": datetime(2026, 5, 10, 1, 0, tzinfo=UTC),
+            "weekly": datetime(2026, 5, 11, 1, 0, tzinfo=UTC),
+            "monthly": datetime(2026, 5, 1, 2, 0, tzinfo=UTC),
+            "annual": datetime(2026, 1, 1, 3, 0, tzinfo=UTC),
         }
         ref = ref_times[cadence]
         ws, we = _WINDOW_FN[cadence](ref)
@@ -310,6 +305,7 @@ def pipeline_runner(sample_agent_config, sample_secrets, prompts_dir: Path, tmp_
 # Mirrors the ``lint`` job in ci.yml.
 # ---------------------------------------------------------------------------
 
+
 class TestLintGate:
     """
     Python-side lint sanity — not a replacement for ``ruff check``, but a
@@ -351,7 +347,7 @@ class TestLintGate:
     def test_stem_re_rejects_bad_patterns(self) -> None:
         """_STEM_RE only matches YYYY-MM-DD-cadence stems (SRC-145)."""
         good = ["2026-05-10-daily", "2026-01-01-annual", "2025-12-31-weekly"]
-        bad  = ["daily-2026-05-10", "2026-5-1-daily", "2026-05-10", "daily"]
+        bad = ["daily-2026-05-10", "2026-5-1-daily", "2026-05-10", "daily"]
         for stem in good:
             assert _STEM_RE.match(stem), f"Should match: {stem!r} (SRC-145)"
         for stem in bad:
@@ -362,6 +358,7 @@ class TestLintGate:
 # Stage 2: Pipeline dry-run smoke test — all four cadences
 # Mirrors the ``smoke-docker`` job container assertions.
 # ---------------------------------------------------------------------------
+
 
 @pytest.mark.integration
 class TestSmokeContractDaily:
@@ -427,10 +424,7 @@ class TestSmokeContractWeekly:
         assert result.json_path is not None
 
         digest = json.loads(Path(result.json_path).read_text("utf-8"))
-        has_themes = (
-            "themes" in digest
-            or "themes" in digest.get("metadata", {})
-        )
+        has_themes = "themes" in digest or "themes" in digest.get("metadata", {})
         assert has_themes, "Weekly digest JSON must contain themes (SRC-030)"
 
 
@@ -484,10 +478,7 @@ class TestSmokeContractAnnual:
         assert result.json_path is not None
 
         digest = json.loads(Path(result.json_path).read_text("utf-8"))
-        has_predictions = (
-            "predictions" in digest
-            or "predictions" in digest.get("metadata", {})
-        )
+        has_predictions = "predictions" in digest or "predictions" in digest.get("metadata", {})
         assert has_predictions, "Annual digest JSON must contain predictions (SRC-032)"
 
 
@@ -495,6 +486,7 @@ class TestSmokeContractAnnual:
 # Stage 3: URL enforcement — exhaustive layer checks
 # (SRC-049 at curation, SRC-141 at rendering — both enforced in the pipeline)
 # ---------------------------------------------------------------------------
+
 
 @pytest.mark.integration
 class TestURLEnforcement:
@@ -544,37 +536,39 @@ class TestURLEnforcement:
         )
 
         # LLM response with a no-URL item mixed in
-        no_url_payload = json.dumps({
-            "items": [
-                {
-                    "headline": "Valid Item With URL",
-                    "source_name": "Reuters",
-                    "url": "https://reuters.com/valid-url",
-                    "pub_date": "2026-05-09",
-                    "why_it_matters": "This should appear in output.",
-                    "impact_tags": ["business_impact"],
-                    "tier": "1b",
-                    "cross_refs": [],
-                    "twitter_handle": None,
-                    "tweet_url": None,
-                },
-                {
-                    "headline": "No-URL Item — Must Be Dropped",
-                    "source_name": "Unknown",
-                    "url": "",          # ← empty URL
-                    "pub_date": "2026-05-09",
-                    "why_it_matters": "Should not appear in any output.",
-                    "impact_tags": [],
-                    "tier": "3",
-                    "cross_refs": [],
-                    "twitter_handle": None,
-                    "tweet_url": None,
-                },
-            ],
-            "themes": [],
-            "outlook": "",
-            "predictions": [],
-        })
+        no_url_payload = json.dumps(
+            {
+                "items": [
+                    {
+                        "headline": "Valid Item With URL",
+                        "source_name": "Reuters",
+                        "url": "https://reuters.com/valid-url",
+                        "pub_date": "2026-05-09",
+                        "why_it_matters": "This should appear in output.",
+                        "impact_tags": ["business_impact"],
+                        "tier": "1b",
+                        "cross_refs": [],
+                        "twitter_handle": None,
+                        "tweet_url": None,
+                    },
+                    {
+                        "headline": "No-URL Item — Must Be Dropped",
+                        "source_name": "Unknown",
+                        "url": "",  # ← empty URL
+                        "pub_date": "2026-05-09",
+                        "why_it_matters": "Should not appear in any output.",
+                        "impact_tags": [],
+                        "tier": "3",
+                        "cross_refs": [],
+                        "twitter_handle": None,
+                        "tweet_url": None,
+                    },
+                ],
+                "themes": [],
+                "outlook": "",
+                "predictions": [],
+            }
+        )
         mock_response = f"```json\n{no_url_payload}\n```"
 
         scratch = tmp_path / "scratch-url-check"
@@ -619,8 +613,7 @@ class TestURLEnforcement:
 
         # No items without a valid URL (SRC-049, SRC-141)
         bad_items = [
-            it for it in digest.get("items", [])
-            if not str(it.get("url", "")).startswith("http")
+            it for it in digest.get("items", []) if not str(it.get("url", "")).startswith("http")
         ]
         assert not bad_items, (
             f"URL enforcement failed: {len(bad_items)} item(s) without valid URL "
@@ -635,9 +628,9 @@ class TestURLEnforcement:
             f"No-URL item slipped through URL enforcement: {bad_headline!r} (SRC-049)"
         )
 
-        md_text   = Path(result.markdown_path).read_text("utf-8")   # type: ignore[arg-type]
-        html_text = Path(result.html_path).read_text("utf-8")       # type: ignore[arg-type]
-        assert bad_headline not in md_text,   "No-URL item in Markdown (SRC-141)"
+        md_text = Path(result.markdown_path).read_text("utf-8")  # type: ignore[arg-type]
+        html_text = Path(result.html_path).read_text("utf-8")  # type: ignore[arg-type]
+        assert bad_headline not in md_text, "No-URL item in Markdown (SRC-141)"
         assert bad_headline not in html_text, "No-URL item in HTML (SRC-141)"
 
         store.close()
@@ -646,6 +639,7 @@ class TestURLEnforcement:
 # ---------------------------------------------------------------------------
 # Stage 4: Prompt hash integrity (mirrors ``prompt-hashes`` CI job)
 # ---------------------------------------------------------------------------
+
 
 class TestPromptHashIntegrity:
     """
@@ -730,6 +724,7 @@ class TestPromptHashIntegrity:
 # Mirrors the ``Container check · CLI entry-points registered`` step in ci.yml.
 # ---------------------------------------------------------------------------
 
+
 class TestEntryPointRegistration:
     """
     All required CLI entry points must be registered in the installed package.
@@ -738,16 +733,18 @@ class TestEntryPointRegistration:
     Traces: SRC-076, SRC-077, SRC-102
     """
 
-    REQUIRED_ENTRY_POINTS: frozenset[str] = frozenset({
-        "ai-news-source",
-        "ai-news-curate",
-        "ai-news-render",
-        "ai-news-schedule",
-        "ai-news-portal",
-        "ai-news-run",
-        "ai-news-oneshot",
-        "ai-news-prompt-hashes",
-    })
+    REQUIRED_ENTRY_POINTS: frozenset[str] = frozenset(
+        {
+            "ai-news-source",
+            "ai-news-curate",
+            "ai-news-render",
+            "ai-news-schedule",
+            "ai-news-portal",
+            "ai-news-run",
+            "ai-news-oneshot",
+            "ai-news-prompt-hashes",
+        }
+    )
 
     def test_all_cli_entry_points_registered(self) -> None:
         """
@@ -798,6 +795,7 @@ class TestEntryPointRegistration:
 # Stage 6: §8.2 monitoring field completeness in PipelineRunResult
 # ---------------------------------------------------------------------------
 
+
 @pytest.mark.integration
 class TestMonitoringFieldCompleteness:
     """
@@ -820,28 +818,28 @@ class TestMonitoringFieldCompleteness:
         assert result.success is True
 
         # §8.2 field presence on the result object
-        assert hasattr(result, "items_considered"),       "items_considered missing (SRC-150)"
-        assert hasattr(result, "items_included"),         "items_included missing (SRC-150)"
-        assert hasattr(result, "items_by_tier"),          "items_by_tier missing (SRC-150)"
-        assert hasattr(result, "items_by_source_class"),  "items_by_source_class missing (SRC-150)"
-        assert hasattr(result, "token_usage"),            "token_usage missing (SRC-150)"
-        assert hasattr(result, "llm_provider"),           "llm_provider missing (SRC-150)"
-        assert hasattr(result, "llm_model"),              "llm_model missing (SRC-150)"
-        assert hasattr(result, "prompt_version"),         "prompt_version missing (SRC-129)"
-        assert hasattr(result, "tweet_api_call_count"),   "tweet_api_call_count missing (SRC-150)"
+        assert hasattr(result, "items_considered"), "items_considered missing (SRC-150)"
+        assert hasattr(result, "items_included"), "items_included missing (SRC-150)"
+        assert hasattr(result, "items_by_tier"), "items_by_tier missing (SRC-150)"
+        assert hasattr(result, "items_by_source_class"), "items_by_source_class missing (SRC-150)"
+        assert hasattr(result, "token_usage"), "token_usage missing (SRC-150)"
+        assert hasattr(result, "llm_provider"), "llm_provider missing (SRC-150)"
+        assert hasattr(result, "llm_model"), "llm_model missing (SRC-150)"
+        assert hasattr(result, "prompt_version"), "prompt_version missing (SRC-129)"
+        assert hasattr(result, "tweet_api_call_count"), "tweet_api_call_count missing (SRC-150)"
         assert hasattr(result, "twitter_signal_available"), (
             "twitter_signal_available missing (SRC-148)"
         )
 
         # Type checks
-        assert isinstance(result.items_by_tier, dict),         "items_by_tier must be dict"
+        assert isinstance(result.items_by_tier, dict), "items_by_tier must be dict"
         assert isinstance(result.items_by_source_class, dict), "items_by_source_class must be dict"
         assert isinstance(result.twitter_signal_available, bool)
         assert result.prompt_version.startswith("sha256:"), (
             "prompt_version must start with 'sha256:' (SRC-129)"
         )
         assert result.llm_provider, "llm_provider must be non-empty (SRC-150)"
-        assert result.llm_model,    "llm_model must be non-empty (SRC-150)"
+        assert result.llm_model, "llm_model must be non-empty (SRC-150)"
 
     def test_twitter_degraded_reflected_in_result(
         self,
@@ -865,6 +863,7 @@ class TestMonitoringFieldCompleteness:
 # Stage 7: Docker image label contract
 # (Checks the image *after* build — skipped if docker is not available)
 # ---------------------------------------------------------------------------
+
 
 class TestDockerImageLabels:
     """

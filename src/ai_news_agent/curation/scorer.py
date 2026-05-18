@@ -41,9 +41,9 @@ log = structlog.get_logger(__name__)
 _TIER_WEIGHT: dict[str, float] = {
     "1a": 1.0,
     "1b": 0.9,
-    "2":  0.8,
-    "3":  0.7,
-    "4":  0.6,
+    "2": 0.8,
+    "3": 0.7,
+    "4": 0.6,
     "unknown": 0.5,
 }
 
@@ -219,9 +219,7 @@ class Scorer:
 
             try:
                 pub_date = (
-                    date.fromisoformat(raw_item.pub_date)
-                    if raw_item.pub_date
-                    else date.today()
+                    date.fromisoformat(raw_item.pub_date) if raw_item.pub_date else date.today()
                 )
             except ValueError:
                 pub_date = date.today()
@@ -233,13 +231,13 @@ class Scorer:
                     source_name=raw_item.source_name,
                     url=raw_item.url.strip(),
                     pub_date=pub_date,
-                    why_it_matters=raw_item.why_it_matters,    # SRC-029, SRC-048, SRC-122
-                    impact_tags=list(raw_item.impact_tags),    # SRC-048, SRC-023–SRC-025
-                    tier=raw_item.tier or "unknown",            # SRC-016–SRC-021
-                    cross_refs=list(raw_item.cross_refs),       # SRC-048
-                    twitter_handle=raw_item.twitter_handle,     # SRC-048
-                    tweet_url=raw_item.tweet_url,               # SRC-048
-                    prompt_version=prompt_version,              # SRC-129
+                    why_it_matters=raw_item.why_it_matters,  # SRC-029, SRC-048, SRC-122
+                    impact_tags=list(raw_item.impact_tags),  # SRC-048, SRC-023–SRC-025
+                    tier=raw_item.tier or "unknown",  # SRC-016–SRC-021
+                    cross_refs=list(raw_item.cross_refs),  # SRC-048
+                    twitter_handle=raw_item.twitter_handle,  # SRC-048
+                    tweet_url=raw_item.tweet_url,  # SRC-048
+                    prompt_version=prompt_version,  # SRC-129
                 )
             )
 
@@ -324,8 +322,7 @@ class Scorer:
             if article.twitter_handle:
                 # Surface Twitter provenance so LLM can include it in output (SRC-048)
                 entry_lines.append(
-                    f"   Twitter signal: @{article.twitter_handle} "
-                    f"| Tweet URL: {article.tweet_url}"
+                    f"   Twitter signal: @{article.twitter_handle} | Tweet URL: {article.tweet_url}"
                 )
             lines.extend(entry_lines)
             lines.append("")

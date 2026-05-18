@@ -61,6 +61,7 @@ Cadence = Literal["daily", "weekly", "monthly", "annual"]
 # Individual job runners (called by cron callbacks and trigger_now)
 # ---------------------------------------------------------------------------
 
+
 def _run_sourcing_job(agent_config: AgentConfig, secrets: RuntimeSecrets) -> None:
     """
     Execute one sourcing run for a single agent configuration.
@@ -155,6 +156,7 @@ def _run_curation_job(
 # Retry wrapper (SRC-144)
 # ---------------------------------------------------------------------------
 
+
 def _with_retry(fn: Any, max_retries: int, backoff_base: int) -> None:
     """
     Execute ``fn`` with exponential backoff retry.
@@ -172,7 +174,7 @@ def _with_retry(fn: Any, max_retries: int, backoff_base: int) -> None:
         except Exception as exc:  # noqa: BLE001
             last_exc = exc
             if attempt < max_retries:
-                sleep_secs = backoff_base * (2 ** attempt)
+                sleep_secs = backoff_base * (2**attempt)
                 log.warning(
                     "scheduler_retry",
                     attempt=attempt + 1,
@@ -194,6 +196,7 @@ def _with_retry(fn: Any, max_retries: int, backoff_base: int) -> None:
 # ---------------------------------------------------------------------------
 # Cron expression parser
 # ---------------------------------------------------------------------------
+
 
 def _parse_cron(expr: str) -> dict[str, str]:
     """
@@ -222,6 +225,7 @@ def _parse_cron(expr: str) -> dict[str, str]:
 # ---------------------------------------------------------------------------
 # SchedulerRunner — main orchestration class
 # ---------------------------------------------------------------------------
+
 
 class SchedulerRunner:
     """
@@ -469,14 +473,14 @@ class SchedulerRunner:
             # absent via __slots__) until then.  Use getattr with a None sentinel
             # so this works whether the scheduler is started or not (SRC-150).
             next_run = getattr(job, "next_run_time", None)
-            jobs.append({
-                "job_id":      job.id,
-                "name":        job.name,
-                "next_run_utc": (
-                    next_run.astimezone(UTC).isoformat() if next_run else None
-                ),
-                "pending":     job.pending,
-            })
+            jobs.append(
+                {
+                    "job_id": job.id,
+                    "name": job.name,
+                    "next_run_utc": (next_run.astimezone(UTC).isoformat() if next_run else None),
+                    "pending": job.pending,
+                }
+            )
         # Sort by next_run_utc ascending (None last)
         return sorted(
             jobs,
@@ -548,9 +552,7 @@ class SchedulerRunner:
                 backoff_base,
             )
         else:
-            raise ValueError(
-                f"Unknown job_type: {job_type!r}. Expected 'sourcing' or 'curation'."
-            )
+            raise ValueError(f"Unknown job_type: {job_type!r}. Expected 'sourcing' or 'curation'.")
 
     # ------------------------------------------------------------------
     # Lifecycle: start / shutdown
@@ -595,6 +597,7 @@ class SchedulerRunner:
         it so callers do not need to guard against it (SRC-052).
         """
         import contextlib
+
         with contextlib.suppress(Exception):  # SchedulerNotRunningError or similar
             self._scheduler.shutdown(wait=False)
 
@@ -616,6 +619,7 @@ class SchedulerRunner:
 # ---------------------------------------------------------------------------
 # CLI entry point (SRC-076–SRC-077: local dev trigger)
 # ---------------------------------------------------------------------------
+
 
 def cli_main() -> None:
     """

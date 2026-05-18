@@ -56,16 +56,17 @@ _CADENCE_ORDER = {"annual": 0, "monthly": 1, "weekly": 2, "daily": 3}
 
 #: Human-readable cadence labels and icons.
 CADENCE_META = {
-    "daily":   {"icon": "📅", "label": "Daily",   "color": "daily"},
-    "weekly":  {"icon": "📆", "label": "Weekly",  "color": "weekly"},
+    "daily": {"icon": "📅", "label": "Daily", "color": "daily"},
+    "weekly": {"icon": "📆", "label": "Weekly", "color": "weekly"},
     "monthly": {"icon": "🗓️", "label": "Monthly", "color": "monthly"},
-    "annual":  {"icon": "🎯", "label": "Annual",  "color": "annual"},
+    "annual": {"icon": "🎯", "label": "Annual", "color": "annual"},
 }
 
 
 # ---------------------------------------------------------------------------
 # Request / Response models
 # ---------------------------------------------------------------------------
+
 
 class TriggerRequest(BaseModel):
     """
@@ -81,8 +82,8 @@ class TriggerRequest(BaseModel):
     """
 
     agent_id: str
-    job_type: str          # "sourcing" | "curation"
-    cadence: str | None = None   # required if job_type == "curation"
+    job_type: str  # "sourcing" | "curation"
+    cadence: str | None = None  # required if job_type == "curation"
 
 
 class TriggerResponse(BaseModel):
@@ -99,6 +100,7 @@ class TriggerResponse(BaseModel):
 # Helper utilities
 # ---------------------------------------------------------------------------
 
+
 def _list_agents(outputs_dir: Path) -> list[str]:
     """
     Discover all agent IDs from the outputs directory.
@@ -109,9 +111,7 @@ def _list_agents(outputs_dir: Path) -> list[str]:
     if not outputs_dir.exists():
         return []
     return sorted(
-        p.name
-        for p in outputs_dir.iterdir()
-        if p.is_dir() and not p.name.startswith(".")
+        p.name for p in outputs_dir.iterdir() if p.is_dir() and not p.name.startswith(".")
     )
 
 
@@ -176,9 +176,7 @@ def _list_digests(outputs_dir: Path, agent_id: str) -> list[dict[str, Any]]:
     return result
 
 
-def _list_digests_by_cadence(
-    outputs_dir: Path, agent_id: str
-) -> dict[str, list[dict[str, Any]]]:
+def _list_digests_by_cadence(outputs_dir: Path, agent_id: str) -> dict[str, list[dict[str, Any]]]:
     """
     Group digests by cadence for the index page cadence-tab view.
 
@@ -213,9 +211,7 @@ def _load_json_digest(
         return None
 
 
-def _available_formats(
-    outputs_dir: Path, agent_id: str, date_str: str, cadence: str
-) -> list[str]:
+def _available_formats(outputs_dir: Path, agent_id: str, date_str: str, cadence: str) -> list[str]:
     """
     Return which of md/html/json exist on disk for the given digest.
 
@@ -223,10 +219,7 @@ def _available_formats(
     """
     agent_dir = outputs_dir / agent_id
     stem = f"{date_str}-{cadence}"
-    return sorted(
-        ext for ext in ("html", "json", "md")
-        if (agent_dir / f"{stem}.{ext}").exists()
-    )
+    return sorted(ext for ext in ("html", "json", "md") if (agent_dir / f"{stem}.{ext}").exists())
 
 
 def _get_scheduler_runner(request: Request) -> SchedulerRunner | None:
@@ -242,6 +235,7 @@ def _get_scheduler_runner(request: Request) -> SchedulerRunner | None:
 # ---------------------------------------------------------------------------
 # Route registration
 # ---------------------------------------------------------------------------
+
 
 def register_routes(app_instance: FastAPI) -> None:
     """
@@ -376,10 +370,12 @@ def register_routes(app_instance: FastAPI) -> None:
         # Themes are deduplicated strings from the LLM; count mentions across items
         theme_weights: dict[str, int] = {}
         all_text = " ".join(
-            " ".join([
-                item.get("headline", ""),
-                item.get("why_it_matters", ""),
-            ])
+            " ".join(
+                [
+                    item.get("headline", ""),
+                    item.get("why_it_matters", ""),
+                ]
+            )
             for item in items
         ).lower()
         for theme in themes:
@@ -507,7 +503,10 @@ def register_routes(app_instance: FastAPI) -> None:
                 detail=f"Invalid job_type: {body.job_type!r}. Expected 'sourcing' or 'curation'.",
             )
         if body.job_type == "curation" and body.cadence not in (
-            "daily", "weekly", "monthly", "annual"
+            "daily",
+            "weekly",
+            "monthly",
+            "annual",
         ):
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
@@ -543,8 +542,7 @@ def register_routes(app_instance: FastAPI) -> None:
         if body.agent_id not in runner._agent_configs:
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND,
-                detail=f"Unknown agent_id: {body.agent_id!r}. "
-                       f"Loaded agents: {runner.agent_ids}",
+                detail=f"Unknown agent_id: {body.agent_id!r}. Loaded agents: {runner.agent_ids}",
             )
 
         def _background_trigger() -> None:
@@ -602,9 +600,7 @@ def register_routes(app_instance: FastAPI) -> None:
         runner = _get_scheduler_runner(request)
         outputs_dir: Path = request.app.state.outputs_dir
         agents = _list_agents(outputs_dir)
-        total_digests = sum(
-            len(_list_digests(outputs_dir, aid)) for aid in agents
-        )
+        total_digests = sum(len(_list_digests(outputs_dir, aid)) for aid in agents)
         return JSONResponse(
             content={
                 "status": "ok",
@@ -636,11 +632,13 @@ def register_routes(app_instance: FastAPI) -> None:
         agent_info = []
         for aid in agents:
             by_cadence = _list_digests_by_cadence(outputs_dir, aid)
-            agent_info.append({
-                "agent_id": aid,
-                "digest_count": len(_list_digests(outputs_dir, aid)),
-                "by_cadence": {c: len(v) for c, v in by_cadence.items()},
-            })
+            agent_info.append(
+                {
+                    "agent_id": aid,
+                    "digest_count": len(_list_digests(outputs_dir, aid)),
+                    "by_cadence": {c: len(v) for c, v in by_cadence.items()},
+                }
+            )
         return JSONResponse(content={"agents": agent_info})
 
     # ------------------------------------------------------------------

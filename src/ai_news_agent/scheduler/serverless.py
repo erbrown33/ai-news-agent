@@ -66,12 +66,13 @@ log = structlog.get_logger(__name__)
 _DEFAULT_CONFIG_PATH = "configs/scheduler.yaml"
 
 _VALID_JOB_TYPES = frozenset({"sourcing", "curation"})
-_VALID_CADENCES  = frozenset({"daily", "weekly", "monthly", "annual"})
+_VALID_CADENCES = frozenset({"daily", "weekly", "monthly", "annual"})
 
 
 # ---------------------------------------------------------------------------
 # Internal helpers
 # ---------------------------------------------------------------------------
+
 
 def _load_runner(config_path: str | None = None) -> SchedulerRunner:
     """
@@ -141,9 +142,9 @@ def _dispatch(
         }
 
     results: list[dict[str, Any]] = []
-    max_retries  = runner._sched_cfg.scheduler.max_retries
+    max_retries = runner._sched_cfg.scheduler.max_retries
     backoff_base = runner._sched_cfg.scheduler.retry_backoff_base_seconds
-    secrets      = runner._get_secrets()
+    secrets = runner._get_secrets()
 
     for aid in target_ids:
         cfg = runner._agent_configs[aid]
@@ -177,7 +178,7 @@ def _dispatch(
                 error=str(exc),
             )
 
-    any_ok    = any(r["status"] == "ok" for r in results)
+    any_ok = any(r["status"] == "ok" for r in results)
     any_error = any(r["status"] == "error" for r in results)
 
     overall = "ok" if any_ok and not any_error else ("partial" if any_ok else "error")
@@ -195,6 +196,7 @@ def _dispatch(
 # ---------------------------------------------------------------------------
 # HTTP handler — Cloud Run / App Runner / Azure Container Apps
 # ---------------------------------------------------------------------------
+
 
 def http_handler(
     payload: dict[str, Any],
@@ -228,7 +230,7 @@ def http_handler(
     # --- Auth (SRC-147) ---
     provided_key: str | None = None
     if auth_header and auth_header.startswith("Bearer "):
-        provided_key = auth_header[len("Bearer "):]
+        provided_key = auth_header[len("Bearer ") :]
 
     if not validate_api_key(provided_key):
         log.warning("serverless_http_auth_failed")
@@ -238,9 +240,9 @@ def http_handler(
             "code": 401,
         }
 
-    job_type  = payload.get("job_type", os.environ.get("JOB_TYPE", ""))
-    cadence   = payload.get("cadence", os.environ.get("CADENCE"))
-    agent_id  = payload.get("agent_id", os.environ.get("AGENT_ID"))
+    job_type = payload.get("job_type", os.environ.get("JOB_TYPE", ""))
+    cadence = payload.get("cadence", os.environ.get("CADENCE"))
+    agent_id = payload.get("agent_id", os.environ.get("AGENT_ID"))
 
     log.info(
         "serverless_http_trigger",
@@ -265,6 +267,7 @@ def http_handler(
 # ---------------------------------------------------------------------------
 # AWS Lambda handler (SRC-090)
 # ---------------------------------------------------------------------------
+
 
 def lambda_handler(event: dict[str, Any], context: object) -> dict[str, Any]:
     """
@@ -315,6 +318,7 @@ def lambda_handler(event: dict[str, Any], context: object) -> dict[str, Any]:
 # ---------------------------------------------------------------------------
 # CLI one-shot entry point — local cron / GitHub Actions (SRC-076–SRC-077)
 # ---------------------------------------------------------------------------
+
 
 def cli_oneshot(
     job_type: str,
@@ -367,6 +371,7 @@ def cli_oneshot(
 # ---------------------------------------------------------------------------
 # CLI entry point: ai-news-oneshot
 # ---------------------------------------------------------------------------
+
 
 def cli_main() -> None:
     """

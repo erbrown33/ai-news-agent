@@ -33,6 +33,7 @@ import pytest
 # Helpers
 # ---------------------------------------------------------------------------
 
+
 def _make_dummy_pipeline_result(success: bool = True) -> MagicMock:
     """Build a mock PipelineRunResult."""
     mock = MagicMock()
@@ -66,6 +67,7 @@ def _make_dummy_pipeline_result(success: bool = True) -> MagicMock:
 # ---------------------------------------------------------------------------
 # Pipeline CLI (ai-news-run)
 # ---------------------------------------------------------------------------
+
 
 class TestPipelineCLI:
     """
@@ -102,11 +104,14 @@ class TestPipelineCLI:
         """
         from ai_news_agent.pipeline import cli_main
 
-        with patch("ai_news_agent.pipeline.load_agent_config", return_value=MagicMock()), \
-             patch("ai_news_agent.pipeline.RuntimeSecrets", return_value=MagicMock()), \
-             patch.object(sys, "argv", ["ai-news-run", "--cadence", "daily",
-                                        "--window-start", "2026-05-01"]), \
-             pytest.raises(SystemExit) as exc:
+        with (
+            patch("ai_news_agent.pipeline.load_agent_config", return_value=MagicMock()),
+            patch("ai_news_agent.pipeline.RuntimeSecrets", return_value=MagicMock()),
+            patch.object(
+                sys, "argv", ["ai-news-run", "--cadence", "daily", "--window-start", "2026-05-01"]
+            ),
+            pytest.raises(SystemExit) as exc,
+        ):
             cli_main()
         assert exc.value.code == 2
 
@@ -116,11 +121,14 @@ class TestPipelineCLI:
         """
         from ai_news_agent.pipeline import cli_main
 
-        with patch("ai_news_agent.pipeline.load_agent_config", return_value=MagicMock()), \
-             patch("ai_news_agent.pipeline.RuntimeSecrets", return_value=MagicMock()), \
-             patch.object(sys, "argv", ["ai-news-run", "--cadence", "daily",
-                                        "--window-end", "2026-05-31"]), \
-             pytest.raises(SystemExit) as exc:
+        with (
+            patch("ai_news_agent.pipeline.load_agent_config", return_value=MagicMock()),
+            patch("ai_news_agent.pipeline.RuntimeSecrets", return_value=MagicMock()),
+            patch.object(
+                sys, "argv", ["ai-news-run", "--cadence", "daily", "--window-end", "2026-05-31"]
+            ),
+            pytest.raises(SystemExit) as exc,
+        ):
             cli_main()
         assert exc.value.code == 2
 
@@ -131,17 +139,29 @@ class TestPipelineCLI:
         """
         from ai_news_agent.pipeline import cli_main
 
-        with patch("ai_news_agent.pipeline.load_agent_config") as mock_cfg, \
-             patch("ai_news_agent.pipeline.RuntimeSecrets") as mock_sec:
+        with (
+            patch("ai_news_agent.pipeline.load_agent_config") as mock_cfg,
+            patch("ai_news_agent.pipeline.RuntimeSecrets") as mock_sec,
+        ):
             mock_cfg.return_value = MagicMock()
             mock_sec.return_value = MagicMock()
 
-            with patch.object(sys, "argv", [
-                "ai-news-run",
-                "--cadence", "daily",
-                "--window-start", "not-a-date",
-                "--window-end", "also-not-a-date",
-            ]), pytest.raises(SystemExit) as exc:
+            with (
+                patch.object(
+                    sys,
+                    "argv",
+                    [
+                        "ai-news-run",
+                        "--cadence",
+                        "daily",
+                        "--window-start",
+                        "not-a-date",
+                        "--window-end",
+                        "also-not-a-date",
+                    ],
+                ),
+                pytest.raises(SystemExit) as exc,
+            ):
                 cli_main()
             assert exc.value.code == 2
 
@@ -152,10 +172,13 @@ class TestPipelineCLI:
         """
         from ai_news_agent.pipeline import cli_main
 
-        with patch("ai_news_agent.pipeline.load_agent_config",
-                   side_effect=Exception("file not found")), \
-             patch.object(sys, "argv", ["ai-news-run", "--cadence", "daily"]), \
-             pytest.raises(SystemExit) as exc:
+        with (
+            patch(
+                "ai_news_agent.pipeline.load_agent_config", side_effect=Exception("file not found")
+            ),
+            patch.object(sys, "argv", ["ai-news-run", "--cadence", "daily"]),
+            pytest.raises(SystemExit) as exc,
+        ):
             cli_main()
         assert exc.value.code == 2
 
@@ -166,11 +189,14 @@ class TestPipelineCLI:
         """
         from ai_news_agent.pipeline import cli_main
 
-        with patch("ai_news_agent.pipeline.load_agent_config", return_value=MagicMock()), \
-             patch("ai_news_agent.pipeline.RuntimeSecrets",
-                   side_effect=Exception("missing env var")), \
-             patch.object(sys, "argv", ["ai-news-run", "--cadence", "daily"]), \
-             pytest.raises(SystemExit) as exc:
+        with (
+            patch("ai_news_agent.pipeline.load_agent_config", return_value=MagicMock()),
+            patch(
+                "ai_news_agent.pipeline.RuntimeSecrets", side_effect=Exception("missing env var")
+            ),
+            patch.object(sys, "argv", ["ai-news-run", "--cadence", "daily"]),
+            pytest.raises(SystemExit) as exc,
+        ):
             cli_main()
         assert exc.value.code == 2
 
@@ -184,20 +210,30 @@ class TestPipelineCLI:
         mock_result = _make_dummy_pipeline_result(success=True)
         scratch = str(tmp_path / "scratch")
 
-        with patch("ai_news_agent.pipeline.load_agent_config") as mock_cfg, \
-             patch("ai_news_agent.pipeline.RuntimeSecrets") as mock_sec, \
-             patch("ai_news_agent.pipeline.Pipeline") as MockPipeline:
-
+        with (
+            patch("ai_news_agent.pipeline.load_agent_config") as mock_cfg,
+            patch("ai_news_agent.pipeline.RuntimeSecrets") as mock_sec,
+            patch("ai_news_agent.pipeline.Pipeline") as MockPipeline,
+        ):
             mock_cfg.return_value = MagicMock()
             mock_sec.return_value = MagicMock()
             MockPipeline.return_value.run.return_value = mock_result
 
-            with patch.object(sys, "argv", [
-                "ai-news-run",
-                "--cadence", "daily",
-                "--dry-run",
-                "--scratch-dir", scratch,
-            ]), pytest.raises(SystemExit) as exc:
+            with (
+                patch.object(
+                    sys,
+                    "argv",
+                    [
+                        "ai-news-run",
+                        "--cadence",
+                        "daily",
+                        "--dry-run",
+                        "--scratch-dir",
+                        scratch,
+                    ],
+                ),
+                pytest.raises(SystemExit) as exc,
+            ):
                 cli_main()
             assert exc.value.code == 0
 
@@ -211,10 +247,12 @@ class TestPipelineCLI:
         mock_result = _make_dummy_pipeline_result(success=False)
         mock_result.errors = ["LLM timeout"]
 
-        with patch("ai_news_agent.pipeline.load_agent_config") as mock_cfg, \
-             patch("ai_news_agent.pipeline.RuntimeSecrets") as mock_sec, \
-             patch("ai_news_agent.pipeline.Pipeline") as MockPipeline, \
-             patch.object(sys, "argv", ["ai-news-run", "--cadence", "daily"]):
+        with (
+            patch("ai_news_agent.pipeline.load_agent_config") as mock_cfg,
+            patch("ai_news_agent.pipeline.RuntimeSecrets") as mock_sec,
+            patch("ai_news_agent.pipeline.Pipeline") as MockPipeline,
+            patch.object(sys, "argv", ["ai-news-run", "--cadence", "daily"]),
+        ):
             mock_cfg.return_value = MagicMock()
             mock_sec.return_value = MagicMock()
             MockPipeline.return_value.run.return_value = mock_result
@@ -231,11 +269,13 @@ class TestPipelineCLI:
 
         mock_result = _make_dummy_pipeline_result(success=True)
 
-        with patch("ai_news_agent.pipeline.load_agent_config") as mock_cfg, \
-             patch("ai_news_agent.pipeline.RuntimeSecrets") as mock_sec, \
-             patch("ai_news_agent.pipeline.Pipeline") as MockPipeline, \
-             patch("ai_news_agent.pipeline.tempfile.mkdtemp", return_value="/tmp/ai-dry-run-test"), \
-             patch.object(sys, "argv", ["ai-news-run", "--cadence", "daily", "--dry-run"]):
+        with (
+            patch("ai_news_agent.pipeline.load_agent_config") as mock_cfg,
+            patch("ai_news_agent.pipeline.RuntimeSecrets") as mock_sec,
+            patch("ai_news_agent.pipeline.Pipeline") as MockPipeline,
+            patch("ai_news_agent.pipeline.tempfile.mkdtemp", return_value="/tmp/ai-dry-run-test"),
+            patch.object(sys, "argv", ["ai-news-run", "--cadence", "daily", "--dry-run"]),
+        ):
             mock_cfg.return_value = MagicMock()
             mock_sec.return_value = MagicMock()
             MockPipeline.return_value.run.return_value = mock_result
@@ -259,19 +299,29 @@ class TestPipelineCLI:
             captured_kwargs.update(kwargs)
             return mock_result
 
-        with patch("ai_news_agent.pipeline.load_agent_config") as mock_cfg, \
-             patch("ai_news_agent.pipeline.RuntimeSecrets") as mock_sec, \
-             patch("ai_news_agent.pipeline.Pipeline") as MockPipeline:
-
+        with (
+            patch("ai_news_agent.pipeline.load_agent_config") as mock_cfg,
+            patch("ai_news_agent.pipeline.RuntimeSecrets") as mock_sec,
+            patch("ai_news_agent.pipeline.Pipeline") as MockPipeline,
+        ):
             mock_cfg.return_value = MagicMock()
             mock_sec.return_value = MagicMock()
             MockPipeline.return_value.run.side_effect = capture_run
 
-            with patch.object(sys, "argv", [
-                "ai-news-run",
-                "--cadence", "daily",
-                "--twitter-available", "true",
-            ]), pytest.raises(SystemExit) as exc:
+            with (
+                patch.object(
+                    sys,
+                    "argv",
+                    [
+                        "ai-news-run",
+                        "--cadence",
+                        "daily",
+                        "--twitter-available",
+                        "true",
+                    ],
+                ),
+                pytest.raises(SystemExit) as exc,
+            ):
                 cli_main()
 
             assert exc.value.code == 0
@@ -291,19 +341,29 @@ class TestPipelineCLI:
             captured_kwargs.update(kwargs)
             return mock_result
 
-        with patch("ai_news_agent.pipeline.load_agent_config") as mock_cfg, \
-             patch("ai_news_agent.pipeline.RuntimeSecrets") as mock_sec, \
-             patch("ai_news_agent.pipeline.Pipeline") as MockPipeline:
-
+        with (
+            patch("ai_news_agent.pipeline.load_agent_config") as mock_cfg,
+            patch("ai_news_agent.pipeline.RuntimeSecrets") as mock_sec,
+            patch("ai_news_agent.pipeline.Pipeline") as MockPipeline,
+        ):
             mock_cfg.return_value = MagicMock()
             mock_sec.return_value = MagicMock()
             MockPipeline.return_value.run.side_effect = capture_run
 
-            with patch.object(sys, "argv", [
-                "ai-news-run",
-                "--cadence", "daily",
-                "--twitter-available", "false",
-            ]), pytest.raises(SystemExit) as exc:
+            with (
+                patch.object(
+                    sys,
+                    "argv",
+                    [
+                        "ai-news-run",
+                        "--cadence",
+                        "daily",
+                        "--twitter-available",
+                        "false",
+                    ],
+                ),
+                pytest.raises(SystemExit) as exc,
+            ):
                 cli_main()
 
             assert exc.value.code == 0
@@ -323,17 +383,19 @@ class TestPipelineCLI:
             captured_kwargs.update(kwargs)
             return mock_result
 
-        with patch("ai_news_agent.pipeline.load_agent_config") as mock_cfg, \
-             patch("ai_news_agent.pipeline.RuntimeSecrets") as mock_sec, \
-             patch("ai_news_agent.pipeline.Pipeline") as MockPipeline:
-
+        with (
+            patch("ai_news_agent.pipeline.load_agent_config") as mock_cfg,
+            patch("ai_news_agent.pipeline.RuntimeSecrets") as mock_sec,
+            patch("ai_news_agent.pipeline.Pipeline") as MockPipeline,
+        ):
             mock_cfg.return_value = MagicMock()
             mock_sec.return_value = MagicMock()
             MockPipeline.return_value.run.side_effect = capture_run
 
-            with patch.object(sys, "argv", [
-                "ai-news-run", "--cadence", "daily", "--skip-sourcing"
-            ]), pytest.raises(SystemExit) as exc:
+            with (
+                patch.object(sys, "argv", ["ai-news-run", "--cadence", "daily", "--skip-sourcing"]),
+                pytest.raises(SystemExit) as exc,
+            ):
                 cli_main()
 
             assert exc.value.code == 0
@@ -353,20 +415,31 @@ class TestPipelineCLI:
             captured_kwargs.update(kwargs)
             return mock_result
 
-        with patch("ai_news_agent.pipeline.load_agent_config") as mock_cfg, \
-             patch("ai_news_agent.pipeline.RuntimeSecrets") as mock_sec, \
-             patch("ai_news_agent.pipeline.Pipeline") as MockPipeline:
-
+        with (
+            patch("ai_news_agent.pipeline.load_agent_config") as mock_cfg,
+            patch("ai_news_agent.pipeline.RuntimeSecrets") as mock_sec,
+            patch("ai_news_agent.pipeline.Pipeline") as MockPipeline,
+        ):
             mock_cfg.return_value = MagicMock()
             mock_sec.return_value = MagicMock()
             MockPipeline.return_value.run.side_effect = capture_run
 
-            with patch.object(sys, "argv", [
-                "ai-news-run",
-                "--cadence", "monthly",
-                "--window-start", "2026-04-01",
-                "--window-end", "2026-04-30",
-            ]), pytest.raises(SystemExit) as exc:
+            with (
+                patch.object(
+                    sys,
+                    "argv",
+                    [
+                        "ai-news-run",
+                        "--cadence",
+                        "monthly",
+                        "--window-start",
+                        "2026-04-01",
+                        "--window-end",
+                        "2026-04-30",
+                    ],
+                ),
+                pytest.raises(SystemExit) as exc,
+            ):
                 cli_main()
 
             assert exc.value.code == 0
@@ -383,6 +456,7 @@ class TestPipelineCLI:
 # Curation agent CLI (ai-news-curate)
 # ---------------------------------------------------------------------------
 
+
 class TestCurationCLI:
     """
     Tests for the ``ai-news-curate`` CLI entry point.
@@ -395,16 +469,27 @@ class TestCurationCLI:
         """
         from ai_news_agent.curation.agent import cli_main
 
-        with patch("ai_news_agent.curation.agent.load_agent_config") as mock_cfg, \
-             patch("ai_news_agent.curation.agent.RuntimeSecrets") as mock_sec:
+        with (
+            patch("ai_news_agent.curation.agent.load_agent_config") as mock_cfg,
+            patch("ai_news_agent.curation.agent.RuntimeSecrets") as mock_sec,
+        ):
             mock_cfg.return_value = MagicMock()
             mock_sec.return_value = MagicMock()
 
-            with patch.object(sys, "argv", [
-                "ai-news-curate",
-                "--cadence", "daily",
-                "--window-start", "2026-05-01",
-            ]), pytest.raises(SystemExit) as exc:
+            with (
+                patch.object(
+                    sys,
+                    "argv",
+                    [
+                        "ai-news-curate",
+                        "--cadence",
+                        "daily",
+                        "--window-start",
+                        "2026-05-01",
+                    ],
+                ),
+                pytest.raises(SystemExit) as exc,
+            ):
                 cli_main()
             assert exc.value.code == 2
 
@@ -414,17 +499,29 @@ class TestCurationCLI:
         """
         from ai_news_agent.curation.agent import cli_main
 
-        with patch("ai_news_agent.curation.agent.load_agent_config") as mock_cfg, \
-             patch("ai_news_agent.curation.agent.RuntimeSecrets") as mock_sec:
+        with (
+            patch("ai_news_agent.curation.agent.load_agent_config") as mock_cfg,
+            patch("ai_news_agent.curation.agent.RuntimeSecrets") as mock_sec,
+        ):
             mock_cfg.return_value = MagicMock()
             mock_sec.return_value = MagicMock()
 
-            with patch.object(sys, "argv", [
-                "ai-news-curate",
-                "--cadence", "daily",
-                "--window-start", "bad-date",
-                "--window-end", "also-bad",
-            ]), pytest.raises(SystemExit) as exc:
+            with (
+                patch.object(
+                    sys,
+                    "argv",
+                    [
+                        "ai-news-curate",
+                        "--cadence",
+                        "daily",
+                        "--window-start",
+                        "bad-date",
+                        "--window-end",
+                        "also-bad",
+                    ],
+                ),
+                pytest.raises(SystemExit) as exc,
+            ):
                 cli_main()
             assert exc.value.code == 2
 
@@ -445,17 +542,19 @@ class TestCurationCLI:
         mock_result.predictions = []
         mock_result.twitter_degradation_note = None
 
-        with patch("ai_news_agent.curation.agent.load_agent_config") as mock_cfg, \
-             patch("ai_news_agent.curation.agent.RuntimeSecrets") as mock_sec, \
-             patch("ai_news_agent.curation.agent.CurationAgent") as MockAgent:
-
+        with (
+            patch("ai_news_agent.curation.agent.load_agent_config") as mock_cfg,
+            patch("ai_news_agent.curation.agent.RuntimeSecrets") as mock_sec,
+            patch("ai_news_agent.curation.agent.CurationAgent") as MockAgent,
+        ):
             mock_cfg.return_value = MagicMock()
             mock_sec.return_value = MagicMock()
             MockAgent.return_value.run.return_value = mock_result
 
-            with patch.object(sys, "argv", [
-                "ai-news-curate", "--cadence", "daily", "--dry-run"
-            ]), pytest.raises(SystemExit) as exc:
+            with (
+                patch.object(sys, "argv", ["ai-news-curate", "--cadence", "daily", "--dry-run"]),
+                pytest.raises(SystemExit) as exc,
+            ):
                 cli_main()
 
             assert exc.value.code == 0
@@ -483,19 +582,29 @@ class TestCurationCLI:
             captured_kwargs.update(kwargs)
             return mock_result
 
-        with patch("ai_news_agent.curation.agent.load_agent_config") as mock_cfg, \
-             patch("ai_news_agent.curation.agent.RuntimeSecrets") as mock_sec, \
-             patch("ai_news_agent.curation.agent.CurationAgent") as MockAgent:
-
+        with (
+            patch("ai_news_agent.curation.agent.load_agent_config") as mock_cfg,
+            patch("ai_news_agent.curation.agent.RuntimeSecrets") as mock_sec,
+            patch("ai_news_agent.curation.agent.CurationAgent") as MockAgent,
+        ):
             mock_cfg.return_value = MagicMock()
             mock_sec.return_value = MagicMock()
             MockAgent.return_value.run.side_effect = capture_run
 
-            with patch.object(sys, "argv", [
-                "ai-news-curate",
-                "--cadence", "daily",
-                "--twitter-available", "false",
-            ]), pytest.raises(SystemExit) as exc:
+            with (
+                patch.object(
+                    sys,
+                    "argv",
+                    [
+                        "ai-news-curate",
+                        "--cadence",
+                        "daily",
+                        "--twitter-available",
+                        "false",
+                    ],
+                ),
+                pytest.raises(SystemExit) as exc,
+            ):
                 cli_main()
 
             assert exc.value.code == 0
@@ -505,6 +614,7 @@ class TestCurationCLI:
 # ---------------------------------------------------------------------------
 # Prompt hash CLI (ai-news-prompt-hashes)
 # ---------------------------------------------------------------------------
+
 
 class TestPromptHashCLI:
     """
@@ -518,6 +628,7 @@ class TestPromptHashCLI:
     @staticmethod
     def _import_phash_cli():
         from ai_news_agent.curation.prompt_builder import _cli_prompt_hashes
+
         return _cli_prompt_hashes
 
     def test_print_hashes_from_temp_dir(self, tmp_path: Path) -> None:
@@ -536,9 +647,11 @@ class TestPromptHashCLI:
             )
 
         import contextlib
-        with patch.object(sys, "argv", [
-            "ai-news-prompt-hashes", "--prompts-dir", str(prompts_dir)
-        ]), contextlib.suppress(SystemExit):
+
+        with (
+            patch.object(sys, "argv", ["ai-news-prompt-hashes", "--prompts-dir", str(prompts_dir)]),
+            contextlib.suppress(SystemExit),
+        ):
             # Should not raise; may or may not exit (0 is fine)
             phash_cli()
 
@@ -557,11 +670,20 @@ class TestPromptHashCLI:
             )
 
         import contextlib
-        with patch.object(sys, "argv", [
-            "ai-news-prompt-hashes",
-            "--prompts-dir", str(prompts_dir),
-            "--save",
-        ]), contextlib.suppress(SystemExit):
+
+        with (
+            patch.object(
+                sys,
+                "argv",
+                [
+                    "ai-news-prompt-hashes",
+                    "--prompts-dir",
+                    str(prompts_dir),
+                    "--save",
+                ],
+            ),
+            contextlib.suppress(SystemExit),
+        ):
             phash_cli()
 
         manifest_path = prompts_dir / "prompt_hashes.json"
@@ -587,16 +709,25 @@ class TestPromptHashCLI:
             )
 
         import contextlib
+
         # First save the manifest
-        with patch.object(sys, "argv", [
-            "ai-news-prompt-hashes", "--prompts-dir", str(prompts_dir), "--save"
-        ]), contextlib.suppress(SystemExit):
+        with (
+            patch.object(
+                sys, "argv", ["ai-news-prompt-hashes", "--prompts-dir", str(prompts_dir), "--save"]
+            ),
+            contextlib.suppress(SystemExit),
+        ):
             phash_cli()
 
         # Then verify — should pass (may return normally or exit 0)
-        with patch.object(sys, "argv", [
-            "ai-news-prompt-hashes", "--prompts-dir", str(prompts_dir), "--verify"
-        ]), contextlib.suppress(SystemExit):
+        with (
+            patch.object(
+                sys,
+                "argv",
+                ["ai-news-prompt-hashes", "--prompts-dir", str(prompts_dir), "--verify"],
+            ),
+            contextlib.suppress(SystemExit),
+        ):
             # No exception = success; SystemExit(0) is also fine
             phash_cli()
 
@@ -614,10 +745,14 @@ class TestPromptHashCLI:
             )
 
         import contextlib
+
         # Save manifest with original content
-        with patch.object(sys, "argv", [
-            "ai-news-prompt-hashes", "--prompts-dir", str(prompts_dir), "--save"
-        ]), contextlib.suppress(SystemExit):
+        with (
+            patch.object(
+                sys, "argv", ["ai-news-prompt-hashes", "--prompts-dir", str(prompts_dir), "--save"]
+            ),
+            contextlib.suppress(SystemExit),
+        ):
             phash_cli()
 
         # Now change one prompt
@@ -626,9 +761,9 @@ class TestPromptHashCLI:
         )
 
         # Verify must detect the change and exit 1
-        with patch.object(sys, "argv", [
-            "ai-news-prompt-hashes", "--prompts-dir", str(prompts_dir), "--verify"
-        ]):
+        with patch.object(
+            sys, "argv", ["ai-news-prompt-hashes", "--prompts-dir", str(prompts_dir), "--verify"]
+        ):
             with pytest.raises(SystemExit) as exc:
                 phash_cli()
             assert exc.value.code == 1, (
@@ -649,9 +784,9 @@ class TestPromptHashCLI:
             )
         # No --save step → no manifest
 
-        with patch.object(sys, "argv", [
-            "ai-news-prompt-hashes", "--prompts-dir", str(prompts_dir), "--verify"
-        ]):
+        with patch.object(
+            sys, "argv", ["ai-news-prompt-hashes", "--prompts-dir", str(prompts_dir), "--verify"]
+        ):
             with pytest.raises(SystemExit) as exc:
                 phash_cli()
             assert exc.value.code == 1
@@ -665,9 +800,9 @@ class TestPromptHashCLI:
 
         nonexistent = tmp_path / "nonexistent-prompts"
 
-        with patch.object(sys, "argv", [
-            "ai-news-prompt-hashes", "--prompts-dir", str(nonexistent)
-        ]):
+        with patch.object(
+            sys, "argv", ["ai-news-prompt-hashes", "--prompts-dir", str(nonexistent)]
+        ):
             with pytest.raises(SystemExit) as exc:
                 phash_cli()
             assert exc.value.code == 1
@@ -676,6 +811,7 @@ class TestPromptHashCLI:
 # ---------------------------------------------------------------------------
 # _print_run_summary (SRC-150)
 # ---------------------------------------------------------------------------
+
 
 class TestPrintRunSummary:
     """
@@ -773,6 +909,7 @@ class TestPrintRunSummary:
 # PromptManifest (SRC-129)
 # ---------------------------------------------------------------------------
 
+
 class TestPromptManifest:
     """
     Unit tests for PromptManifest data class.
@@ -868,6 +1005,7 @@ class TestPromptManifest:
 # Config loader (SRC-071–SRC-073)
 # ---------------------------------------------------------------------------
 
+
 class TestConfigLoader:
     """
     Tests for config/loader.py public functions.
@@ -922,10 +1060,7 @@ class TestConfigLoader:
 
         minimal_yaml = tmp_path / "minimal-agent.yaml"
         minimal_yaml.write_text(
-            "agent_id: minimal-agent\n"
-            "llm:\n"
-            "  provider: openai\n"
-            "  model: gpt-4o\n"
+            "agent_id: minimal-agent\nllm:\n  provider: openai\n  model: gpt-4o\n"
         )
         config = load_agent_config(minimal_yaml)
         assert config.agent_id == "minimal-agent"
@@ -949,10 +1084,7 @@ class TestConfigLoader:
         from ai_news_agent.config.loader import validate_no_secrets_in_yaml
 
         yaml_with_comment = (
-            "# Example: sk-proj-secretKeyABCDE12345\n"
-            "agent_id: test\n"
-            "llm:\n"
-            "  provider: openai\n"
+            "# Example: sk-proj-secretKeyABCDE12345\nagent_id: test\nllm:\n  provider: openai\n"
         )
         # Must not raise — comment lines are exempt
         validate_no_secrets_in_yaml(yaml_with_comment, source_name="<test>")
@@ -987,10 +1119,7 @@ class TestConfigLoader:
 
         sched_yaml = tmp_path / "scheduler.yaml"
         sched_yaml.write_text(
-            "scheduler:\n"
-            "  max_retries: 3\n"
-            "  retry_backoff_base_seconds: 30\n"
-            "agents: []\n"
+            "scheduler:\n  max_retries: 3\n  retry_backoff_base_seconds: 30\nagents: []\n"
         )
         config = load_scheduler_config(sched_yaml)
         assert config.scheduler.max_retries == 3
@@ -1000,6 +1129,7 @@ class TestConfigLoader:
 # ---------------------------------------------------------------------------
 # SchedulerRunner internals (SRC-052, SRC-144)
 # ---------------------------------------------------------------------------
+
 
 class TestSchedulerRunnerInternals:
     """

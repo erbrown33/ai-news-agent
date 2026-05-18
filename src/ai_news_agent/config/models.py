@@ -54,8 +54,7 @@ class LLMCadenceOverride(BaseModel):
     model: str = Field(
         ...,
         description=(
-            "Model name for this cadence override. "
-            "Examples: 'o3', 'claude-3-7-sonnet-20250219'."
+            "Model name for this cadence override. Examples: 'o3', 'claude-3-7-sonnet-20250219'."
         ),
         min_length=1,
     )
@@ -116,9 +115,7 @@ class LLMConfig(BaseModel):
 
     @field_validator("cadence_overrides", mode="before")
     @classmethod
-    def validate_cadence_keys(
-        cls, v: dict[str, object]
-    ) -> dict[str, object]:
+    def validate_cadence_keys(cls, v: dict[str, object]) -> dict[str, object]:
         """Reject unknown cadence keys early with a clear error."""
         valid = {"daily", "weekly", "monthly", "annual"}
         unknown = set(v.keys()) - valid
@@ -153,8 +150,7 @@ class TwitterHandleConfig(BaseModel):
     handle: str = Field(
         ...,
         description=(
-            "Twitter/X handle without the @ prefix. "
-            "Examples: 'karpathy', 'sama', 'ylecun'."
+            "Twitter/X handle without the @ prefix. Examples: 'karpathy', 'sama', 'ylecun'."
         ),
         min_length=1,
         pattern=r"^[A-Za-z0-9_]{1,50}$",
@@ -303,23 +299,18 @@ class LimitsConfig(BaseModel):
 
     daily_top_n: Annotated[int, Field(ge=1, le=50)] = Field(
         default=10,
-        description=(
-            "Maximum articles to select for a daily digest. "
-            "Recommended: 5–15 (SRC-029)."
-        ),
+        description=("Maximum articles to select for a daily digest. Recommended: 5–15 (SRC-029)."),
     )
     weekly_top_n: Annotated[int, Field(ge=1, le=50)] = Field(
         default=7,
         description=(
-            "Maximum articles to select for a weekly digest. "
-            "Recommended: 5–10 (SRC-030)."
+            "Maximum articles to select for a weekly digest. Recommended: 5–10 (SRC-030)."
         ),
     )
     monthly_top_n: Annotated[int, Field(ge=1, le=50)] = Field(
         default=10,
         description=(
-            "Maximum articles to select for a monthly digest. "
-            "Recommended: 8–15 (SRC-031)."
+            "Maximum articles to select for a monthly digest. Recommended: 8–15 (SRC-031)."
         ),
     )
     annual_top_n: Annotated[int, Field(ge=1, le=20)] = Field(

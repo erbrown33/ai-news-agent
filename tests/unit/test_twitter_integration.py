@@ -107,7 +107,7 @@ from ai_news_agent.twitter.client import (
 # ---------------------------------------------------------------------------
 
 _WINDOW_START = datetime(2026, 5, 9, 0, 0, tzinfo=UTC)
-_WINDOW_END   = datetime(2026, 5, 9, 23, 59, tzinfo=UTC)
+_WINDOW_END = datetime(2026, 5, 9, 23, 59, tzinfo=UTC)
 
 
 _DEFAULT_HANDLES = [TwitterHandleConfig(handle="karpathy", weight=1.0)]
@@ -169,6 +169,7 @@ def _make_page(tweets: list | None) -> MagicMock:
 # ===========================================================================
 # 1. Authentication & initialisation (SRC-063, SRC-064, SRC-065)
 # ===========================================================================
+
 
 class TestClientInitialisation:
     """
@@ -244,8 +245,8 @@ class TestClientInitialisation:
         """All configured handles are stored in _handles for per-handle fetching."""
         handles = [
             TwitterHandleConfig(handle="karpathy", weight=1.0),
-            TwitterHandleConfig(handle="sama",     weight=1.5),
-            TwitterHandleConfig(handle="ylecun",   weight=0.8),
+            TwitterHandleConfig(handle="sama", weight=1.5),
+            TwitterHandleConfig(handle="ylecun", weight=0.8),
         ]
         client = _make_client(handles)
         assert len(client._handles) == 3
@@ -267,6 +268,7 @@ class TestClientInitialisation:
 # ===========================================================================
 # 2. Substantive post filtering (SRC-068)
 # ===========================================================================
+
 
 class TestSubstantiveFiltering:
     """
@@ -312,7 +314,9 @@ class TestSubstantiveFiltering:
     def test_rt_without_at_sign_is_kept(self) -> None:
         """'RT' without '@' is not a bare retweet → kept if long enough."""
         client = self._client()
-        text = "RTFM is good advice for AI engineers who want to understand transformer architecture."
+        text = (
+            "RTFM is good advice for AI engineers who want to understand transformer architecture."
+        )
         assert client._is_substantive(_make_tweet(text)) is True
 
     # -- URL-containing tweets always kept --
@@ -382,6 +386,7 @@ class TestSubstantiveFiltering:
 # 3. URL hydration (SRC-069)
 # ===========================================================================
 
+
 class TestUrlHydration:
     """
     Validate t.co → canonical URL expansion from tweet entities.
@@ -394,9 +399,11 @@ class TestUrlHydration:
     def test_expanded_url_returned(self) -> None:
         """entities.urls[].expanded_url values extracted (SRC-069)."""
         client = self._client()
-        entities = _make_entities([
-            {"expanded_url": "https://reuters.com/ai-article", "url": "https://t.co/abc"},
-        ])
+        entities = _make_entities(
+            [
+                {"expanded_url": "https://reuters.com/ai-article", "url": "https://t.co/abc"},
+            ]
+        )
         tweet = _make_tweet("Check this https://t.co/abc", entities=entities)
         urls = client._hydrate_urls(tweet)
         assert "https://reuters.com/ai-article" in urls
@@ -404,10 +411,12 @@ class TestUrlHydration:
     def test_multiple_urls_extracted(self) -> None:
         """Multiple expanded URLs all extracted."""
         client = self._client()
-        entities = _make_entities([
-            {"expanded_url": "https://reuters.com/a"},
-            {"expanded_url": "https://bloomberg.com/b"},
-        ])
+        entities = _make_entities(
+            [
+                {"expanded_url": "https://reuters.com/a"},
+                {"expanded_url": "https://bloomberg.com/b"},
+            ]
+        )
         tweet = _make_tweet("text", entities=entities)
         urls = client._hydrate_urls(tweet)
         assert len(urls) == 2
@@ -415,11 +424,13 @@ class TestUrlHydration:
     def test_twitter_self_links_excluded(self) -> None:
         """twitter.com and x.com links filtered out (media cards, profiles)."""
         client = self._client()
-        entities = _make_entities([
-            {"expanded_url": "https://twitter.com/karpathy/status/123"},
-            {"expanded_url": "https://x.com/sama/photo/1"},
-            {"expanded_url": "https://reuters.com/article"},
-        ])
+        entities = _make_entities(
+            [
+                {"expanded_url": "https://twitter.com/karpathy/status/123"},
+                {"expanded_url": "https://x.com/sama/photo/1"},
+                {"expanded_url": "https://reuters.com/article"},
+            ]
+        )
         tweet = _make_tweet("text", entities=entities)
         urls = client._hydrate_urls(tweet)
         assert urls == ["https://reuters.com/article"]
@@ -427,10 +438,12 @@ class TestUrlHydration:
     def test_twitter_subdomain_excluded(self) -> None:
         """Subdomains of twitter.com also excluded."""
         client = self._client()
-        entities = _make_entities([
-            {"expanded_url": "https://pic.twitter.com/abc123"},
-            {"expanded_url": "https://techcrunch.com/article"},
-        ])
+        entities = _make_entities(
+            [
+                {"expanded_url": "https://pic.twitter.com/abc123"},
+                {"expanded_url": "https://techcrunch.com/article"},
+            ]
+        )
         tweet = _make_tweet("text", entities=entities)
         urls = client._hydrate_urls(tweet)
         assert "https://techcrunch.com/article" in urls
@@ -462,10 +475,12 @@ class TestUrlHydration:
     def test_duplicate_expanded_urls_deduplicated(self) -> None:
         """Same URL appearing twice in entities → appears once (SRC-012)."""
         client = self._client()
-        entities = _make_entities([
-            {"expanded_url": "https://reuters.com/article"},
-            {"expanded_url": "https://reuters.com/article"},
-        ])
+        entities = _make_entities(
+            [
+                {"expanded_url": "https://reuters.com/article"},
+                {"expanded_url": "https://reuters.com/article"},
+            ]
+        )
         tweet = _make_tweet("text", entities=entities)
         urls = client._hydrate_urls(tweet)
         assert len(urls) == 1
@@ -498,10 +513,12 @@ class TestUrlHydration:
     def test_case_insensitive_twitter_domain_exclusion(self) -> None:
         """Twitter.com (mixed-case) still excluded."""
         client = self._client()
-        entities = _make_entities([
-            {"expanded_url": "HTTPS://TWITTER.COM/user/status/123"},
-            {"expanded_url": "https://reuters.com/article"},
-        ])
+        entities = _make_entities(
+            [
+                {"expanded_url": "HTTPS://TWITTER.COM/user/status/123"},
+                {"expanded_url": "https://reuters.com/article"},
+            ]
+        )
         tweet = _make_tweet("text", entities=entities)
         urls = client._hydrate_urls(tweet)
         assert urls == ["https://reuters.com/article"]
@@ -510,6 +527,7 @@ class TestUrlHydration:
 # ===========================================================================
 # 4. Signal normalisation (SRC-011, SRC-046)
 # ===========================================================================
+
 
 class TestNormalisation:
     """
@@ -598,7 +616,9 @@ class TestNormalisation:
         """Signal with no URL entities has empty linked_urls list."""
         client = _make_client()
         handle_cfg = TwitterHandleConfig(handle="karpathy", weight=1.0)
-        tweet = _make_tweet("A long and substantive thought about AI policy implications.", tweet_id="666")
+        tweet = _make_tweet(
+            "A long and substantive thought about AI policy implications.", tweet_id="666"
+        )
         tweet.entities = None
         signal = client._normalize(tweet, handle_cfg, "agent")
         assert signal.linked_urls == []
@@ -607,6 +627,7 @@ class TestNormalisation:
 # ===========================================================================
 # 5. User resolution (SRC-067)
 # ===========================================================================
+
 
 class TestUserResolution:
     """
@@ -665,6 +686,7 @@ class TestUserResolution:
 # ===========================================================================
 # 6. Paginated tweet fetching (SRC-067)
 # ===========================================================================
+
 
 class TestFetchTweets:
     """
@@ -755,6 +777,7 @@ class TestFetchTweets:
 # ===========================================================================
 # 7. Graceful degradation (SRC-148)
 # ===========================================================================
+
 
 class TestGracefulDegradation:
     """
@@ -906,12 +929,14 @@ class TestGracefulDegradation:
             return user
 
         client._resolve_user = selective_resolve
-        client._fetch_tweets = MagicMock(return_value=[
-            _make_tweet(
-                "AI research update for the week. https://arxiv.org/abs/test",
-                tweet_id="9001",
-            )
-        ])
+        client._fetch_tweets = MagicMock(
+            return_value=[
+                _make_tweet(
+                    "AI research update for the week. https://arxiv.org/abs/test",
+                    tweet_id="9001",
+                )
+            ]
+        )
 
         signals, available = client.fetch_signals(_WINDOW_START, _WINDOW_END, "test")
 
@@ -926,11 +951,13 @@ class TestGracefulDegradation:
         """
         client = _make_client()
         client._resolve_user = MagicMock(return_value=MagicMock(id="12345"))
-        client._fetch_tweets = MagicMock(return_value=[
-            _make_tweet("RT @someone: retweet"),  # bare RT
-            _make_tweet("@reply yes exactly"),     # pure reply
-            _make_tweet("lol"),                    # too short
-        ])
+        client._fetch_tweets = MagicMock(
+            return_value=[
+                _make_tweet("RT @someone: retweet"),  # bare RT
+                _make_tweet("@reply yes exactly"),  # pure reply
+                _make_tweet("lol"),  # too short
+            ]
+        )
 
         signals, available = client.fetch_signals(_WINDOW_START, _WINDOW_END, "test")
 
@@ -956,6 +983,7 @@ class TestGracefulDegradation:
 # 8. End-to-end fetch_signals (SRC-067, SRC-068, SRC-069)
 # ===========================================================================
 
+
 class TestFetchSignalsEndToEnd:
     """
     Full end-to-end tests for fetch_signals with mocked tweepy internals.
@@ -968,12 +996,14 @@ class TestFetchSignalsEndToEnd:
 
         client = _make_client()
         client._resolve_user = MagicMock(return_value=MagicMock(id="12345"))
-        client._fetch_tweets = MagicMock(return_value=[
-            _make_tweet(
-                "Fascinating research on enterprise AI adoption. https://arxiv.org/abs/2026.99",
-                tweet_id="99988",
-            ),
-        ])
+        client._fetch_tweets = MagicMock(
+            return_value=[
+                _make_tweet(
+                    "Fascinating research on enterprise AI adoption. https://arxiv.org/abs/2026.99",
+                    tweet_id="99988",
+                ),
+            ]
+        )
 
         signals, available = client.fetch_signals(_WINDOW_START, _WINDOW_END, "test-agent")
 
@@ -989,15 +1019,21 @@ class TestFetchSignalsEndToEnd:
         """
         client = _make_client()
         client._resolve_user = MagicMock(return_value=MagicMock(id="12345"))
-        client._fetch_tweets = MagicMock(return_value=[
-            _make_tweet("RT @karpathy: old retweet"),                       # bare RT → skip
-            _make_tweet("@sama cool idea"),                                  # reply → skip
-            _make_tweet("AI shifts enterprise landscape. https://t.co/x1",
-                        tweet_id="good1"),                                   # has URL → keep
-            _make_tweet("yo"),                                               # too short → skip
-            _make_tweet("New paper on reinforcement learning from human feedback — "
-                        "implications for safety are substantial.", tweet_id="good2"),  # long → keep
-        ])
+        client._fetch_tweets = MagicMock(
+            return_value=[
+                _make_tweet("RT @karpathy: old retweet"),  # bare RT → skip
+                _make_tweet("@sama cool idea"),  # reply → skip
+                _make_tweet(
+                    "AI shifts enterprise landscape. https://t.co/x1", tweet_id="good1"
+                ),  # has URL → keep
+                _make_tweet("yo"),  # too short → skip
+                _make_tweet(
+                    "New paper on reinforcement learning from human feedback — "
+                    "implications for safety are substantial.",
+                    tweet_id="good2",
+                ),  # long → keep
+            ]
+        )
 
         signals, available = client.fetch_signals(_WINDOW_START, _WINDOW_END, "test")
 
@@ -1011,8 +1047,8 @@ class TestFetchSignalsEndToEnd:
         """Signals from all handles combined in the returned list."""
         handles = [
             TwitterHandleConfig(handle="karpathy", weight=1.0),
-            TwitterHandleConfig(handle="sama",     weight=1.2),
-            TwitterHandleConfig(handle="ylecun",   weight=0.9),
+            TwitterHandleConfig(handle="sama", weight=1.2),
+            TwitterHandleConfig(handle="ylecun", weight=0.9),
         ]
         client = _make_client(handles)
 
@@ -1045,10 +1081,12 @@ class TestFetchSignalsEndToEnd:
         client = _make_client()
         client._resolve_user = MagicMock(return_value=MagicMock(id="12345"))
 
-        entities = _make_entities([
-            {"expanded_url": "https://reuters.com/ai-story"},
-            {"expanded_url": "https://bloomberg.com/tech"},
-        ])
+        entities = _make_entities(
+            [
+                {"expanded_url": "https://reuters.com/ai-story"},
+                {"expanded_url": "https://bloomberg.com/tech"},
+            ]
+        )
         tweet = _make_tweet(
             "Check out these AI articles. https://t.co/abc",
             tweet_id="5001",
@@ -1074,6 +1112,7 @@ class TestFetchSignalsEndToEnd:
 # 9. Handle weight ordering in prompt section (SRC-046, SRC-119)
 # ===========================================================================
 
+
 class TestPromptSignalSection:
     """
     Validate _format_twitter_section output content and ordering.
@@ -1084,6 +1123,7 @@ class TestPromptSignalSection:
 
     def _make_signal(self, handle: str, weight: float, text: str = "AI news insight.") -> Any:
         from ai_news_agent.storage.models import TweetSignal
+
         return TweetSignal(
             tweet_id=f"tweet_{handle}",
             handle=handle,
@@ -1111,14 +1151,14 @@ class TestPromptSignalSection:
     def test_handles_sorted_by_weight_descending(self) -> None:
         """Higher-weight handles appear before lower-weight ones (SRC-046)."""
         signals = [
-            self._make_signal("low_weight",  weight=0.5),
+            self._make_signal("low_weight", weight=0.5),
             self._make_signal("high_weight", weight=2.0),
-            self._make_signal("mid_weight",  weight=1.0),
+            self._make_signal("mid_weight", weight=1.0),
         ]
         section = _format_twitter_section(signals)
         pos_high = section.index("high_weight")
-        pos_mid  = section.index("mid_weight")
-        pos_low  = section.index("low_weight")
+        pos_mid = section.index("mid_weight")
+        pos_low = section.index("low_weight")
         assert pos_high < pos_mid < pos_low, (
             "Handles should appear in descending weight order: high → mid → low"
         )
@@ -1184,9 +1224,7 @@ class TestPromptSignalSection:
             handle="sama",
             text="Multiple links.",
             created_at=datetime(2026, 5, 9, 10, 0, tzinfo=UTC),
-            linked_urls=[
-                "https://a.com", "https://b.com", "https://c.com", "https://d.com"
-            ],
+            linked_urls=["https://a.com", "https://b.com", "https://c.com", "https://d.com"],
             agent_id="test-agent",
             fetched_at=datetime(2026, 5, 9, 10, 5, tzinfo=UTC),
             weight=1.0,
@@ -1215,7 +1253,7 @@ class TestPromptSignalSection:
     def test_signals_present_regardless_of_api_flag(self) -> None:
         """If signals are present, they always render (api_available flag irrelevant)."""
         signals = [self._make_signal("karpathy", 1.0, "Test tweet. https://openai.com")]
-        section_true  = _format_twitter_section(signals, twitter_api_available=True)
+        section_true = _format_twitter_section(signals, twitter_api_available=True)
         section_false = _format_twitter_section(signals, twitter_api_available=False)
         assert "@karpathy" in section_true
         assert "@karpathy" in section_false
@@ -1224,6 +1262,7 @@ class TestPromptSignalSection:
 # ===========================================================================
 # 10. Digest degradation note in rendered Markdown (SRC-148)
 # ===========================================================================
+
 
 class TestDigestDegradationNoteRendering:
     """
@@ -1319,6 +1358,7 @@ class TestDigestDegradationNoteRendering:
         )
         result = self._make_curation_result(note)
         from ai_news_agent.rendering.markdown_renderer import MarkdownRenderer
+
         output = MarkdownRenderer().render(result)
         assert "web sources" in output.lower()
 
@@ -1327,6 +1367,7 @@ class TestDigestDegradationNoteRendering:
 # 11. PromptBuilder integration — twitter_api_available threading (SRC-148)
 # ===========================================================================
 
+
 class TestPromptBuilderTwitterIntegration:
     """
     Verify that PromptBuilder.build correctly passes twitter_api_available
@@ -1334,9 +1375,7 @@ class TestPromptBuilderTwitterIntegration:
     Traces: SRC-119 (Twitter signal section), SRC-148 (API availability)
     """
 
-    def test_prompt_contains_api_unavailable_warning_when_flag_false(
-        self, prompts_dir
-    ) -> None:
+    def test_prompt_contains_api_unavailable_warning_when_flag_false(self, prompts_dir) -> None:
         """
         When twitter_api_available=False and no signals, the built prompt
         contains the API-unavailability warning text (SRC-148).
@@ -1356,9 +1395,7 @@ class TestPromptBuilderTwitterIntegration:
         assert "unavailable" in prompt.lower() or "api" in prompt.lower()
         assert "web sources" in prompt.lower()
 
-    def test_prompt_contains_quiet_window_message_when_api_available(
-        self, prompts_dir
-    ) -> None:
+    def test_prompt_contains_quiet_window_message_when_api_available(self, prompts_dir) -> None:
         """
         When twitter_api_available=True and no signals, the built prompt
         contains the quiet-window message (not the API-error message).
@@ -1434,6 +1471,7 @@ class TestPromptBuilderTwitterIntegration:
 # 12. CurationAgent twitter_api_available threading (SRC-148)
 # ===========================================================================
 
+
 class TestCurationAgentTwitterAvailability:
     """
     Validate that CurationAgent.run correctly threads twitter_api_available
@@ -1441,9 +1479,7 @@ class TestCurationAgentTwitterAvailability:
     Traces: SRC-148 (degradation flag passed end-to-end)
     """
 
-    def _make_agent(
-        self, config, secrets, store, prompts_dir, dummy_llm
-    ):
+    def _make_agent(self, config, secrets, store, prompts_dir, dummy_llm):
         from ai_news_agent.curation.agent import CurationAgent
 
         with (
@@ -1458,8 +1494,11 @@ class TestCurationAgentTwitterAvailability:
             agent._llm = dummy_llm
             # Patch scorer to avoid LLM calls; return ScorerResult (not bare list)
             from ai_news_agent.curation.scorer import ScorerResult
+
             agent._scorer.score_and_rank = MagicMock(
-                return_value=ScorerResult(items=[], themes=[], outlook="", predictions=[], token_usage=0)
+                return_value=ScorerResult(
+                    items=[], themes=[], outlook="", predictions=[], token_usage=0
+                )
             )
         return agent
 
@@ -1485,8 +1524,10 @@ class TestCurationAgentTwitterAvailability:
             twitter_api_available=False,
         )
         assert result.twitter_degradation_note is not None
-        assert "SRC-148" in result.twitter_degradation_note or \
-               "unavailable" in result.twitter_degradation_note.lower()
+        assert (
+            "SRC-148" in result.twitter_degradation_note
+            or "unavailable" in result.twitter_degradation_note.lower()
+        )
 
     def test_explicit_true_no_degradation_note_when_signals_present(
         self,
@@ -1552,15 +1593,14 @@ class TestCurationAgentTwitterAvailability:
 # 13. TwitterFetcher thin wrapper (SRC-047, SRC-062)
 # ===========================================================================
 
+
 class TestTwitterFetcherWrapper:
     """
     Validate the thin TwitterFetcher wrapper used by SourcingAgent.
     Traces: SRC-047 (signal role), SRC-062 (Twitter integration wrapper)
     """
 
-    def test_fetcher_delegates_to_client(
-        self, sample_agent_config, sample_secrets
-    ) -> None:
+    def test_fetcher_delegates_to_client(self, sample_agent_config, sample_secrets) -> None:
         """TwitterFetcher.fetch delegates to TwitterClient.fetch_signals."""
         from ai_news_agent.sourcing.twitter_fetcher import TwitterFetcher
 
@@ -1579,9 +1619,7 @@ class TestTwitterFetcherWrapper:
         MockClient.return_value.fetch_signals.assert_called_once()
         assert available is True
 
-    def test_fetcher_passes_handles_from_config(
-        self, sample_agent_config, sample_secrets
-    ) -> None:
+    def test_fetcher_passes_handles_from_config(self, sample_agent_config, sample_secrets) -> None:
         """TwitterFetcher passes config.twitter.handles to TwitterClient."""
         from ai_news_agent.sourcing.twitter_fetcher import TwitterFetcher
 
@@ -1598,9 +1636,7 @@ class TestTwitterFetcherWrapper:
         assert "karpathy" in handle_names
         assert "sama" in handle_names
 
-    def test_fetcher_passes_bearer_token(
-        self, sample_agent_config, sample_secrets
-    ) -> None:
+    def test_fetcher_passes_bearer_token(self, sample_agent_config, sample_secrets) -> None:
         """Bearer token forwarded from secrets to TwitterClient (SRC-064)."""
         from ai_news_agent.sourcing.twitter_fetcher import TwitterFetcher
 
@@ -1640,6 +1676,7 @@ class TestTwitterFetcherWrapper:
 # 14. SourcingAgent integration (SRC-008–SRC-013, SRC-148, SRC-150)
 # ===========================================================================
 
+
 class TestSourcingAgentTwitterIntegration:
     """
     Integration-level tests for SourcingAgent with mocked sub-components.
@@ -1672,7 +1709,7 @@ class TestSourcingAgentTwitterIntegration:
                 twitter_available,
             )
             agent = SourcingAgent(config=config, secrets=secrets, store=store)
-            agent._web_fetcher    = MockWeb.return_value
+            agent._web_fetcher = MockWeb.return_value
             agent._twitter_fetcher = MockTwitter.return_value
         return agent
 
@@ -1787,7 +1824,7 @@ class TestSourcingAgentTwitterIntegration:
                 secrets=sample_secrets,
                 store=tiny_db_store,
             )
-            agent._web_fetcher    = MockWeb.return_value
+            agent._web_fetcher = MockWeb.return_value
             agent._twitter_fetcher = MockTwitter.return_value
             agent.run(window_start=_WINDOW_START, window_end=_WINDOW_END)
 
@@ -1805,9 +1842,7 @@ class TestSourcingAgentTwitterIntegration:
         from ai_news_agent.sourcing.agent import SourcingAgent
 
         config = sample_agent_config.model_copy(
-            update={
-                "twitter": sample_agent_config.twitter.model_copy(update={"enabled": False})
-            }
+            update={"twitter": sample_agent_config.twitter.model_copy(update={"enabled": False})}
         )
 
         with (
@@ -1820,7 +1855,7 @@ class TestSourcingAgentTwitterIntegration:
             MockWeb.return_value.fetch_from_tweet_urls.return_value = []
 
             agent = SourcingAgent(config=config, secrets=sample_secrets, store=tiny_db_store)
-            agent._web_fetcher    = MockWeb.return_value
+            agent._web_fetcher = MockWeb.return_value
             agent._twitter_fetcher = MockTwitter.return_value
             result = agent.run(window_start=_WINDOW_START, window_end=_WINDOW_END)
 

@@ -35,6 +35,7 @@ if TYPE_CHECKING:
 # Window computation helpers
 # ---------------------------------------------------------------------------
 
+
 class TestWindowHelpers:
     """Traces: SRC-009, SRC-029–SRC-032."""
 
@@ -69,6 +70,7 @@ class TestWindowHelpers:
 # ---------------------------------------------------------------------------
 # PromptBuilder
 # ---------------------------------------------------------------------------
+
 
 class TestPromptBuilder:
     """Traces: SRC-113, SRC-115–SRC-124, SRC-129."""
@@ -166,6 +168,7 @@ class TestPromptBuilder:
 # Scorer (URL drop, ranking, LLM call)
 # ---------------------------------------------------------------------------
 
+
 class TestScorer:
     """Traces: SRC-027 (LLM scoring), SRC-049 (URL drop), SRC-061, SRC-129."""
 
@@ -203,7 +206,7 @@ class TestScorer:
                 {
                     "headline": "No URL Item",
                     "source_name": "Unknown",
-                    "url": "",   # intentionally empty
+                    "url": "",  # intentionally empty
                     "pub_date": "2026-05-10",
                     "why_it_matters": "Should be dropped.",
                     "impact_tags": [],
@@ -220,11 +223,16 @@ class TestScorer:
         scorer = Scorer(llm_client=dummy_llm)
         canonical = normalize_url("https://reuters.com/article-a")
         candidate = ArticleRecord(
-            url_hash=url_hash(canonical), url=canonical, headline="Some Article",
-            abstract=None, source_name="Reuters",
+            url_hash=url_hash(canonical),
+            url=canonical,
+            headline="Some Article",
+            abstract=None,
+            source_name="Reuters",
             pub_date=datetime(2026, 5, 10, tzinfo=UTC),
             fetched_at=datetime(2026, 5, 10, tzinfo=UTC),
-            tier="1b", source_class="web", agent_id="test",
+            tier="1b",
+            source_class="web",
+            agent_id="test",
         )
         result = scorer.score_and_rank(
             prompt="prompt",
@@ -260,6 +268,7 @@ class TestScorer:
     def test_scorer_respects_top_n(self, sample_article: ArticleRecord) -> None:
         """scorer truncates to top_n items (SRC-029–SRC-032)."""
         import json as json_mod
+
         many_items = [
             {
                 "headline": f"Article {i}",
@@ -274,9 +283,7 @@ class TestScorer:
             for i in range(20)
         ]
         payload = {"items": many_items, "themes": [], "outlook": "", "predictions": []}
-        llm = DummyLLMClient(
-            complete_response=f"```json\n{json_mod.dumps(payload)}\n```"
-        )
+        llm = DummyLLMClient(complete_response=f"```json\n{json_mod.dumps(payload)}\n```")
         scorer = Scorer(llm_client=llm)
         result = scorer.score_and_rank(
             prompt="prompt",
@@ -294,6 +301,7 @@ class TestScorer:
 # CurationAgent integration (mocked LLM + real store)
 # ---------------------------------------------------------------------------
 
+
 class TestCurationAgent:
     """Traces: SRC-014–SRC-032, SRC-054, SRC-148."""
 
@@ -306,6 +314,7 @@ class TestCurationAgent:
     ) -> None:
         """No candidates → curation returns empty items (SRC-015)."""
         from ai_news_agent.storage.tinydb_store import TinyDBArticleStore
+
         store = TinyDBArticleStore(tmp_path / "store.json")
         with patch("ai_news_agent.curation.agent.get_llm_client") as mock_factory:
             mock_factory.return_value = DummyLLMClient()
@@ -331,16 +340,20 @@ class TestCurationAgent:
     ) -> None:
         """Annual cadence uses configured model override (SRC-054)."""
         from ai_news_agent.config.models import LLMCadenceOverride, LLMConfig
-        config = sample_agent_config.model_copy(update={
-            "llm": LLMConfig(
-                provider="openai",
-                model="gpt-4o",
-                cadence_overrides={
-                    "annual": LLMCadenceOverride(model="o3", thinking=True),
-                },
-            ),
-        })
+
+        config = sample_agent_config.model_copy(
+            update={
+                "llm": LLMConfig(
+                    provider="openai",
+                    model="gpt-4o",
+                    cadence_overrides={
+                        "annual": LLMCadenceOverride(model="o3", thinking=True),
+                    },
+                ),
+            }
+        )
         from ai_news_agent.storage.tinydb_store import TinyDBArticleStore
+
         store = TinyDBArticleStore(tmp_path / "store.json")
         with patch("ai_news_agent.curation.agent.get_llm_client") as mock_factory:
             dummy = DummyLLMClient()
@@ -367,6 +380,7 @@ class TestCurationAgent:
     ) -> None:
         """When no tweet signals, degradation note is appended (SRC-148)."""
         from ai_news_agent.storage.tinydb_store import TinyDBArticleStore
+
         store = TinyDBArticleStore(tmp_path / "store.json")
         with patch("ai_news_agent.curation.agent.get_llm_client") as mock_factory:
             mock_factory.return_value = DummyLLMClient()
@@ -382,4 +396,7 @@ class TestCurationAgent:
             )
         # No tweet signals in store → degradation note should be set (SRC-148)
         assert result.twitter_degradation_note is not None
-        assert "SRC-148" in result.twitter_degradation_note or "unavailable" in result.twitter_degradation_note.lower()
+        assert (
+            "SRC-148" in result.twitter_degradation_note
+            or "unavailable" in result.twitter_degradation_note.lower()
+        )
