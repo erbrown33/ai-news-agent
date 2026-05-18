@@ -245,6 +245,9 @@ jobs:
           IMAGE="${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ github.sha }}"
           SCRATCH="/tmp/deploy-smoke-${{ github.sha }}"
           mkdir -p "${SCRATCH}"
+          # Container runs as non-root `appuser`; SCRATCH is created by the
+          # runner (root) for the bind mount, so make it world-writable.
+          chmod 777 "${SCRATCH}"
 
           echo "Pulling image: ${IMAGE}"
           docker pull "${IMAGE}" 2>/dev/null || {

@@ -24,6 +24,7 @@ from __future__ import annotations
 
 import json
 import os
+import pathlib
 from datetime import UTC, datetime
 from typing import Any
 from unittest.mock import MagicMock, call, patch
@@ -1328,9 +1329,27 @@ class TestSchedulerRunnerProperties:
         }
         assert sorted(runner.agent_ids) == ["a", "b"]
 
-    def test_secrets_lazy_load_raises_without_env(self) -> None:
+    def test_secrets_lazy_load_raises_without_env(
+        self, monkeypatch: pytest.MonkeyPatch, tmp_path: pathlib.Path
+    ) -> None:
         """Without env vars, _get_secrets raises on first call."""
         from pydantic import ValidationError as PydanticValidationError
+
+        # RuntimeSecrets reads from os.environ and a `.env` file in cwd. CI
+        # exports dummy values at the workflow level and a developer machine
+        # has a real .env at the repo root — both populate the secrets and
+        # mask the missing-env path. Clear the env vars and cd into an empty
+        # tmp dir so neither source applies.
+        for var in (
+            "OPENAI_API_KEY",
+            "TWITTER_BEARER_TOKEN",
+            "ANTHROPIC_API_KEY",
+            "WEB_SEARCH_API_KEY",
+            "WEB_SEARCH_PROVIDER",
+            "SCHEDULER_API_KEY",
+        ):
+            monkeypatch.delenv(var, raising=False)
+        monkeypatch.chdir(tmp_path)
 
         runner = _make_runner()
         with pytest.raises(PydanticValidationError):

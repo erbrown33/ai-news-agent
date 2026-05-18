@@ -130,7 +130,9 @@ jobs:
       - name: Install dependencies
         run: |
           pip install --upgrade pip
-          pip install -e ".[dev]"
+          # tavily-python is in the [tavily] extra but a couple of unit tests
+          # patch `tavily.TavilyClient`, so the module must be importable.
+          pip install -e ".[dev,tavily]"
 
       # ── Unit tests (no external I/O) ────────────────────────────────────────
       - name: "pytest · unit tests"
@@ -318,6 +320,9 @@ jobs:
           set -euo pipefail
           SCRATCH="/tmp/smoke-scratch-${{ github.sha }}"
           mkdir -p "${SCRATCH}"
+          # The container runs as `appuser` (non-root); the runner created
+          # SCRATCH as root, so make it world-writable for the bind mount.
+          chmod 777 "${SCRATCH}"
           echo "SCRATCH_DIR=${SCRATCH}" >> "$GITHUB_OUTPUT"
 
           docker run --rm \
