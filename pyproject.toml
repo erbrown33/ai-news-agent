@@ -162,6 +162,9 @@ known-first-party = ["ai_news_agent"]
 # ---------------------------------------------------------------------------
 [tool.pytest.ini_options]
 testpaths = ["tests"]
+# Add project root so test modules can `from tests.conftest import ...`
+# without making tests/ a real package.
+pythonpath = ["."]
 asyncio_mode = "auto"
 addopts = [
     "--strict-markers",
