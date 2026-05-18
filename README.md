@@ -124,6 +124,12 @@ ai-news-run --cadence daily --dry-run --skip-sourcing
 |----------|---------|
 | [`docs/user-guide.md`](docs/user-guide.md) | **Start here for day-to-day use.** Configuring agents, authoring prompts, running stages, launching the portal, deploying. |
 
+### Development
+
+| Document | Purpose |
+|----------|---------|
+| [`docs/development.md`](docs/development.md) | **Contributor setup.** Installing dev deps + pre-commit hooks, what each hook does, the auto-fix re-stage pattern, running lint/tests locally. |
+
 ### Operations and Deployment
 
 | Document | Purpose |
