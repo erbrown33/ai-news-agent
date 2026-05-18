@@ -1,0 +1,162 @@
+# configs/example-developer-agent.yaml — Developer / Builder-focused agent configuration.
+#
+# Audience: AI developers, CTOs, engineering leads, and platform/infra teams who
+# build value-driving software with AI. The curation theme is the changes that
+# shape *how we build* — agent frameworks, coding agents, model toolchains,
+# inference runtimes, eval stacks, MCP/agent protocols, dev workflow, and
+# adjacent shifts (post-quantum cryptography, AI security) that materially
+# affect engineering practice.
+#
+# Unlike the default (business/society) agent, this agent EXPLICITLY welcomes:
+#   - Practical tutorials, walkthroughs, and worked code examples
+#   - Tooling changes (Claude Code, OpenAI Codex CLI, Cursor, Cline, Aider, etc.)
+#   - Agent frameworks (LangGraph, LangChain, LlamaIndex, AutoGen, CrewAI, DSPy)
+#   - Model and inference advances with direct dev impact (function calling, tool use,
+#     structured outputs, caching, context-window, throughput, cost-per-token shifts)
+#   - Standards/protocols (MCP, OpenAPI tool schemas, agent interop)
+#   - Quantum computing developments that move post-quantum-crypto timelines
+#   - AI security: prompt injection, agent-permission models, supply-chain risk
+#
+# Traces: SRC-072 (multiple independent agent configs without code changes),
+#         SRC-113 (per-agent curation prompt directory),
+#         SRC-046 (configurable handles),
+#         SRC-057 (provider selection), SRC-054 (research LLM for monthly/annual)
+#
+# Enable this agent by flipping enabled=true in configs/scheduler.yaml.
+#
+# SECRETS: NEVER place API keys or tokens here.
+# Required env vars: OPENAI_API_KEY, TWITTER_BEARER_TOKEN  (SRC-073, SRC-111)
+# Optional env vars: WEB_SEARCH_API_KEY, WEB_SEARCH_PROVIDER
+
+agent_id: developer
+
+# ─────────────────────────────────────────────────────────────────────────────
+# LLM configuration  (SRC-057)
+# Daily/weekly use gpt-4o; monthly/annual escalate to o3 for synthesis depth.
+# ─────────────────────────────────────────────────────────────────────────────
+llm:
+  provider: openai
+  model: gpt-4o
+
+  cadence_overrides:
+    monthly:
+      model: o3
+      thinking: false
+    annual:
+      model: o3
+      thinking: true                # Extended thinking for annual synthesis (SRC-032, SRC-054)
+
+# Path to the developer-focused prompt directory. The cadence-specific file
+# (daily.md / weekly.md / monthly.md / annual.md) is selected at runtime.
+# Prompt SHA-256 is recorded in all digest outputs (SRC-113, SRC-129).
+curation_prompt: prompts/developer
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Source tier configuration  (SRC-016–SRC-021, SRC-034)
+# Developer agent prioritises AI-lab engineering blogs, dev-tool vendors,
+# practitioner publications, and primary research. Business press is
+# de-emphasised but retained for context on funding/strategy shifts that
+# change vendor roadmaps.
+# ─────────────────────────────────────────────────────────────────────────────
+sources:
+  # Tier 1a — custom priority sources for this agent (SRC-017)
+  # AI-lab engineering blogs and primary developer documentation.
+  custom:
+    - anthropic.com
+    - openai.com
+    - deepmind.google
+    - ai.google.dev
+    - developer.nvidia.com
+    - docs.anthropic.com
+    - platform.openai.com
+    - modelcontextprotocol.io
+    - arxiv.org
+    - paperswithcode.com
+
+  # Tier 1b — primary technical-business press with strong developer coverage (SRC-018)
+  tier_1b:
+    - theinformation.com
+    - reuters.com
+    - bloomberg.com
+
+  # Tier 2 — AI-lab and dev-platform engineering blogs + practitioner hubs (SRC-019)
+  tier_2:
+    - news.ycombinator.com           # HN front page — strong signal for dev community
+    - github.blog
+    - huggingface.co
+    - research.microsoft.com
+    - engineering.fb.com
+    - netflixtechblog.com
+    - blog.langchain.dev             # LangChain / LangGraph
+    - blog.llamaindex.ai             # LlamaIndex
+    - vercel.com/blog                # Edge inference + AI SDK
+    - cursor.sh                      # Cursor editor
+    - aider.chat                     # Aider AI coding tool
+    - replit.com                     # Replit Agent / Ghostwriter
+    - supabase.com/blog              # AI + dev infra
+    - pinecone.io/learn              # Vector DB practitioner content
+    - weaviate.io/blog
+    - simonwillison.net              # Hands-on LLM tooling commentary
+    - eugeneyan.com                  # Applied ML / LLM systems
+    - lilianweng.github.io           # ML research synthesis
+    - jina.ai/news                   # Embeddings + retrieval tooling
+
+  # Tier 3 — technical trade press (SRC-020)
+  tier_3:
+    - technologyreview.com
+    - spectrum.ieee.org
+    - thenewstack.io
+    - infoq.com
+    - theregister.com                # Strong coverage of infra, security, and platform shifts
+    - arstechnica.com
+
+  # Tier 4 — research, security, and standards bodies (SRC-021)
+  # Includes post-quantum-crypto and AI-security sources material to dev decisions.
+  tier_4:
+    - nist.gov                       # NIST PQC standardisation, AI RMF
+    - csrc.nist.gov                  # NIST cryptographic standards
+    - csail.mit.edu
+    - hai.stanford.edu
+    - bair.berkeley.edu              # Berkeley AI Research blog
+    - alignmentforum.org
+    - lesswrong.com                  # Often hosts practitioner-level safety analysis
+    - owasp.org                      # OWASP LLM Top 10
+    - portswigger.net/research       # Prompt-injection and agent-security research
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Twitter/X influencer configuration (SRC-036–SRC-046)
+# Builder/practitioner voices weighted up; pure-strategy voices kept lower.
+# Handles can be added, removed, or re-weighted without code changes (SRC-046).
+# Twitter content = signal and lead-generation, NOT primary news (SRC-047).
+# ─────────────────────────────────────────────────────────────────────────────
+twitter:
+  enabled: true
+  handles:
+    - { handle: karpathy,       weight: 2.0 }   # Andrej Karpathy — coding agents, training
+    - { handle: simonw,         weight: 2.0 }   # Simon Willison — hands-on LLM tooling
+    - { handle: fchollet,       weight: 1.5 }   # François Chollet — frameworks, evals
+    - { handle: hwchase17,      weight: 1.5 }   # Harrison Chase — LangChain / LangGraph
+    - { handle: jerryjliu0,     weight: 1.5 }   # Jerry Liu — LlamaIndex
+    - { handle: swyx,           weight: 1.5 }   # Shawn Wang — AI engineering practitioner
+    - { handle: AnthropicAI,    weight: 1.5 }   # Anthropic — Claude/Claude Code releases
+    - { handle: OpenAI,         weight: 1.5 }   # OpenAI — Codex / GPT releases
+    - { handle: omarsar0,       weight: 1.0 }   # Elvis Saravia — applied LLM papers
+    - { handle: cwolferesearch, weight: 1.0 }   # Cameron Wolfe — LLM deep dives
+    - { handle: rasbt,          weight: 1.0 }   # Sebastian Raschka — ML engineering
+    - { handle: jeremyphoward,  weight: 1.0 }   # Jeremy Howard — fast.ai, Answer.AI
+    - { handle: sama,           weight: 0.5 }   # Sam Altman — lower weight; strategy, not build
+    - { handle: DarioAmodei,    weight: 0.5 }   # Dario Amodei — strategy / safety focus
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Top-N article limits per cadence  (SRC-029–SRC-032)
+# Slightly higher daily count — developer audience tolerates more items per
+# digest and benefits from breadth across tooling, models, and standards.
+# ─────────────────────────────────────────────────────────────────────────────
+limits:
+  daily_top_n:   12    # Broader daily coverage across tooling/model/standards beats (SRC-029)
+  weekly_top_n:  8     # Synthesis across the week's most impactful builder-facing changes (SRC-030)
+  monthly_top_n: 10    # Monthly trends shaping the build stack (SRC-031)
+  annual_top_n:  10    # Top 10 builder-impacting stories + 10 predictions (SRC-032)
+
+# Base output directory — {agent_id} resolved to "developer" at runtime (SRC-145)
+output_dir: outputs/{agent_id}

@@ -1,0 +1,201 @@
+# pyproject.toml — AI News Curation Agent
+# Traces: SRC-095–SRC-099 (CI/CD lint+test), SRC-055–SRC-057 (provider-agnostic LLM),
+#         SRC-063 (tweepy), SRC-053 (document store), SRC-074–SRC-086 (serverless deploy)
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "ai-news-agent"
+version = "0.1.0"
+description = "Multi-agent AI News Curation platform — sourcing, curation, rendering, and web portal"
+readme = "README.md"
+license = "MIT"
+license-files = ["LICENSE"]
+requires-python = ">=3.12"
+authors = [{ name = "Erik Brown" }]
+keywords = ["ai", "news", "curation", "agents", "llm"]
+classifiers = [
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.12",
+    "Operating System :: OS Independent",
+]
+
+dependencies = [
+    # LLM — provider-agnostic default: OpenAI (SRC-055–SRC-057)
+    "openai>=1.30.0",
+    "openai-agents>=0.0.5",
+
+    # Twitter/X integration (SRC-063)
+    "tweepy>=4.14.0",
+
+    # Web search fallback tools (SRC-060, SRC-109)
+    "httpx>=0.27.0",
+
+    # Document store (SRC-053)
+    "tinydb>=4.8.0",
+
+    # Config + validation (SRC-072)
+    "pydantic>=2.7.0",
+    "pydantic-settings>=2.3.0",
+    "pyyaml>=6.0.1",
+
+    # Web portal (SRC-133–SRC-134)
+    "fastapi>=0.111.0",
+    "uvicorn[standard]>=0.30.0",
+    "jinja2>=3.1.4",
+    "python-multipart>=0.0.9",
+    "aiofiles>=23.2.1",
+
+    # Scheduler (SRC-052, SRC-144)
+    "apscheduler>=3.10.4",
+
+    # Observability / logging (SRC-149–SRC-150)
+    "structlog>=24.2.0",
+]
+
+[project.optional-dependencies]
+dev = [
+    # Testing (SRC-098)
+    "pytest>=8.2.0",
+    "pytest-asyncio>=0.23.7",
+    "pytest-cov>=5.0.0",
+    "pytest-mock>=3.14.0",
+    "respx>=0.21.0",        # httpx mock
+    "factory-boy>=3.3.0",   # test fixtures
+
+    # Linting (SRC-098)
+    "ruff>=0.4.7",
+
+    # Type checking
+    "mypy>=1.10.0",
+    "types-pyyaml>=6.0.12",
+    "types-aiofiles>=23.2.0",
+]
+
+anthropic = [
+    # Future: Anthropic provider (SRC-055–SRC-056 extensibility)
+    "anthropic>=0.27.0",
+]
+
+brave = [
+    # Brave Search fallback (SRC-060, SRC-109)
+    # Uses httpx (already in core deps); this group documents the dependency
+]
+
+tavily = [
+    # Tavily Search fallback (SRC-060, SRC-109)
+    "tavily-python>=0.3.3",
+]
+
+google = [
+    # Google Gemini / Vertex AI provider (SRC-055–SRC-056 extensibility)
+    "google-generativeai>=0.7.0",
+]
+
+[project.scripts]
+# CLI entry points (SRC-076–SRC-077 local dev triggers)
+ai-news-source        = "ai_news_agent.sourcing.agent:cli_main"
+ai-news-curate        = "ai_news_agent.curation.agent:cli_main"
+ai-news-render        = "ai_news_agent.rendering.agent:cli_main"
+ai-news-schedule      = "ai_news_agent.scheduler.runner:cli_main"
+ai-news-portal        = "ai_news_agent.portal.app:cli_main"
+# End-to-end pipeline entry point: sourcing → curation → rendering in one call (SRC-076, SRC-102)
+ai-news-run           = "ai_news_agent.pipeline:cli_main"
+# One-shot serverless/cron trigger: runs all agents for a job+cadence and exits (SRC-076–SRC-077)
+ai-news-oneshot       = "ai_news_agent.scheduler.serverless:cli_main"
+# Prompt hash utility (SRC-127–SRC-129): generate / verify prompt version manifest
+ai-news-prompt-hashes = "ai_news_agent.curation.prompt_builder:_cli_prompt_hashes"
+
+[project.urls]
+Repository = "https://github.com/erikbrown/ai-news-agent"
+
+# ---------------------------------------------------------------------------
+# Hatch build — include src/ layout
+# ---------------------------------------------------------------------------
+[tool.hatch.build.targets.wheel]
+packages = ["src/ai_news_agent"]
+
+# ---------------------------------------------------------------------------
+# Ruff — lint configuration (SRC-098)
+# ---------------------------------------------------------------------------
+[tool.ruff]
+target-version = "py312"
+line-length = 100
+src = ["src", "tests"]
+
+[tool.ruff.lint]
+select = [
+    "E",    # pycodestyle errors
+    "W",    # pycodestyle warnings
+    "F",    # pyflakes
+    "I",    # isort
+    "N",    # pep8-naming
+    "UP",   # pyupgrade
+    "B",    # flake8-bugbear
+    "C4",   # flake8-comprehensions
+    "SIM",  # flake8-simplify
+    "TCH",  # flake8-type-checking
+    "ANN",  # flake8-annotations (encourage type annotations)
+    "PT",   # flake8-pytest-style
+]
+ignore = [
+    "ANN101",  # missing self annotation
+    "ANN102",  # missing cls annotation
+    "ANN401",  # Any allowed in abstraction layer
+    "E501",    # line too long — SRC-* traces and docstrings intentionally exceed 100 chars
+    "TC001",   # TYPE_CHECKING block moves — acceptable in a stub-heavy scaffolding stage
+    "TC002",   # same
+    "TC003",   # same
+]
+
+[tool.ruff.lint.per-file-ignores]
+"tests/**" = ["ANN", "S101", "E501", "N806"]
+"src/ai_news_agent/portal/app.py" = ["ANN"]
+
+[tool.ruff.lint.isort]
+known-first-party = ["ai_news_agent"]
+
+# ---------------------------------------------------------------------------
+# Pytest (SRC-098)
+# ---------------------------------------------------------------------------
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+asyncio_mode = "auto"
+addopts = [
+    "--strict-markers",
+    "--tb=short",
+    "-q",
+]
+markers = [
+    "unit: pure unit tests with no external I/O",
+    "integration: integration/smoke tests (may require env vars)",
+    "slow: tests that take >5 seconds",
+]
+
+# ---------------------------------------------------------------------------
+# Coverage
+# ---------------------------------------------------------------------------
+[tool.coverage.run]
+source = ["src/ai_news_agent"]
+omit = ["src/ai_news_agent/portal/static/*"]
+branch = true
+
+[tool.coverage.report]
+exclude_lines = [
+    "pragma: no cover",
+    "def __repr__",
+    "raise NotImplementedError",
+    "if TYPE_CHECKING:",
+    "@(abc\\.)?abstractmethod",
+]
+
+# ---------------------------------------------------------------------------
+# Mypy
+# ---------------------------------------------------------------------------
+[tool.mypy]
+python_version = "3.12"
+strict = true
+ignore_missing_imports = true
+exclude = ["tests/"]

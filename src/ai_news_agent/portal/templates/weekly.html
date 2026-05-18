@@ -1,0 +1,212 @@
+{% extends "base.html" %}
+<!--
+  weekly.html — Weekly digest: theme word cloud + article filter + outlook.
+  Traces: SRC-030 (weekly: identify themes, look-ahead outlook),
+          SRC-048 (curated item schema),
+          SRC-133 (portal views), SRC-134 (theme word cloud, impact filter),
+          SRC-136 (export downloads), SRC-148 (Twitter unavailable note),
+          SRC-150 (metadata footer)
+-->
+
+{% block title %}📆 Weekly Digest — {{ date_str }} | {{ agent_id }}{% endblock %}
+
+{% block content %}
+
+{# ── Page header ─────────────────────────────────────────────────────── #}
+<div class="page-header">
+  <nav class="breadcrumb" aria-label="Breadcrumb">
+    <a href="/">Home</a>
+    <span class="breadcrumb-sep" aria-hidden="true">›</span>
+    <a href="/#agent-{{ agent_id }}">{{ agent_id }}</a>
+    <span class="breadcrumb-sep" aria-hidden="true">›</span>
+    <span>Weekly</span>
+    <span class="breadcrumb-sep" aria-hidden="true">›</span>
+    <span>{{ date_str }}</span>
+  </nav>
+
+  <div class="cadence-hero">
+    <span class="cadence-hero-badge weekly">📆 Weekly</span>
+  </div>
+
+  <h1 class="page-title">Weekly AI News Digest</h1>
+
+  <div class="window-range">
+    <span>Coverage:</span>
+    <time>{{ (digest.metadata.window_start or '')[:10] }}</time>
+    <span aria-hidden="true">—</span>
+    <time>{{ (digest.metadata.window_end or '')[:10] }}</time>
+  </div>
+
+  <div class="export-bar" aria-label="Download digest">
+    <span class="export-label">Download</span>
+    {% for fmt in available_fmts %}
+    <a href="/download/{{ agent_id }}/{{ date_str }}/weekly/{{ fmt }}"
+       class="export-btn export-{{ fmt }}"
+       title="Download {{ fmt | upper }} export">
+      ↓ {{ fmt | upper }}
+    </a>
+    {% endfor %}
+  </div>
+</div>
+
+{# ── Twitter degradation alert (SRC-148) ─────────────────────────────── #}
+{% if digest.metadata.twitter_signal_available == false %}
+<div class="alert alert-warning" role="alert">
+  <span class="alert-icon">⚠️</span>
+  <span>Twitter/X influencer signal was unavailable for this run.</span>
+</div>
+{% elif digest.twitter_degradation_note is defined and digest.twitter_degradation_note %}
+<div class="alert alert-warning" role="alert">
+  <span class="alert-icon">⚠️</span>
+  <span>{{ digest.twitter_degradation_note }}</span>
+</div>
+{% endif %}
+
+{# ── Theme word cloud (SRC-030, SRC-134) ─────────────────────────────── #}
+{% if themes %}
+<section class="themes-section" aria-label="Weekly themes">
+  <h2 class="section-title">🏷️ This Week's Themes</h2>
+
+  <div class="tag-cloud" id="tag-cloud" role="group" aria-label="Click a theme to filter articles">
+    {% for theme in themes %}
+    <button
+      class="theme-tag"
+      data-theme="{{ theme }}"
+      data-weight="{{ theme_weights.get(theme, 1) }}"
+      type="button"
+      aria-pressed="false"
+      aria-label="Filter by theme: {{ theme }}"
+    >{{ theme }}</button>
+    {% endfor %}
+  </div>
+
+  <p class="theme-filter-hint" style="display:none">
+    💡 Tip: Click multiple themes for OR-filtering. Press <kbd>Esc</kbd> to clear.
+  </p>
+</section>
+{% endif %}
+
+{# ── Impact filter bar (SRC-134) ─────────────────────────────────────── #}
+{% if items %}
+<div class="impact-filter-bar" id="impact-filter" aria-label="Filter by impact category">
+  <span class="filter-label">Filter</span>
+  <button class="filter-pill active" data-filter="all" type="button">
+    All
+    <span class="filter-count">{{ items | length }}</span>
+  </button>
+  {% if impact_freq.get('business_impact', 0) > 0 %}
+  <button class="filter-pill" data-filter="business_impact" type="button">
+    💼 Business <span class="filter-count">{{ impact_freq.get('business_impact', 0) }}</span>
+  </button>
+  {% endif %}
+  {% if impact_freq.get('workforce_impact', 0) > 0 %}
+  <button class="filter-pill" data-filter="workforce_impact" type="button">
+    👥 Workforce <span class="filter-count">{{ impact_freq.get('workforce_impact', 0) }}</span>
+  </button>
+  {% endif %}
+  {% if impact_freq.get('policy_impact', 0) > 0 %}
+  <button class="filter-pill" data-filter="policy_impact" type="button">
+    ⚖️ Policy <span class="filter-count">{{ impact_freq.get('policy_impact', 0) }}</span>
+  </button>
+  {% endif %}
+</div>
+{% endif %}
+
+{# ── Top articles (SRC-030, SRC-048) ─────────────────────────────────── #}
+<section class="articles-section" aria-label="Top stories this week">
+  <h2 class="section-title">📰 Top Stories This Week</h2>
+  <div class="articles-list" role="feed">
+    {% if not items %}
+    <div class="empty-state">
+      <div class="empty-icon">📭</div>
+      <p>No articles met the curation threshold for this period.</p>
+    </div>
+    {% else %}
+    {% for item in items %}
+    <article class="article-card tier-{{ item.tier }}"
+             data-tier="{{ item.tier }}"
+             data-tags="{{ item.impact_tags | join(' ') }}">
+      <div class="article-header">
+        <span class="tier-badge">Tier {{ item.tier }}</span>
+        {% if item.pub_date %}
+        <time class="article-date">{{ item.pub_date[:10] if item.pub_date else '' }}</time>
+        {% endif %}
+        {% for tag in item.impact_tags %}
+        <span class="impact-badge impact-{{ tag }}">
+          {% if tag == 'business_impact' %}💼 Business
+          {% elif tag == 'workforce_impact' %}👥 Workforce
+          {% elif tag == 'policy_impact' %}⚖️ Policy
+          {% else %}{{ tag }}{% endif %}
+        </span>
+        {% endfor %}
+      </div>
+      <h3 class="article-headline">
+        <a href="{{ item.url }}" rel="noopener noreferrer" target="_blank">{{ item.headline }}</a>
+      </h3>
+      <div class="article-source">
+        <strong>{{ item.source_name }}</strong>
+        {% if item.twitter_handle %}
+        <span class="twitter-signal">
+          · 🐦 via
+          <a href="{{ item.tweet_url or '#' }}" rel="noopener" target="_blank">@{{ item.twitter_handle }}</a>
+        </span>
+        {% endif %}
+      </div>
+      {% if item.why_it_matters %}
+      <div class="why-matters-block">
+        <span class="why-label">Why it matters</span>
+        <p class="why-text">{{ item.why_it_matters }}</p>
+      </div>
+      {% endif %}
+    </article>
+    {% endfor %}
+    {% endif %}
+  </div>
+</section>
+
+{# ── Looking ahead / outlook (SRC-030) ───────────────────────────────── #}
+{% if digest.outlook %}
+<section class="outlook-section" aria-label="Weekly outlook">
+  <h2 class="section-title">🔭 Looking Ahead</h2>
+  <div class="outlook-box">{{ digest.outlook }}</div>
+</section>
+{% endif %}
+
+{# ── Digest metadata footer (SRC-150) ────────────────────────────────── #}
+<footer class="digest-meta-footer" aria-label="Digest metadata">
+  <div class="meta-item">
+    <span class="meta-label">Model</span>
+    <code>{{ digest.metadata.llm_model }}</code>
+  </div>
+  <div class="meta-sep" aria-hidden="true"></div>
+  <div class="meta-item">
+    <span class="meta-label">Items</span>
+    <span>{{ digest.metadata.items_included }}/{{ digest.metadata.items_considered }} curated</span>
+  </div>
+  {% if themes %}
+  <div class="meta-sep" aria-hidden="true"></div>
+  <div class="meta-item">
+    <span class="meta-label">Themes</span>
+    <span>{{ themes | length }}</span>
+  </div>
+  {% endif %}
+  <div class="meta-sep" aria-hidden="true"></div>
+  <div class="meta-item">
+    <span class="meta-label">Prompt</span>
+    <code title="{{ digest.metadata.prompt_version }}">{{ digest.metadata.prompt_version[:20] }}…</code>
+  </div>
+</footer>
+
+{% endblock %}
+
+{% block scripts %}
+<script>
+  // Sync aria-pressed state with theme-tag active class
+  document.querySelectorAll(".theme-tag").forEach(tag => {
+    const observer = new MutationObserver(() => {
+      tag.setAttribute("aria-pressed", tag.classList.contains("active") ? "true" : "false");
+    });
+    observer.observe(tag, { attributes: true, attributeFilter: ["class"] });
+  });
+</script>
+{% endblock %}

@@ -1,0 +1,39 @@
+# configs/example-minimal-agent.yaml — Minimal valid agent configuration.
+#
+# This is the smallest possible per-agent config. Every field not listed here
+# gets the same default value shown in configs/default-agent.yaml.
+# Use this as a starting point for a new agent.
+#
+# Traces: SRC-072 (multiple agents without code changes),
+#         SRC-071–SRC-073 (config system; secrets from env vars only)
+#
+# To activate this agent:
+#   1. Copy this file and rename it (e.g. configs/my-agent.yaml).
+#   2. Set agent_id to a unique slug.
+#   3. Add an entry in configs/scheduler.yaml under agents:.
+#
+# Validate with:
+#   python -m ai_news_agent.config.schema --validate configs/example-minimal-agent.yaml --summary
+#
+# JSON Schema:     configs/agent-config.schema.json
+# Full example:    configs/default-agent.yaml
+# Config docs:     docs/config/config-reference.md
+#
+# SECRETS: NEVER place API keys or tokens here.
+# Required env vars: OPENAI_API_KEY, TWITTER_BEARER_TOKEN  (SRC-073, SRC-111)
+
+agent_id: minimal-example
+
+# All remaining fields are optional.
+# Defaults applied automatically:
+#   llm.provider:          openai
+#   llm.model:             gpt-4o
+#   curation_prompt:       prompts/daily.md
+#   sources.*:             [] (no tier filtering — all sources considered)
+#   twitter.enabled:       true
+#   twitter.handles:       [] (no influencer monitoring)
+#   limits.daily_top_n:    10
+#   limits.weekly_top_n:   7
+#   limits.monthly_top_n:  10
+#   limits.annual_top_n:   10
+#   output_dir:            outputs/minimal-example  ({agent_id} resolved at load time)

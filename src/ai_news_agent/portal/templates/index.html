@@ -1,0 +1,165 @@
+{% extends "base.html" %}
+<!--
+  index.html — Landing page: all agents, digests grouped by cadence with tabs.
+  Traces: SRC-004 (portal deliverable), SRC-133 (portal views by cadence),
+          SRC-134 (agent config switcher, no auth in v1),
+          SRC-136 (download links per digest)
+-->
+
+{% block title %}AI News Portal{% endblock %}
+
+{% block content %}
+
+{# ── Hero ─────────────────────────────────────────────────────────────── #}
+<div class="portal-hero">
+  <h1 class="portal-hero-title">🤖 AI News Portal</h1>
+  <p class="portal-hero-sub">
+    Curated AI industry news — business, workforce &amp; policy impact —
+    filtered by intelligent agents on daily, weekly, monthly, and annual cadences.
+  </p>
+
+  {% if agents %}
+  <div class="portal-stats">
+    <div class="stat-item">
+      <span class="stat-value">{{ agents | length }}</span>
+      <span class="stat-label">Agent{{ 's' if agents | length != 1 }}</span>
+    </div>
+    <div class="stat-sep"></div>
+    <div class="stat-item">
+      <span class="stat-value">{{ total_digests }}</span>
+      <span class="stat-label">Digest{{ 's' if total_digests != 1 }}</span>
+    </div>
+    {% set cadence_totals = {'daily': 0, 'weekly': 0, 'monthly': 0, 'annual': 0} %}
+    {% for aid in agents %}
+      {% for cadence, digests in agent_by_cadence[aid].items() %}
+        {% if cadence_totals.update({cadence: cadence_totals[cadence] + digests | length}) %}{% endif %}
+      {% endfor %}
+    {% endfor %}
+    <div class="stat-sep"></div>
+    <div class="stat-item">
+      <span class="stat-value">{{ cadence_totals.get('daily', 0) or agent_by_cadence.values() | map(attribute='daily') | map('length') | sum }}</span>
+      <span class="stat-label">Daily</span>
+    </div>
+    <div class="stat-sep"></div>
+    <div class="stat-item">
+      <span class="stat-value">{{ agent_by_cadence.values() | map(attribute='weekly') | map('length') | sum }}</span>
+      <span class="stat-label">Weekly</span>
+    </div>
+  </div>
+  {% endif %}
+</div>
+
+{# ── No agents empty state ────────────────────────────────────────────── #}
+{% if not agents %}
+<div class="empty-state">
+  <div class="empty-icon">📭</div>
+  <h2>No digests yet</h2>
+  <p>Run the sourcing and curation agents to generate your first digest.</p>
+  <div class="mt-16">
+    <div class="code-block">ai-news-source --agent configs/default-agent.yaml</div>
+    <br>
+    <div class="code-block">ai-news-curate --agent configs/default-agent.yaml --cadence daily</div>
+  </div>
+</div>
+
+{% else %}
+
+{# ── One section per agent ────────────────────────────────────────────── #}
+{% for agent_id in agents %}
+{% set digests = agent_digests[agent_id] %}
+{% set by_cadence = agent_by_cadence[agent_id] %}
+
+<section class="agent-section" id="agent-{{ agent_id }}">
+
+  {# Agent header #}
+  <div class="agent-header">
+    <div class="agent-header-icon" aria-hidden="true">🤖</div>
+    <h2 class="agent-title">{{ agent_id }}</h2>
+    <span class="digest-count-badge">{{ digests | length }} digest{{ 's' if digests | length != 1 }}</span>
+  </div>
+
+  {% if not digests %}
+    <p class="no-digests">No digests available for this agent yet.</p>
+  {% else %}
+
+    {# Cadence tabs (SRC-133) #}
+    <div class="cadence-tabs" data-agent="{{ agent_id }}" role="tablist" aria-label="Cadence tabs for {{ agent_id }}">
+      {% for cadence, meta in cadence_meta.items() %}
+      {% set count = by_cadence[cadence] | length %}
+      <button
+        class="cadence-tab {{ cadence }}"
+        data-cadence="{{ cadence }}"
+        role="tab"
+        aria-selected="false"
+        aria-controls="panel-{{ agent_id }}-{{ cadence }}"
+        {% if count == 0 %}disabled style="opacity:0.4;cursor:not-allowed"{% endif %}
+      >
+        <span aria-hidden="true">{{ meta.icon }}</span>
+        {{ meta.label }}
+        <span class="cadence-tab-count">{{ count }}</span>
+      </button>
+      {% endfor %}
+    </div>
+
+    {# Cadence panels #}
+    <div class="digest-panels" data-agent="{{ agent_id }}">
+      {% for cadence, meta in cadence_meta.items() %}
+      {% set cadence_digests = by_cadence[cadence] %}
+      <div
+        class="digest-panel"
+        id="panel-{{ agent_id }}-{{ cadence }}"
+        data-cadence="{{ cadence }}"
+        role="tabpanel"
+        aria-label="{{ meta.label }} digests for {{ agent_id }}"
+      >
+        {% if cadence_digests %}
+        <div class="digest-grid">
+          {% for digest in cadence_digests %}
+          <div class="digest-card cadence-{{ digest.cadence }}">
+
+            <div class="digest-card-header">
+              <span class="cadence-badge cadence-badge-{{ digest.cadence }}">
+                {{ meta.icon }} {{ meta.label }}
+              </span>
+              <span class="digest-date">{{ digest.date }}</span>
+            </div>
+
+            <a
+              href="/digest/{{ agent_id }}/{{ digest.date }}/{{ digest.cadence }}"
+              class="digest-link"
+              aria-label="View {{ meta.label }} digest for {{ digest.date }}"
+            >
+              View Digest →
+            </a>
+
+            {# Download buttons (SRC-136) #}
+            {% if digest.formats %}
+            <div class="digest-downloads" aria-label="Download formats">
+              {% for fmt in digest.formats %}
+              <a
+                href="/download/{{ agent_id }}/{{ digest.date }}/{{ digest.cadence }}/{{ fmt }}"
+                class="download-btn download-btn-{{ fmt }}"
+                title="Download {{ fmt | upper }} export"
+                aria-label="Download {{ fmt | upper }}"
+              >↓ {{ fmt | upper }}</a>
+              {% endfor %}
+            </div>
+            {% endif %}
+
+          </div>
+          {% endfor %}
+        </div>
+        {% else %}
+        <p class="no-digests">No {{ meta.label | lower }} digests yet for this agent.</p>
+        {% endif %}
+      </div>
+      {% endfor %}
+    </div>
+
+  {% endif %}
+</section>
+{% endfor %}
+
+{% endif %}{# /if agents #}
+
+{% endblock %}

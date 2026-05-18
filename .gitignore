@@ -1,0 +1,49 @@
+# .gitignore — AI News Curation Agent
+
+# Secrets — NEVER commit (SRC-073, SRC-111)
+.env
+*.pem
+*.key
+*.crt
+
+# Python
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+*.egg-info/
+dist/
+build/
+.eggs/
+
+# Testing and coverage
+.pytest_cache/
+.coverage
+coverage.xml
+coverage.json
+htmlcov/
+.mypy_cache/
+.ruff_cache/
+
+# Local run artifacts
+attractor-runs/
+
+# Virtualenvs
+.venv/
+
+# Runtime outputs (gitignored — synced to cloud storage in production)
+outputs/*/
+!outputs/.gitkeep
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
+
+# TinyDB store files
+*.json.bak

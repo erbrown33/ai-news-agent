@@ -1,0 +1,204 @@
+{% extends "base.html" %}
+<!--
+  daily.html — Daily digest: article cards emphasising why-it-matters and impact tags.
+  Traces: SRC-029 (daily output: title, source, link, why-it-matters),
+          SRC-048 (curated item schema: headline, source, URL, pub_date, why-it-matters,
+                   impact_tags, tier, cross_refs, twitter_handle),
+          SRC-049 (every item has a working URL — enforced at renderer),
+          SRC-133 (portal views), SRC-134 (impact filter bar),
+          SRC-136 (export downloads), SRC-148 (Twitter unavailable note),
+          SRC-150 (monitoring metadata footer)
+-->
+
+{% block title %}📅 Daily Digest — {{ date_str }} | {{ agent_id }}{% endblock %}
+
+{% block content %}
+
+{# ── Page header ─────────────────────────────────────────────────────── #}
+<div class="page-header">
+  <nav class="breadcrumb" aria-label="Breadcrumb">
+    <a href="/">Home</a>
+    <span class="breadcrumb-sep" aria-hidden="true">›</span>
+    <a href="/#agent-{{ agent_id }}">{{ agent_id }}</a>
+    <span class="breadcrumb-sep" aria-hidden="true">›</span>
+    <span>Daily</span>
+    <span class="breadcrumb-sep" aria-hidden="true">›</span>
+    <span>{{ date_str }}</span>
+  </nav>
+
+  <div class="cadence-hero">
+    <span class="cadence-hero-badge daily">📅 Daily</span>
+  </div>
+
+  <h1 class="page-title">Daily AI News Digest</h1>
+
+  <div class="window-range">
+    <span>Coverage:</span>
+    <time>{{ (digest.metadata.window_start or '')[:10] }}</time>
+    <span aria-hidden="true">—</span>
+    <time>{{ (digest.metadata.window_end or '')[:10] }}</time>
+  </div>
+
+  {# Export downloads (SRC-136) #}
+  <div class="export-bar" aria-label="Download digest">
+    <span class="export-label">Download</span>
+    {% for fmt in available_fmts %}
+    <a href="/download/{{ agent_id }}/{{ date_str }}/daily/{{ fmt }}"
+       class="export-btn export-{{ fmt }}"
+       title="Download {{ fmt | upper }} export">
+      ↓ {{ fmt | upper }}
+    </a>
+    {% endfor %}
+  </div>
+</div>
+
+{# ── Twitter degradation alert (SRC-148) ─────────────────────────────── #}
+{% if digest.metadata.twitter_signal_available == false %}
+<div class="alert alert-warning" role="alert">
+  <span class="alert-icon">⚠️</span>
+  <span>Twitter/X influencer signal was unavailable for this run. Curation based on web sources only. (SRC-148)</span>
+</div>
+{% elif digest.twitter_degradation_note is defined and digest.twitter_degradation_note %}
+<div class="alert alert-warning" role="alert">
+  <span class="alert-icon">⚠️</span>
+  <span>{{ digest.twitter_degradation_note }}</span>
+</div>
+{% endif %}
+
+{# ── Impact category filter bar (SRC-134) ────────────────────────────── #}
+{% if items %}
+<div class="impact-filter-bar" id="impact-filter" aria-label="Filter by impact category">
+  <span class="filter-label">Filter</span>
+
+  <button class="filter-pill active" data-filter="all" type="button">
+    All
+    <span class="filter-count">{{ items | length }}</span>
+  </button>
+
+  {% if impact_freq.get('business_impact', 0) > 0 %}
+  <button class="filter-pill" data-filter="business_impact" type="button">
+    💼 Business
+    <span class="filter-count">{{ impact_freq.get('business_impact', 0) }}</span>
+  </button>
+  {% endif %}
+
+  {% if impact_freq.get('workforce_impact', 0) > 0 %}
+  <button class="filter-pill" data-filter="workforce_impact" type="button">
+    👥 Workforce
+    <span class="filter-count">{{ impact_freq.get('workforce_impact', 0) }}</span>
+  </button>
+  {% endif %}
+
+  {% if impact_freq.get('policy_impact', 0) > 0 %}
+  <button class="filter-pill" data-filter="policy_impact" type="button">
+    ⚖️ Policy
+    <span class="filter-count">{{ impact_freq.get('policy_impact', 0) }}</span>
+  </button>
+  {% endif %}
+</div>
+{% endif %}
+
+{# ── Article cards (SRC-029, SRC-048) ────────────────────────────────── #}
+<div class="articles-list" role="feed" aria-label="Daily AI news articles">
+
+  {% if not items %}
+  <div class="empty-state">
+    <div class="empty-icon">📭</div>
+    <h2>No articles today</h2>
+    <p>No articles met the curation threshold for this period.</p>
+  </div>
+  {% else %}
+
+  {% for item in items %}
+  <article class="article-card tier-{{ item.tier }}"
+           data-tier="{{ item.tier }}"
+           data-tags="{{ item.impact_tags | join(' ') }}">
+
+    {# Article meta row #}
+    <div class="article-header">
+      <span class="tier-badge" title="Source tier {{ item.tier }} (SRC-016–SRC-021)">
+        Tier {{ item.tier }}
+      </span>
+      {% if item.pub_date %}
+      <time class="article-date">{{ item.pub_date[:10] if item.pub_date else '' }}</time>
+      {% endif %}
+      {% for tag in item.impact_tags %}
+      <span class="impact-badge impact-{{ tag }}">
+        {% if tag == 'business_impact' %}💼 Business
+        {% elif tag == 'workforce_impact' %}👥 Workforce
+        {% elif tag == 'policy_impact' %}⚖️ Policy
+        {% else %}{{ tag }}{% endif %}
+      </span>
+      {% endfor %}
+    </div>
+
+    {# Headline → primary URL (SRC-048, SRC-049) #}
+    <h2 class="article-headline">
+      <a href="{{ item.url }}" rel="noopener noreferrer" target="_blank">
+        {{ item.headline }}
+      </a>
+    </h2>
+
+    {# Source attribution #}
+    <div class="article-source">
+      <strong>{{ item.source_name }}</strong>
+      {% if item.twitter_handle %}
+      <span class="twitter-signal">
+        · 🐦 via
+        <a href="{{ item.tweet_url or '#' }}" rel="noopener" target="_blank">@{{ item.twitter_handle }}</a>
+      </span>
+      {% endif %}
+    </div>
+
+    {# Why it matters — the core value (SRC-048, SRC-122) #}
+    {% if item.why_it_matters %}
+    <div class="why-matters-block">
+      <span class="why-label">Why it matters</span>
+      <p class="why-text">{{ item.why_it_matters }}</p>
+    </div>
+    {% endif %}
+
+    {# Cross-references (SRC-048) #}
+    {% if item.cross_refs %}
+    <div class="cross-refs" aria-label="Related articles">
+      <strong>Related:</strong>
+      {% for ref in item.cross_refs %}
+      <a href="{{ ref }}" class="cross-ref-link" rel="noopener" target="_blank">
+        {{ ref | truncate(55, true, '…') }}
+      </a>
+      {% endfor %}
+    </div>
+    {% endif %}
+
+  </article>
+  {% endfor %}
+
+  {% endif %}
+</div>
+
+{# ── Digest metadata footer (SRC-150) ────────────────────────────────── #}
+<footer class="digest-meta-footer" aria-label="Digest metadata">
+  <div class="meta-item">
+    <span class="meta-label">Model</span>
+    <code>{{ digest.metadata.llm_model }}</code>
+  </div>
+  <div class="meta-sep" aria-hidden="true"></div>
+  <div class="meta-item">
+    <span class="meta-label">Items</span>
+    <span>{{ digest.metadata.items_included }}/{{ digest.metadata.items_considered }} curated</span>
+  </div>
+  <div class="meta-sep" aria-hidden="true"></div>
+  <div class="meta-item">
+    <span class="meta-label">Prompt</span>
+    <code title="{{ digest.metadata.prompt_version }}">{{ digest.metadata.prompt_version[:20] }}…</code>
+  </div>
+  {% if digest.metadata.token_usage %}
+  <div class="meta-sep" aria-hidden="true"></div>
+  <div class="meta-item">
+    <span class="meta-label">Tokens</span>
+    <span>{{ '{:,}'.format(digest.metadata.token_usage) }}</span>
+  </div>
+  {% endif %}
+</footer>
+
+{% endblock %}

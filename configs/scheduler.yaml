@@ -1,0 +1,79 @@
+# configs/scheduler.yaml — Root Scheduler Configuration
+#
+# Traces: SRC-052 (scheduler), SRC-072 (per-agent configs; multi-agent registry),
+#         SRC-144 (retry policy), SRC-147 (manual override)
+#
+# The scheduler reads this file to discover all registered agent configurations.
+# Each enabled agent is an independent, separately-schedulable unit. You can
+# spin up multiple curation themes simultaneously by adding entries to the
+# agents list — no code changes required (SRC-072).
+#
+# JSON Schema: configs/scheduler.schema.json
+# Validate with: python -m ai_news_agent.config.schema --validate configs/scheduler.yaml --type scheduler
+#
+# SECRETS: Never place API keys or tokens here. Use environment variables. (SRC-073)
+# Required env vars: OPENAI_API_KEY, TWITTER_BEARER_TOKEN
+# Optional env vars: WEB_SEARCH_API_KEY, WEB_SEARCH_PROVIDER, SCHEDULER_API_KEY
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Retry policy (SRC-144)
+# Pattern: base → base*2 → base*4  (30s → 60s → 120s with defaults)
+# ─────────────────────────────────────────────────────────────────────────────
+scheduler:
+  max_retries: 3                   # Retry attempts after first failure (SRC-144)
+  retry_backoff_base_seconds: 30   # Exponential: 30s → 60s → 120s
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Manual override API (SRC-147)
+# POST /api/trigger for on-demand backfills and misfire recovery.
+# ─────────────────────────────────────────────────────────────────────────────
+api:
+  enabled: true
+  host: "0.0.0.0"
+  port: 8081
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Cron-style trigger times (all UTC)  (SRC-052)
+# Format: "minute hour day_of_month month day_of_week"
+# ─────────────────────────────────────────────────────────────────────────────
+triggers:
+  sourcing_daily:   "0 0 * * *"     # 00:00 UTC daily  (SRC-009)
+  curation_daily:   "5 0 * * *"     # 00:05 UTC daily  (SRC-029)
+  curation_weekly:  "0 1 * * 0"     # 01:00 UTC Sunday (SRC-030)
+  curation_monthly: "0 2 1 * *"     # 02:00 UTC 1st of month (SRC-031)
+  curation_annual:  "0 3 1 1 *"     # 03:00 UTC January 1st (SRC-032)
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Registered agent configurations (SRC-072)
+#
+# Each entry is an independently scheduled unit. The scheduler loads the
+# referenced YAML at startup and registers 5 jobs per enabled agent:
+#   1. sourcing_daily
+#   2. curation_daily
+#   3. curation_weekly
+#   4. curation_monthly
+#   5. curation_annual
+#
+# To add a new agent: append an entry here and create the YAML config.
+# No code changes required.  (SRC-072)
+# ─────────────────────────────────────────────────────────────────────────────
+agents:
+  - id: default
+    config: configs/default-agent.yaml
+    enabled: true
+    description: "Default business + society AI news curation"
+
+  - id: technical
+    config: configs/example-technical-agent.yaml
+    enabled: false   # Disabled by default — enable when ready
+    description: "Technical AI developments curation (example alternate theme)"
+
+  - id: policy
+    config: configs/example-policy-agent.yaml
+    enabled: false   # Disabled by default — enable when ready
+    description: "AI policy, governance, and safety developments"
+
+  - id: developer
+    config: configs/example-developer-agent.yaml
+    enabled: false   # Disabled by default — enable when ready
+    description: "Developer / builder focus: tooling, agent frameworks, model APIs, infra, post-quantum security"

@@ -1,0 +1,238 @@
+{
+  "$defs": {
+    "LLMCadenceOverride": {
+      "description": "Per-cadence model override.\n\nMonthly and annual cadences benefit from higher-reasoning research-grade\nmodels (e.g. o3 with extended thinking).\n\nTraces: SRC-032 (annual high-reasoning), SRC-054 (configurable research LLM)\n\nYAML example::\n\n    cadence_overrides:\n      monthly:\n        model: o3\n        thinking: false\n      annual:\n        model: o3\n        thinking: true",
+      "properties": {
+        "model": {
+          "description": "Model name for this cadence override. Examples: 'o3', 'claude-3-7-sonnet-20250219'.",
+          "minLength": 1,
+          "title": "Model",
+          "type": "string"
+        },
+        "thinking": {
+          "default": false,
+          "description": "Enable extended thinking / reasoning mode (e.g. o3 extended thinking). Recommended: true for annual synthesis only (SRC-032).",
+          "title": "Thinking",
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "model"
+      ],
+      "title": "LLMCadenceOverride",
+      "type": "object"
+    },
+    "LLMConfig": {
+      "description": "LLM provider and model configuration.\n\nTraces: SRC-055\u2013SRC-061 (provider-agnostic LLM layer),\n        SRC-057 (OpenAI as default provider)\n\nYAML example::\n\n    llm:\n      provider: openai\n      model: gpt-4o\n      cadence_overrides:\n        monthly:\n          model: o3\n          thinking: false\n        annual:\n          model: o3\n          thinking: true",
+      "properties": {
+        "provider": {
+          "default": "openai",
+          "description": "LLM provider. Supported: 'openai' (default), 'anthropic'. Provider swap requires only this field change (SRC-056).",
+          "enum": [
+            "openai",
+            "anthropic"
+          ],
+          "title": "Provider",
+          "type": "string"
+        },
+        "model": {
+          "default": "gpt-4o",
+          "description": "Default model name for daily and weekly curation. OpenAI examples: 'gpt-4o', 'o3-mini'. Anthropic examples: 'claude-3-7-sonnet-20250219'.",
+          "minLength": 1,
+          "title": "Model",
+          "type": "string"
+        },
+        "cadence_overrides": {
+          "additionalProperties": {
+            "$ref": "#/$defs/LLMCadenceOverride"
+          },
+          "description": "Per-cadence model overrides. Keys must be one of: 'daily', 'weekly', 'monthly', 'annual'. Monthly and annual commonly use a more capable research model (SRC-054).",
+          "title": "Cadence Overrides",
+          "type": "object"
+        }
+      },
+      "title": "LLMConfig",
+      "type": "object"
+    },
+    "LimitsConfig": {
+      "description": "Top-N article limits per cadence.\n\nControls how many items the LLM is asked to select from the candidate pool.\nThese are soft targets \u2014 the LLM may return fewer if quality thresholds\nare not met.\n\nTraces: SRC-029 (daily), SRC-030 (weekly), SRC-031 (monthly), SRC-032 (annual)\n\nYAML example::\n\n    limits:\n      daily_top_n:   10\n      weekly_top_n:  7\n      monthly_top_n: 10\n      annual_top_n:  10",
+      "properties": {
+        "daily_top_n": {
+          "default": 10,
+          "description": "Maximum articles to select for a daily digest. Recommended: 5\u201315 (SRC-029).",
+          "maximum": 50,
+          "minimum": 1,
+          "title": "Daily Top N",
+          "type": "integer"
+        },
+        "weekly_top_n": {
+          "default": 7,
+          "description": "Maximum articles to select for a weekly digest. Recommended: 5\u201310 (SRC-030).",
+          "maximum": 50,
+          "minimum": 1,
+          "title": "Weekly Top N",
+          "type": "integer"
+        },
+        "monthly_top_n": {
+          "default": 10,
+          "description": "Maximum articles to select for a monthly digest. Recommended: 8\u201315 (SRC-031).",
+          "maximum": 50,
+          "minimum": 1,
+          "title": "Monthly Top N",
+          "type": "integer"
+        },
+        "annual_top_n": {
+          "default": 10,
+          "description": "Top articles + predictions count for the annual digest. Spec requires exactly 10 articles + 10 predictions (SRC-032). Range: 1\u201320.",
+          "maximum": 20,
+          "minimum": 1,
+          "title": "Annual Top N",
+          "type": "integer"
+        }
+      },
+      "title": "LimitsConfig",
+      "type": "object"
+    },
+    "SourcesConfig": {
+      "description": "Source tier configuration.\n\nFive tiers map to the architecture's source hierarchy (SRC-016\u2013SRC-021).\nAll tiers are optional lists \u2014 the sourcing agent uses these as allowlists\nwhen ranking and filtering web search results.\n\nTraces: SRC-016 (tier hierarchy), SRC-017 (Tier 1a \u2014 user custom),\n        SRC-018 (Tier 1b \u2014 business press), SRC-019 (Tier 2 \u2014 AI blogs),\n        SRC-020 (Tier 3 \u2014 tech business press), SRC-021 (Tier 4 \u2014 policy/research),\n        SRC-034 (user-configurable sources)\n\nYAML example::\n\n    sources:\n      custom:   []               # Tier 1a (optional)\n      tier_1b:\n        - reuters.com\n        - bloomberg.com\n      tier_2:\n        - openai.com\n        - anthropic.com\n      tier_3:\n        - techcrunch.com\n      tier_4:\n        - brookings.edu",
+      "properties": {
+        "custom": {
+          "description": "Tier 1a \u2014 user-specified priority sources (SRC-017). Domain strings only (e.g. 'myblog.example.com'). These are treated with highest priority during curation scoring.",
+          "items": {
+            "type": "string"
+          },
+          "title": "Custom",
+          "type": "array"
+        },
+        "tier_1b": {
+          "description": "Tier 1b \u2014 popular business press (SRC-018). Examples: reuters.com, bloomberg.com, wsj.com, ft.com, economist.com.",
+          "items": {
+            "type": "string"
+          },
+          "title": "Tier 1B",
+          "type": "array"
+        },
+        "tier_2": {
+          "description": "Tier 2 \u2014 top AI and tech company blogs (SRC-019). Examples: openai.com, anthropic.com, huggingface.co, news.ycombinator.com.",
+          "items": {
+            "type": "string"
+          },
+          "title": "Tier 2",
+          "type": "array"
+        },
+        "tier_3": {
+          "description": "Tier 3 \u2014 tech business press (SRC-020). Examples: techcrunch.com, theverge.com, technologyreview.com, wired.com.",
+          "items": {
+            "type": "string"
+          },
+          "title": "Tier 3",
+          "type": "array"
+        },
+        "tier_4": {
+          "description": "Tier 4 \u2014 policy and research institutions (SRC-021). Examples: brookings.edu, rand.org, hai.stanford.edu, ainowresearch.org.",
+          "items": {
+            "type": "string"
+          },
+          "title": "Tier 4",
+          "type": "array"
+        }
+      },
+      "title": "SourcesConfig",
+      "type": "object"
+    },
+    "TwitterConfig": {
+      "description": "Twitter/X sourcing configuration.\n\nWhen ``enabled: false``, the sourcing agent skips Twitter entirely and\nlogs a note. The digest is still produced from web sources (SRC-148).\n\nTraces: SRC-036\u2013SRC-046 (configurable influencer list),\n        SRC-047 (signal role \u2014 not primary news),\n        SRC-148 (graceful degradation when unavailable)\n\nYAML example::\n\n    twitter:\n      enabled: true\n      handles:\n        - { handle: karpathy, weight: 1.0 }\n        - { handle: sama,     weight: 1.0 }",
+      "properties": {
+        "enabled": {
+          "default": true,
+          "description": "Set false to skip Twitter/X entirely for this agent. The digest is still produced from web sources (SRC-148).",
+          "title": "Enabled",
+          "type": "boolean"
+        },
+        "handles": {
+          "description": "Influencer handles to monitor. Add, remove, or re-weight without code changes (SRC-046). If empty and enabled=true, no Twitter signal is collected.",
+          "items": {
+            "$ref": "#/$defs/TwitterHandleConfig"
+          },
+          "title": "Handles",
+          "type": "array"
+        }
+      },
+      "title": "TwitterConfig",
+      "type": "object"
+    },
+    "TwitterHandleConfig": {
+      "description": "A single influencer handle with optional signal weight.\n\nHandles can be added, removed, or re-weighted without code changes (SRC-046).\nTwitter content is signal only \u2014 not primary news (SRC-047).\n\nTraces: SRC-036\u2013SRC-046 (configurable influencer list), SRC-047 (signal role)\n\nYAML example::\n\n    - handle: karpathy\n      weight: 1.5",
+      "properties": {
+        "handle": {
+          "description": "Twitter/X handle without the @ prefix. Examples: 'karpathy', 'sama', 'ylecun'.",
+          "minLength": 1,
+          "pattern": "^[A-Za-z0-9_]{1,50}$",
+          "title": "Handle",
+          "type": "string"
+        },
+        "weight": {
+          "default": 1.0,
+          "description": "Signal weight for this handle (0.0 < weight \u2264 10.0). Higher weight = more prominent in the LLM prompt's influencer-signal section. Default 1.0. Technical/research agents may boost specialist handles (SRC-046).",
+          "exclusiveMinimum": 0.0,
+          "maximum": 10.0,
+          "title": "Weight",
+          "type": "number"
+        }
+      },
+      "required": [
+        "handle"
+      ],
+      "title": "TwitterHandleConfig",
+      "type": "object"
+    }
+  },
+  "description": "JSON Schema for a per-agent YAML configuration file. Validated by load_agent_config() at startup. Secrets (API keys, tokens) must NEVER appear in this file \u2014 use env vars. Requirement traces: SRC-017\u2013SRC-021, SRC-029\u2013SRC-032, SRC-036\u2013SRC-046, SRC-054, SRC-057, SRC-071\u2013SRC-073, SRC-113, SRC-129, SRC-145.",
+  "properties": {
+    "agent_id": {
+      "description": "Unique agent identifier. Used as the storage namespace and output directory component. Must be a valid slug: letters, digits, hyphens, underscores only.",
+      "maxLength": 64,
+      "minLength": 1,
+      "pattern": "^[a-zA-Z0-9_-]+$",
+      "title": "Agent Id",
+      "type": "string"
+    },
+    "llm": {
+      "$ref": "#/$defs/LLMConfig",
+      "description": "LLM provider and model configuration (SRC-057)."
+    },
+    "curation_prompt": {
+      "default": "prompts/daily.md",
+      "description": "Path to the base curation prompt template directory or a specific file. When a directory is given, the appropriate cadence file (daily.md / weekly.md / monthly.md / annual.md) is selected at runtime. Prompt SHA-256 is recorded in all digest outputs (SRC-113, SRC-129).",
+      "minLength": 1,
+      "title": "Curation Prompt",
+      "type": "string"
+    },
+    "sources": {
+      "$ref": "#/$defs/SourcesConfig",
+      "description": "Configurable source tier lists (SRC-016\u2013SRC-021)."
+    },
+    "twitter": {
+      "$ref": "#/$defs/TwitterConfig",
+      "description": "Twitter/X influencer configuration (SRC-036\u2013SRC-046)."
+    },
+    "limits": {
+      "$ref": "#/$defs/LimitsConfig",
+      "description": "Top-N article limits per cadence (SRC-029\u2013SRC-032)."
+    },
+    "output_dir": {
+      "default": "outputs/{agent_id}",
+      "description": "Base output directory for digest files. The placeholder ``{agent_id}`` is resolved to the agent's ``agent_id`` at load time (SRC-145). Output file pattern: ``{output_dir}/YYYY-MM-DD-{cadence}.{md|html|json}``.",
+      "minLength": 1,
+      "title": "Output Dir",
+      "type": "string"
+    }
+  },
+  "required": [
+    "agent_id"
+  ],
+  "title": "AI News Agent \u2014 Per-Agent Configuration Schema",
+  "type": "object",
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$comment": "Generated from ai_news_agent.config.models.AgentConfig. See docs/requirements/implementation-plan.md (SLICE-003) for traceability. Do not edit manually \u2014 regenerate with: python -m ai_news_agent.config.schema --export-dir configs/"
+}

@@ -1,0 +1,155 @@
+{
+  "$defs": {
+    "APIConfig": {
+      "description": "Manual override API settings for the scheduler.\n\nExposes a ``POST /api/trigger`` endpoint for on-demand job execution \u2014\nuseful for backfills and misfire recovery (SRC-147).\n\nTraces: SRC-147 (manual override endpoint)\n\nYAML example::\n\n    api:\n      enabled: true\n      host: \"0.0.0.0\"\n      port: 8081",
+      "properties": {
+        "enabled": {
+          "default": true,
+          "description": "Enable the manual override HTTP API.",
+          "title": "Enabled",
+          "type": "boolean"
+        },
+        "host": {
+          "default": "0.0.0.0",
+          "description": "Bind host for the scheduler API.",
+          "title": "Host",
+          "type": "string"
+        },
+        "port": {
+          "default": 8081,
+          "description": "TCP port for the scheduler API (default: 8081).",
+          "maximum": 65535,
+          "minimum": 1,
+          "title": "Port",
+          "type": "integer"
+        }
+      },
+      "title": "APIConfig",
+      "type": "object"
+    },
+    "AgentRegistration": {
+      "description": "A single entry in the ``scheduler.yaml`` agents registry.\n\nEach registration links an agent ID to its per-agent YAML config file.\nDisabled agents are skipped at scheduler startup without errors (SRC-072).\n\nTraces: SRC-072 (multi-agent discovery from scheduler.yaml)\n\nYAML example::\n\n    agents:\n      - id: default\n        config: configs/default-agent.yaml\n        enabled: true\n        description: \"Default business + society AI news curation\"",
+      "properties": {
+        "id": {
+          "description": "Unique agent identifier. Must match the ``agent_id`` in the referenced YAML.",
+          "maxLength": 64,
+          "minLength": 1,
+          "pattern": "^[a-zA-Z0-9_-]+$",
+          "title": "Id",
+          "type": "string"
+        },
+        "config": {
+          "description": "Relative or absolute path to the per-agent YAML configuration file.",
+          "minLength": 1,
+          "title": "Config",
+          "type": "string"
+        },
+        "enabled": {
+          "default": true,
+          "description": "Set false to skip this agent at scheduler startup. Useful for staging configs that are not yet ready (SRC-072).",
+          "title": "Enabled",
+          "type": "boolean"
+        },
+        "description": {
+          "default": "",
+          "description": "Human-readable description of this agent's curation theme.",
+          "title": "Description",
+          "type": "string"
+        }
+      },
+      "required": [
+        "id",
+        "config"
+      ],
+      "title": "AgentRegistration",
+      "type": "object"
+    },
+    "RetryConfig": {
+      "description": "Retry policy for failed scheduler jobs.\n\nImplements exponential backoff: ``base \u2192 base*2 \u2192 base*4``.\nDefault: 30s \u2192 60s \u2192 120s (three retries).\n\nTraces: SRC-144 (3 retries with exponential backoff)\n\nYAML example::\n\n    scheduler:\n      max_retries: 3\n      retry_backoff_base_seconds: 30",
+      "properties": {
+        "max_retries": {
+          "default": 3,
+          "description": "Number of retry attempts after first failure (SRC-144).",
+          "maximum": 10,
+          "minimum": 0,
+          "title": "Max Retries",
+          "type": "integer"
+        },
+        "retry_backoff_base_seconds": {
+          "default": 30,
+          "description": "Base sleep interval in seconds for exponential backoff. Pattern: base \u2192 base*2 \u2192 base*4 (SRC-144). Default: 30 \u2192 60 \u2192 120 seconds.",
+          "maximum": 300,
+          "minimum": 1,
+          "title": "Retry Backoff Base Seconds",
+          "type": "integer"
+        }
+      },
+      "title": "RetryConfig",
+      "type": "object"
+    },
+    "TriggersConfig": {
+      "description": "Cron expressions for all sourcing and curation jobs (UTC).\n\nAll expressions are five-field standard cron format:\n``minute hour day_of_month month day_of_week``\n\nTraces: SRC-009 (daily sourcing 00:00 UTC),\n        SRC-028 (curation at beginning of next window),\n        SRC-029 (daily curation), SRC-030 (weekly), SRC-031 (monthly),\n        SRC-032 (annual Jan 1)\n\nYAML example::\n\n    triggers:\n      sourcing_daily:   \"0 0 * * *\"\n      curation_daily:   \"5 0 * * *\"\n      curation_weekly:  \"0 1 * * 0\"\n      curation_monthly: \"0 2 1 * *\"\n      curation_annual:  \"0 3 1 1 *\"",
+      "properties": {
+        "sourcing_daily": {
+          "default": "0 0 * * *",
+          "description": "Cron for daily sourcing run \u2014 00:00 UTC (SRC-009).",
+          "title": "Sourcing Daily",
+          "type": "string"
+        },
+        "curation_daily": {
+          "default": "5 0 * * *",
+          "description": "Cron for daily curation run \u2014 00:05 UTC (SRC-029).",
+          "title": "Curation Daily",
+          "type": "string"
+        },
+        "curation_weekly": {
+          "default": "0 1 * * 0",
+          "description": "Cron for weekly curation run \u2014 01:00 UTC Sunday (SRC-030).",
+          "title": "Curation Weekly",
+          "type": "string"
+        },
+        "curation_monthly": {
+          "default": "0 2 1 * *",
+          "description": "Cron for monthly curation run \u2014 02:00 UTC 1st of month (SRC-031).",
+          "title": "Curation Monthly",
+          "type": "string"
+        },
+        "curation_annual": {
+          "default": "0 3 1 1 *",
+          "description": "Cron for annual curation run \u2014 03:00 UTC January 1st (SRC-032).",
+          "title": "Curation Annual",
+          "type": "string"
+        }
+      },
+      "title": "TriggersConfig",
+      "type": "object"
+    }
+  },
+  "description": "JSON Schema for configs/scheduler.yaml. Defines retry policy, cron triggers, API settings, and agent registry. Requirement traces: SRC-052, SRC-072, SRC-144, SRC-147.",
+  "properties": {
+    "scheduler": {
+      "$ref": "#/$defs/RetryConfig",
+      "description": "Retry policy for failed jobs (SRC-144)."
+    },
+    "api": {
+      "$ref": "#/$defs/APIConfig",
+      "description": "Manual override API settings (SRC-147)."
+    },
+    "triggers": {
+      "$ref": "#/$defs/TriggersConfig",
+      "description": "Cron trigger times for all jobs (SRC-052)."
+    },
+    "agents": {
+      "description": "Registry of all agent configurations (SRC-072). Each enabled agent gets a full set of 5 scheduled jobs (sourcing + 4 curation cadences).",
+      "items": {
+        "$ref": "#/$defs/AgentRegistration"
+      },
+      "title": "Agents",
+      "type": "array"
+    }
+  },
+  "title": "AI News Agent \u2014 Scheduler Configuration Schema",
+  "type": "object",
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$comment": "Generated from ai_news_agent.config.models.SchedulerConfig. Regenerate with: python -m ai_news_agent.config.schema --export-dir configs/"
+}

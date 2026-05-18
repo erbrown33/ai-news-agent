@@ -1,0 +1,47 @@
+# .dockerignore — Excludes unnecessary files from the Docker build context.
+# Traces: SRC-085 (same image local → CI → prod; minimal image)
+
+# Version control
+.git
+.gitignore
+
+# Dev artifacts
+.env
+.env.*
+!.env.example
+__pycache__
+*.pyc
+*.pyo
+*.pyd
+.pytest_cache
+.mypy_cache
+.ruff_cache
+
+# Test and CI directories (not needed in production image)
+tests/
+.github/
+attractor-runs/
+
+# Documentation (not needed in production image)
+docs/
+
+# Runtime output directory (mounted or synced at runtime, not baked in)
+outputs/
+*.json.bak
+
+# IDE and OS artifacts
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
+
+# Python packaging artifacts
+dist/
+build/
+*.egg-info/
+.eggs/
+
+# Secrets (NEVER bake into image — SRC-073, SRC-111)
+*.pem
+*.key
+*.crt

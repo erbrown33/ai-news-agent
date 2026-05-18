@@ -1,0 +1,126 @@
+# configs/example-policy-agent.yaml — Example policy & governance-focused agent.
+#
+# This agent monitors AI policy, regulation, safety research, and governance
+# developments. It uses a curated set of policy/research sources and de-emphasises
+# general tech press in favour of government, think-tank, and academic sources.
+#
+# Traces: SRC-072 (multiple independent agent configs without code changes),
+#         SRC-046 (configurable handles), SRC-071–SRC-073 (config system),
+#         SRC-057 (provider selection), SRC-054 (research LLM for annual)
+#
+# Enable this agent by adding it to configs/scheduler.yaml:
+#   agents:
+#     - id: policy
+#       config: configs/example-policy-agent.yaml
+#       enabled: true
+#       description: "AI policy, governance, and safety developments"
+#
+# SECRETS: NEVER place API keys or tokens here.
+# Required env vars: OPENAI_API_KEY, TWITTER_BEARER_TOKEN  (SRC-073, SRC-111)
+# Optional env vars: WEB_SEARCH_API_KEY, WEB_SEARCH_PROVIDER
+
+agent_id: policy
+
+# ─────────────────────────────────────────────────────────────────────────────
+# LLM configuration  (SRC-057)
+# Policy analysis benefits from a capable model; using gpt-4o for daily/weekly
+# and o3 research mode for monthly/annual synthesis (SRC-054).
+# ─────────────────────────────────────────────────────────────────────────────
+llm:
+  provider: openai                  # "openai" | "anthropic"  (SRC-057)
+  model: gpt-4o
+
+  cadence_overrides:
+    monthly:
+      model: o3                     # Deeper policy analysis with research-grade model (SRC-054)
+      thinking: false
+    annual:
+      model: o3
+      thinking: true                # Extended thinking for annual policy predictions (SRC-032, SRC-054)
+
+# Path to the default prompt template. Cadence-specific files
+# (daily.md / weekly.md / monthly.md / annual.md) are selected at runtime.
+# Prompt SHA-256 is recorded in all digest outputs (SRC-129).
+curation_prompt: prompts/daily.md
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Source tier configuration  (SRC-016–SRC-021, SRC-034)
+# Policy agent emphasises Tier 4 (policy/research) and de-emphasises
+# Tier 3 tech trade press in favour of government and academic sources.
+# ─────────────────────────────────────────────────────────────────────────────
+sources:
+  # Tier 1a — custom priority sources specific to this agent (SRC-017)
+  # These are monitored at highest priority before standard tiers.
+  custom:
+    - whitehouse.gov
+    - ntia.gov
+    - nist.gov
+    - artificialintelligenceact.eu
+    - digital-strategy.ec.europa.eu
+
+  # Tier 1b — business press with strong policy coverage (SRC-018)
+  tier_1b:
+    - reuters.com
+    - ft.com
+    - economist.com
+    - axios.com
+    - politico.com
+
+  # Tier 2 — AI lab policy-relevant publications (SRC-019)
+  tier_2:
+    - openai.com
+    - anthropic.com
+    - deepmind.google
+
+  # Tier 3 — Tech press with policy focus (SRC-020)
+  tier_3:
+    - technologyreview.com
+    - theverge.com
+    - wired.com
+
+  # Tier 4 — Policy/research institutions — highest priority for this agent (SRC-021)
+  tier_4:
+    - brookings.edu
+    - rand.org
+    - hai.stanford.edu
+    - ainowresearch.org
+    - cset.georgetown.edu
+    - partnershiponai.org
+    - oecd.ai
+    - gao.gov
+    - govinfo.gov
+    - euractiv.com
+    - ftc.gov
+    - sec.gov
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Twitter/X influencer configuration (SRC-036–SRC-046)
+# Policy agent monitors AI governance, safety, and policy voices.
+# Handles can be added, removed, or re-weighted without code changes (SRC-046).
+# Twitter content = signal and lead-generation, NOT primary news (SRC-047).
+# ─────────────────────────────────────────────────────────────────────────────
+twitter:
+  enabled: true
+  handles:
+    - { handle: emilymbender,    weight: 2.0 }   # Emily Bender — AI safety/ethics (SRC-045)
+    - { handle: ylecun,          weight: 1.5 }   # Yann LeCun — AI research/policy (SRC-041)
+    - { handle: drfeifei,        weight: 1.5 }   # Fei-Fei Li — AI + societal impact (SRC-044)
+    - { handle: DarioAmodei,     weight: 1.5 }   # Dario Amodei — AI safety (SRC-040)
+    - { handle: sama,            weight: 1.0 }   # Sam Altman — policy/regulation (SRC-038)
+    - { handle: AndrewYNg,       weight: 1.0 }   # Andrew Ng — AI + education policy (SRC-042)
+    - { handle: karpathy,        weight: 0.5 }   # Andrej Karpathy — lower weight; not policy-focused (SRC-037)
+    - { handle: timnitgebru,     weight: 2.0 }   # Timnit Gebru — AI ethics/fairness
+    - { handle: alexstubb,       weight: 1.0 }   # Policy leadership
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Top-N article limits per cadence  (SRC-029–SRC-032)
+# Policy agent selects fewer, higher-quality items with deeper analysis.
+# ─────────────────────────────────────────────────────────────────────────────
+limits:
+  daily_top_n:   7     # Fewer items — focus on significant policy events (SRC-029)
+  weekly_top_n:  5     # Deep coverage of the week's top policy developments (SRC-030)
+  monthly_top_n: 8     # Key regulatory + governance themes (SRC-031)
+  annual_top_n:  10    # Top AI policy stories + 10 predictions for the year ahead (SRC-032)
+
+# Base output directory — {agent_id} resolved to "policy" at runtime (SRC-145)
+output_dir: outputs/{agent_id}

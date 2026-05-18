@@ -1,0 +1,96 @@
+<!DOCTYPE html>
+<!--
+  base.html — Base layout template for the AI News Curation Portal.
+  Traces: SRC-004 (web portal deliverable), SRC-133 (portal features),
+          SRC-134 (agent switcher — display-only in v1, no auth required)
+-->
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="description" content="AI News Curation Portal — curated AI industry news digests by cadence and agent.">
+  <title>{% block title %}AI News Portal{% endblock %}</title>
+
+  <!-- Google Fonts — Inter (weights 300–800) -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet">
+
+  <!-- Portal stylesheet -->
+  <link rel="stylesheet" href="/static/css/app.css">
+
+  {% block head_extra %}{% endblock %}
+</head>
+<body>
+
+<!-- ─────────────────────────────────────────────────────────────────────
+     Sticky Navigation Bar
+     ───────────────────────────────────────────────────────────────────── -->
+<nav class="navbar" role="navigation" aria-label="Main navigation">
+  <div class="navbar-inner">
+
+    <!-- Brand -->
+    <a href="/" class="navbar-brand" aria-label="AI News Portal home">
+      <span class="brand-icon" aria-hidden="true">🤖</span>
+      <span class="brand-text">AI News</span>
+    </a>
+
+    <!-- Agent Config Switcher (SRC-134 — display-only, no auth in v1) -->
+    {% if agents is defined and agents %}
+    <div class="agent-switcher" title="Switch agent configuration (SRC-134)">
+      <label for="agent-select" class="agent-label">Agent</label>
+      <select
+        id="agent-select"
+        class="agent-select"
+        onchange="switchAgent(this.value)"
+        aria-label="Select agent configuration"
+      >
+        {% for agent in agents %}
+          <option value="{{ agent }}"
+            {% if agent == (agent_id | default('')) %}selected{% endif %}>
+            {{ agent }}
+          </option>
+        {% endfor %}
+      </select>
+    </div>
+    {% endif %}
+
+    <!-- Navigation links -->
+    <div class="nav-links">
+      <a href="/" class="nav-link">Home</a>
+      <a href="/api/docs" class="nav-link" target="_blank" rel="noopener">API</a>
+      <a href="/api/health" class="nav-link" target="_blank" rel="noopener">Health</a>
+    </div>
+
+  </div>
+</nav>
+
+<!-- ─────────────────────────────────────────────────────────────────────
+     Main Content
+     ───────────────────────────────────────────────────────────────────── -->
+<main class="main-content" id="main">
+  {% block content %}{% endblock %}
+</main>
+
+<!-- ─────────────────────────────────────────────────────────────────────
+     Footer
+     ───────────────────────────────────────────────────────────────────── -->
+<footer class="footer" role="contentinfo">
+  <div class="footer-inner">
+    <span>AI News Curation Agent · v1</span>
+    <div class="footer-links">
+      <a href="/" class="footer-link">Home</a>
+      <a href="/api/agents" class="footer-link" target="_blank" rel="noopener">Agents API</a>
+      <a href="/api/health" class="footer-link" target="_blank" rel="noopener">Health</a>
+      <a href="/api/docs" class="footer-link" target="_blank" rel="noopener">OpenAPI</a>
+    </div>
+  </div>
+</footer>
+
+<!-- Portal JS -->
+<script src="/static/js/app.js"></script>
+
+{% block scripts %}{% endblock %}
+
+</body>
+</html>

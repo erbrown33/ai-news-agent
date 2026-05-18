@@ -1,0 +1,99 @@
+# configs/example-technical-agent.yaml — Example alternate-theme agent configuration.
+# This agent is disabled by default (see configs/scheduler.yaml).
+# It demonstrates how to run a second agent with a different curation theme,
+# different LLM configuration, and different source list — all without code changes.
+#
+# Traces: SRC-072 (multiple agent configs; runtime without code changes),
+#         SRC-046 (configurable handles), SRC-071–SRC-073 (config system),
+#         SRC-057 (provider selection)
+#
+# SECRETS: NEVER place API keys or tokens here.
+# Required env vars: OPENAI_API_KEY, TWITTER_BEARER_TOKEN  (SRC-073, SRC-111)
+
+agent_id: technical
+
+# ─────────────────────────────────────────────────────────────────────────────
+# LLM configuration (SRC-057)
+# ─────────────────────────────────────────────────────────────────────────────
+llm:
+  provider: openai
+  model: gpt-4o
+
+  # Technical agent uses the same model for all cadences by default
+  # Override for monthly/annual if deeper reasoning is needed (SRC-054)
+  cadence_overrides:
+    monthly:
+      model: o3
+      thinking: false
+    annual:
+      model: o3
+      thinking: true
+
+# Path to the default prompt (same files as default agent; curation prompt
+# is what differentiates agents — the prompt itself is the curation "theme") (SRC-113)
+curation_prompt: prompts/daily.md
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Source tier configuration (SRC-016–SRC-021, SRC-034)
+# Technical agent emphasizes research papers and technical blogs
+# ─────────────────────────────────────────────────────────────────────────────
+sources:
+  # Tier 1a — custom priority sources for this agent (SRC-017)
+  custom:
+    - arxiv.org
+    - paperswithcode.com
+    - distill.pub
+
+  # Tier 1b — technical-focused primary sources (SRC-018)
+  tier_1b:
+    - nature.com
+    - science.org
+
+  # Tier 2 — AI research blogs and technical publications (SRC-019)
+  tier_2:
+    - openai.com
+    - anthropic.com
+    - deepmind.google
+    - huggingface.co
+    - ai.google
+    - research.microsoft.com
+
+  # Tier 3 — technical trade press (SRC-020)
+  tier_3:
+    - technologyreview.com
+    - spectrum.ieee.org
+    - wired.com
+
+  # Tier 4 — AI safety and governance research (SRC-021)
+  tier_4:
+    - alignmentforum.org
+    - lesswrong.com
+    - mlsafety.org
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Twitter/X influencer configuration (SRC-036–SRC-046)
+# Technical-focused handles with adjusted weights
+# ─────────────────────────────────────────────────────────────────────────────
+twitter:
+  enabled: true
+  handles:
+    - { handle: karpathy,      weight: 2.0 }   # Andrej Karpathy — research focus (SRC-037)
+    - { handle: ylecun,        weight: 2.0 }   # Yann LeCun — research focus (SRC-041)
+    - { handle: fchollet,      weight: 2.0 }   # François Chollet (SRC-043)
+    - { handle: sama,          weight: 1.0 }   # Sam Altman (SRC-038)
+    - { handle: demishassabis, weight: 1.0 }   # Demis Hassabis (SRC-039)
+    - { handle: drfeifei,      weight: 1.0 }   # Fei-Fei Li (SRC-044)
+    - { handle: emilymbender,  weight: 1.5 }   # Emily Bender — AI safety focus (SRC-045)
+    - { handle: AndrewYNg,     weight: 1.0 }   # Andrew Ng (SRC-042)
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Top-N article limits per cadence (SRC-029–SRC-032)
+# ─────────────────────────────────────────────────────────────────────────────
+limits:
+  daily_top_n:   8     # Fewer daily items — focus on high-quality technical pieces
+  weekly_top_n:  5
+  monthly_top_n: 8
+  annual_top_n:  10
+
+# Base output directory — {agent_id} resolved to "technical" at runtime (SRC-145)
+output_dir: outputs/{agent_id}

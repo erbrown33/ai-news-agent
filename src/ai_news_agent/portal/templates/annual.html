@@ -1,0 +1,264 @@
+{% extends "base.html" %}
+<!--
+  annual.html — Annual digest: ranked top-10 articles, 10 predictions, year themes.
+  Traces: SRC-032 (annual: top 10 articles, punchy + well-researched),
+          SRC-048 (curated item schema),
+          SRC-124 (predictions grounded in observed trends, reasoning shown),
+          SRC-133 (portal views), SRC-134 (annual theme word cloud, impact filter),
+          SRC-136 (export downloads), SRC-148 (Twitter unavailable note),
+          SRC-150 (metadata footer)
+-->
+
+{% block title %}🎯 Annual Review — {{ date_str }} | {{ agent_id }}{% endblock %}
+
+{% block content %}
+
+{# ── Page header ─────────────────────────────────────────────────────── #}
+<div class="page-header">
+  <nav class="breadcrumb" aria-label="Breadcrumb">
+    <a href="/">Home</a>
+    <span class="breadcrumb-sep" aria-hidden="true">›</span>
+    <a href="/#agent-{{ agent_id }}">{{ agent_id }}</a>
+    <span class="breadcrumb-sep" aria-hidden="true">›</span>
+    <span>Annual</span>
+    <span class="breadcrumb-sep" aria-hidden="true">›</span>
+    <span>{{ date_str }}</span>
+  </nav>
+
+  <div class="cadence-hero">
+    <span class="cadence-hero-badge annual">🎯 Annual</span>
+  </div>
+
+  <h1 class="page-title">Annual AI Year in Review &amp; Predictions</h1>
+
+  <div class="window-range">
+    <span>Year reviewed:</span>
+    <time>{{ (digest.metadata.window_start or '')[:10] }}</time>
+    <span aria-hidden="true">—</span>
+    <time>{{ (digest.metadata.window_end or '')[:10] }}</time>
+  </div>
+
+  <div class="export-bar" aria-label="Download digest">
+    <span class="export-label">Download</span>
+    {% for fmt in available_fmts %}
+    <a href="/download/{{ agent_id }}/{{ date_str }}/annual/{{ fmt }}"
+       class="export-btn export-{{ fmt }}"
+       title="Download {{ fmt | upper }} export">
+      ↓ {{ fmt | upper }}
+    </a>
+    {% endfor %}
+  </div>
+</div>
+
+{# ── Twitter degradation alert (SRC-148) ─────────────────────────────── #}
+{% if digest.metadata.twitter_signal_available == false %}
+<div class="alert alert-warning" role="alert">
+  <span class="alert-icon">⚠️</span>
+  <span>Twitter/X influencer signal was unavailable for this run. Annual synthesis based on web sources only.</span>
+</div>
+{% elif digest.twitter_degradation_note is defined and digest.twitter_degradation_note %}
+<div class="alert alert-warning" role="alert">
+  <span class="alert-icon">⚠️</span>
+  <span>{{ digest.twitter_degradation_note }}</span>
+</div>
+{% endif %}
+
+{# ── Year theme word cloud (SRC-134) ─────────────────────────────────── #}
+{% if themes %}
+<section class="themes-section" aria-label="Year themes">
+  <h2 class="section-title">🏷️ Year in Review — Key Themes</h2>
+
+  <div class="tag-cloud" id="tag-cloud" role="group" aria-label="Click a theme to filter the top-10 articles">
+    {% for theme in themes %}
+    <button
+      class="theme-tag annual-theme"
+      data-theme="{{ theme }}"
+      data-weight="{{ theme_weights.get(theme, 1) }}"
+      type="button"
+      aria-pressed="false"
+      aria-label="Filter by theme: {{ theme }}"
+    >{{ theme }}</button>
+    {% endfor %}
+  </div>
+
+  <p class="theme-filter-hint" style="display:none">
+    💡 Tip: Click multiple themes for OR-filtering. Press <kbd>Esc</kbd> to clear.
+  </p>
+</section>
+{% endif %}
+
+{# ── Impact filter bar (SRC-134) ─────────────────────────────────────── #}
+{% if items %}
+<div class="impact-filter-bar" id="impact-filter" aria-label="Filter by impact category">
+  <span class="filter-label">Filter</span>
+  <button class="filter-pill active" data-filter="all" type="button">
+    All <span class="filter-count">{{ items | length }}</span>
+  </button>
+  {% if impact_freq.get('business_impact', 0) > 0 %}
+  <button class="filter-pill" data-filter="business_impact" type="button">
+    💼 Business <span class="filter-count">{{ impact_freq.get('business_impact', 0) }}</span>
+  </button>
+  {% endif %}
+  {% if impact_freq.get('workforce_impact', 0) > 0 %}
+  <button class="filter-pill" data-filter="workforce_impact" type="button">
+    👥 Workforce <span class="filter-count">{{ impact_freq.get('workforce_impact', 0) }}</span>
+  </button>
+  {% endif %}
+  {% if impact_freq.get('policy_impact', 0) > 0 %}
+  <button class="filter-pill" data-filter="policy_impact" type="button">
+    ⚖️ Policy <span class="filter-count">{{ impact_freq.get('policy_impact', 0) }}</span>
+  </button>
+  {% endif %}
+</div>
+{% endif %}
+
+{# ── Top 10 articles of the year (SRC-032, SRC-048) ──────────────────── #}
+<section class="articles-section" aria-label="Top 10 stories of the year">
+  <h2 class="section-title">🏆 Top 10 Stories of the Year</h2>
+  <div class="articles-list" role="feed">
+    {% if not items %}
+    <div class="empty-state">
+      <div class="empty-icon">📭</div>
+      <p>No articles met the curation threshold for this period.</p>
+    </div>
+    {% else %}
+    {% for item in items %}
+    <article class="article-card annual-article tier-{{ item.tier }}"
+             data-tier="{{ item.tier }}"
+             data-tags="{{ item.impact_tags | join(' ') }}">
+
+      {# Rank badge #}
+      <div class="article-rank-badge rank-{{ loop.index }}" aria-label="Ranked #{{ loop.index }}">
+        #{{ loop.index }}
+      </div>
+
+      <div class="article-content">
+        <div class="article-header">
+          <span class="tier-badge">Tier {{ item.tier }}</span>
+          {% if item.pub_date %}
+          <time class="article-date">{{ item.pub_date[:10] if item.pub_date else '' }}</time>
+          {% endif %}
+          {% for tag in item.impact_tags %}
+          <span class="impact-badge impact-{{ tag }}">
+            {% if tag == 'business_impact' %}💼 Business
+            {% elif tag == 'workforce_impact' %}👥 Workforce
+            {% elif tag == 'policy_impact' %}⚖️ Policy
+            {% else %}{{ tag }}{% endif %}
+          </span>
+          {% endfor %}
+        </div>
+
+        <h3 class="article-headline">
+          <a href="{{ item.url }}" rel="noopener noreferrer" target="_blank">
+            {{ item.headline }}
+          </a>
+        </h3>
+
+        <div class="article-source">
+          <strong>{{ item.source_name }}</strong>
+          {% if item.twitter_handle %}
+          <span class="twitter-signal">
+            · 🐦 via
+            <a href="{{ item.tweet_url or '#' }}" rel="noopener" target="_blank">@{{ item.twitter_handle }}</a>
+          </span>
+          {% endif %}
+        </div>
+
+        {% if item.why_it_matters %}
+        <div class="why-matters-block">
+          <span class="why-label">Why it mattered</span>
+          <p class="why-text">{{ item.why_it_matters }}</p>
+        </div>
+        {% endif %}
+
+        {% if item.cross_refs %}
+        <div class="cross-refs">
+          <strong>Related:</strong>
+          {% for ref in item.cross_refs %}
+          <a href="{{ ref }}" class="cross-ref-link" rel="noopener" target="_blank">
+            {{ ref | truncate(55, true, '…') }}
+          </a>
+          {% endfor %}
+        </div>
+        {% endif %}
+      </div>
+
+    </article>
+    {% endfor %}
+    {% endif %}
+  </div>
+</section>
+
+{# ── 10 Predictions for the Year Ahead (SRC-032, SRC-124) ────────────── #}
+{% if digest.predictions %}
+<section class="predictions-section" aria-label="Predictions for the year ahead">
+  <h2 class="section-title">🔮 10 Predictions for the Year Ahead</h2>
+
+  <div class="predictions-intro">
+    Each prediction is grounded in observed trends from the year reviewed.
+    Reasoning is shown. Predictions are falsifiable — revisit on Jan 1.
+    <em>(SRC-124)</em>
+  </div>
+
+  <ol class="predictions-list" aria-label="Annual predictions">
+    {% for prediction in digest.predictions %}
+    <li class="prediction-card">
+      <div class="prediction-number" aria-hidden="true">{{ loop.index }}</div>
+      <div class="prediction-text">{{ prediction }}</div>
+    </li>
+    {% endfor %}
+  </ol>
+</section>
+{% endif %}
+
+{# ── Digest metadata footer (SRC-150) ────────────────────────────────── #}
+<footer class="digest-meta-footer" aria-label="Digest metadata">
+  <div class="meta-item">
+    <span class="meta-label">Model</span>
+    <code>{{ digest.metadata.llm_model }}</code>
+  </div>
+  <div class="meta-sep" aria-hidden="true"></div>
+  <div class="meta-item">
+    <span class="meta-label">Items</span>
+    <span>{{ digest.metadata.items_included }}/{{ digest.metadata.items_considered }} curated</span>
+  </div>
+  {% if digest.predictions %}
+  <div class="meta-sep" aria-hidden="true"></div>
+  <div class="meta-item">
+    <span class="meta-label">Predictions</span>
+    <span>{{ digest.predictions | length }}</span>
+  </div>
+  {% endif %}
+  {% if themes %}
+  <div class="meta-sep" aria-hidden="true"></div>
+  <div class="meta-item">
+    <span class="meta-label">Themes</span>
+    <span>{{ themes | length }}</span>
+  </div>
+  {% endif %}
+  <div class="meta-sep" aria-hidden="true"></div>
+  <div class="meta-item">
+    <span class="meta-label">Prompt</span>
+    <code title="{{ digest.metadata.prompt_version }}">{{ digest.metadata.prompt_version[:20] }}…</code>
+  </div>
+  {% if digest.metadata.token_usage %}
+  <div class="meta-sep" aria-hidden="true"></div>
+  <div class="meta-item">
+    <span class="meta-label">Tokens</span>
+    <span>{{ '{:,}'.format(digest.metadata.token_usage) }}</span>
+  </div>
+  {% endif %}
+</footer>
+
+{% endblock %}
+
+{% block scripts %}
+<script>
+  document.querySelectorAll(".theme-tag").forEach(tag => {
+    const observer = new MutationObserver(() => {
+      tag.setAttribute("aria-pressed", tag.classList.contains("active") ? "true" : "false");
+    });
+    observer.observe(tag, { attributes: true, attributeFilter: ["class"] });
+  });
+</script>
+{% endblock %}

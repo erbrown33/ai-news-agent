@@ -1,0 +1,59 @@
+digraph AINewsCurationAgent {
+    graph [
+        requirements_file = "docs/requirements/requirements.md",
+        spec_file = "docs/requirements/spec.md",
+        plan_file = "docs/requirements/implementation-plan.md",
+        backlog_file = "docs/requirements/backlog.md",
+        default_max_retries = 2,
+        retry_target = "implement_core",
+        goal = "Build an AI News Curation Agent system: a multi-agent platform (sourcing, curation, rendering) producing daily/weekly/monthly/annual AI news digests in Markdown/HTML/JSON plus a web portal. Provider-agnostic LLM layer (default OpenAI), Twitter/X integration via tweepy, configurable per-agent YAML configs, deployable as serverless containers. Implementation must comply with docs/requirements/requirements.md, docs/requirements/spec.md, docs/requirements/implementation-plan.md, and docs/requirements/backlog.md."
+    ]
+
+    node [shape="box", timeout="1800s"]
+
+    start [shape="Mdiamond"]
+    exit [shape="Msquare"]
+    ingest_requirements [label="Ingest Requirements & Plan", prompt="Read and internalize the planning artifacts: docs/requirements/requirements.md, docs/requirements/spec.md, docs/requirements/implementation-plan.md, and docs/requirements/backlog.md. Produce a concise working brief that maps each backlog item to functional area (sourcing, curation, rendering, portal, scheduler, config, ops). Confirm goal: $goal. Output the brief to docs/working-brief.md and verify all four source files are present and consistent.", shape="ellipse"]
+    architecture_plan [label="Architecture Plan", prompt="Based on docs/requirements/requirements.md, docs/requirements/spec.md, and docs/requirements/implementation-plan.md, design the project structure for the AI News Curation Agent. Define: (1) module layout for sourcing/curation/rendering/portal/scheduler/config agents, (2) provider-agnostic LLM abstraction (default OpenAI Agent SDK), (3) document-store choice for candidate articles with dedup, (4) Twitter/X integration via tweepy, (5) per-agent YAML config schema and multi-agent scheduler awareness, (6) prompt versioning under prompts/, (7) container/Dockerfile shape for serverless deploy. Write the plan to docs/architecture.md. Do NOT modify the planning artifacts."]
+    scaffold_repo [label="Scaffold Repository", prompt="Create the repository skeleton per docs/architecture.md and docs/requirements/implementation-plan.md: pyproject.toml, ruff/pytest config, Dockerfile, src/ package layout (sourcing, curation, rendering, portal, scheduler, config, llm, twitter, storage), prompts/ directory, configs/ directory with example agent configs, tests/ directory, .github/workflows scaffolding. Stub modules with type-annotated function signatures matching the plan."]
+    config_layer [label="Config & Secrets Layer", prompt="Implement the per-agent YAML configuration system as specified in docs/requirements/requirements.md §3.5 and docs/requirements/spec.md. Support multiple agent configs discoverable by the scheduler, configurable sources/tiers, influencer handle list, curation prompt path, LLM provider/model selection (incl. research model for monthly/annual), output dir. Secrets (LLM_API_KEY, TWITTER_BEARER_TOKEN, WEB_SEARCH_API_KEY) via env vars only. Provide a documented example config and a JSON schema validator.", goal_gate=true]
+    llm_abstraction [label="Provider-Agnostic LLM Layer", prompt="Implement the LLM/agent abstraction described in docs/requirements/requirements.md §3.2 and docs/requirements/spec.md. Default to OpenAI Agent SDK; provide adapter interface so Anthropic/Google ADK can be swapped without pipeline changes. Abstract tool use (web search) with native-provider preference and Brave/Tavily fallback behind a unified interface. Output parsing must use Markdown+JSON-block or strict JSON, not provider-specific structured-output features.", goal_gate=true]
+    storage_layer [label="Candidate Storage Layer", prompt="Implement the document store for candidate articles per docs/requirements/requirements.md §2.1 and §3.1. Store title/abstract/url/source/date/tier/unique-id. Enforce dedup across runs within a lookback window. Support daily/weekly/monthly/annual lookback queries. Pick a sensible default document store (e.g., SQLite with JSON columns or TinyDB/DuckDB) with a pluggable interface so cloud blob/document stores can replace it later."]
+    sourcing_agent [label="Sourcing Agent", prompt="Implement the Sourcing Agent per docs/requirements/requirements.md §2.1 and §2.3 and docs/requirements/spec.md. Pull candidate articles from configured web sources across Tiers 1a/1b/2/3/4 within the lookback window using configurable fetch methods (LLM, web search providers, RSS where applicable). Persist to the storage layer with dedup. Sourcing only — no curation logic here. Provide CLI entry point and unit tests with mocked HTTP/LLM.", goal_gate=true, max_retries=2]
+    twitter_integration [label="Twitter/X Integration", prompt="Implement the Twitter/X integration per docs/requirements/requirements.md §3.3 using tweepy. Auth via TWITTER_BEARER_TOKEN env var. For each configured handle, fetch lookback-window tweets, filter substantive posts (skip pure replies/RTs/short tweets without links), hydrate linked URLs back into the sourcing pipeline. If the Twitter API is unavailable, degrade gracefully and emit a digest note (Twitter is signal, not a hard dependency). Mocked tests required."]
+    curation_prompts [label="Curation Prompts (versioned)", prompt="Author the curation prompts under prompts/ per docs/requirements/requirements.md §6. One prompt per cadence (daily, weekly, monthly, annual). Each prompt: explicit ISO-date timeframe injection, default qualitative criteria (business/workforce/policy impact), default disqualifier (technical depth) when no user prompt is supplied, influencer-signal section with usage rules, strict structured output (Markdown + JSON metadata block), search-budget guidance scaled to cadence, mandatory 'why it matters' and working-link requirements, and predictions+themes for annual. Record file hashes so each digest can record the prompt version used.", goal_gate=true]
+    curation_agent [label="Curation Agent", prompt="Implement the Curation Agent per docs/requirements/requirements.md §2.2 and docs/requirements/spec.md. Read candidates from storage for the lookback window, apply tier-aware + qualitative LLM scoring using prompts/, select top-N per cadence, produce daily article picks, weekly/monthly themes + look-ahead, and annual top-10 + predictions (with research-mode model). Each item must include headline, source, URL, pub date, why-it-matters, impact tags, tier, optional cross-refs; Twitter-sourced items add handle + tweet URL. Drop items lacking working URLs. Record prompt version + model in run metadata. Allow rerun for any window on demand.", goal_gate=true, max_retries=2, timeout="2700s"]
+    renderer [label="Rendering Agent (MD/HTML/JSON)", prompt="Implement the Rendering Agent per docs/requirements/requirements.md §2 overview and §7.2. For each curation run, emit Markdown, HTML, and JSON to the configured output dir with date-stamped filenames. Enforce that every item has a working primary-source URL (drop those without). Naming convention must support a future thin distribution layer. Include unit tests for parsing/rendering with the LLM mocked.", goal_gate=true]
+    scheduler [label="Scheduler", prompt="Implement the cron-like scheduler per docs/requirements/requirements.md §3.1 and §8.1. It must be aware of all configured agents and trigger sourcing daily and curation at the start of each window (Mon for prior week, 1st of month for prior month, Jan 1 for annual). Support manual on-demand triggers (authenticated). Configure retries with exponential backoff. Provide local-cron and serverless-trigger entry points."]
+    implement_core [label="Integration & Core Implementation", prompt="Wire together sourcing, twitter, storage, curation, rendering, and scheduler into a runnable end-to-end pipeline per docs/requirements/implementation-plan.md. Provide a `dry-run` mode that produces a digest to a scratch directory. Ensure run metadata logging covers items considered/included, tier/source-class distribution, token usage, provider+model+prompt version, and Twitter API call counts (per §8.2).", goal_gate=true, timeout="2700s"]
+    portal [label="Web Portal", prompt="Build the web portal per docs/requirements/requirements.md §7.1. First-release scope: view daily/weekly/monthly/annual digests across multiple agent configurations (no auth, no in-portal config). Daily view emphasizes article cards with links and why-it-matters; weekly/monthly/annual views emphasize themes (e.g., word cloud, theme filter, model-provider filter) with links to elevated articles. Provide downloads for the Markdown/HTML/JSON exports of each run. Use a simple, modern stack consistent with docs/architecture.md.", goal_gate=true, timeout="2700s"]
+    tests [label="Tests (unit + integration)", prompt="Write and run the test suite per docs/requirements/requirements.md §5.1 and the backlog. Unit tests for parsing/rendering/config/storage/dedup/curation-scoring with LLM and Twitter calls mocked. Integration test exercising the dry-run pipeline end-to-end against a fixture corpus. All tests must pass via pytest; ruff check must be clean. Fix any failures.", goal_gate=true, max_retries=3]
+    ci_cd [label="CI/CD Pipeline", prompt="Implement the build pipeline per docs/requirements/requirements.md §5. GitHub Actions workflow: ruff check, pytest, docker build, push to registry (parameterized for GCP/AWS/Azure), deploy step placeholder, and smoke-test step that runs the agent in dry-run mode and asserts non-empty output with all required fields. Document secrets handling (workload identity federation preferred)."]
+    ops_docs [label="Operational & Quality Docs", prompt="Author operational documentation per docs/requirements/requirements.md §4 and §8: deployment guide for GCP Cloud Run / AWS App Runner|Lambda / Azure Container Apps (note Lambda 15-min concern for annual), reliability practices (retries, idempotent date-stamped filenames, manual override, Twitter degradation), and quality-monitoring playbook (4–6 week review checklist). Add a top-level README pointing to all planning artifacts and how to run locally."]
+    docs [label="User & Developer Docs", prompt="Produce README.md and docs/ user guide: how to configure agents (configs/ examples), how to author/version curation prompts under prompts/, how to run sourcing/curation/render locally, how to launch the portal, and how to deploy to a serverless container platform. Reference docs/requirements/* as the canonical specs and link to docs/architecture.md."]
+    smoke_review [shape="hexagon", label="Pre-ship review"]
+
+    start -> ingest_requirements
+    ingest_requirements -> architecture_plan
+    architecture_plan -> scaffold_repo
+    scaffold_repo -> config_layer
+    config_layer -> llm_abstraction
+    llm_abstraction -> storage_layer
+    storage_layer -> sourcing_agent
+    sourcing_agent -> twitter_integration
+    twitter_integration -> curation_prompts
+    curation_prompts -> curation_agent
+    curation_agent -> renderer
+    renderer -> scheduler
+    scheduler -> implement_core
+    implement_core -> portal
+    portal -> tests
+    tests -> ci_cd [condition="outcome=success"]
+    tests -> implement_core [condition="outcome=fail", label="[F] Fix failures"]
+    ci_cd -> ops_docs
+    ops_docs -> docs
+    docs -> smoke_review
+    smoke_review -> exit [label="[Y] Ship it"]
+    smoke_review -> implement_core [label="[R] Revise implementation"]
+    smoke_review -> curation_prompts [label="[P] Tune prompts"]
+}

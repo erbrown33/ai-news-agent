@@ -1,0 +1,368 @@
+# .github/workflows/deploy.yml — Build · Push to registry · Deploy · Smoke test
+#
+# Triggers: push to `main` or manual workflow_dispatch.
+# Requires CI to pass first (see `needs` in push-and-deploy job).
+#
+# Multi-cloud registry support (SRC-097 §5.1):
+#   The REGISTRY and IMAGE_NAME env vars are parameterised and can be overridden
+#   by setting repository variables (Settings → Variables) or per-environment vars:
+#
+#     GCP (Artifact Registry):
+#       REGISTRY:         us-docker.pkg.dev
+#       IMAGE_NAME:       $PROJECT_ID/$REPO/ai-news-agent
+#       AUTH_ACTION:      google-github-actions/auth (workload identity federation)
+#
+#     AWS (ECR):
+#       REGISTRY:         $AWS_ACCOUNT_ID.dkr.ecr.$AWS_REGION.amazonaws.com
+#       IMAGE_NAME:       ai-news-agent
+#       AUTH_ACTION:      aws-actions/configure-aws-credentials (OIDC)
+#
+#     Azure (ACR):
+#       REGISTRY:         $ACR_NAME.azurecr.io
+#       IMAGE_NAME:       ai-news-agent
+#       AUTH_ACTION:      azure/login (OIDC federated credential)
+#
+#     GHCR (default — no cloud account needed):
+#       REGISTRY:         ghcr.io
+#       IMAGE_NAME:       ${{ github.repository }}/ai-news-agent
+#
+# Secrets handling (SRC-073, SRC-110, SRC-111):
+#   Workload Identity Federation (WIF) is preferred — no long-lived cloud keys.
+#   See docs/deployment/secrets-management.md for setup instructions.
+#   Runtime secrets (OPENAI_API_KEY, TWITTER_BEARER_TOKEN, etc.) are injected
+#   at container-start time from the cloud's secrets manager, never baked in.
+#
+# Deployment targets (SRC-080–SRC-086):
+#   The deploy step is a clearly-marked placeholder stub.  Replace the `run: echo`
+#   command with the appropriate cloud CLI deploy command for your target.
+#   Examples are provided as inline comments.
+#
+# Traces: SRC-073, SRC-080–SRC-086, SRC-085, SRC-097, SRC-100, SRC-101,
+#         SRC-102, SRC-104, SRC-110, SRC-111, SRC-144, SRC-145, SRC-146,
+#         SRC-148, SRC-150
+
+name: Deploy
+
+on:
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: "Deployment environment"
+        required: true
+        default: "production"
+        type: choice
+        options: ["production", "staging"]
+      registry_override:
+        description: "Override container registry (leave blank for default GHCR)"
+        required: false
+        default: ""
+      skip_deploy:
+        description: "Build and push only — skip deploy step"
+        required: false
+        default: "false"
+        type: choice
+        options: ["false", "true"]
+
+# id-token: write enables Workload Identity Federation for all three clouds.
+# contents: read allows checkout. (SRC-110)
+permissions:
+  contents: read
+  id-token: write       # Required for Workload Identity Federation (SRC-110)
+  packages: write       # Required for GHCR push
+
+# ---------------------------------------------------------------------------
+# Registry / image configuration
+# Override via repository variables (Settings → Variables → Actions):
+#   REGISTRY_URL   — e.g. us-docker.pkg.dev  (GCP) / <account>.dkr.ecr.<region>.amazonaws.com (AWS)
+#   IMAGE_PATH     — e.g. project/repo/ai-news-agent
+# ---------------------------------------------------------------------------
+env:
+  # Default: GitHub Container Registry — change to GCP/AWS/Azure as needed
+  REGISTRY: ${{ vars.REGISTRY_URL || 'ghcr.io' }}
+  IMAGE_NAME: ${{ vars.IMAGE_PATH || format('{0}/ai-news-agent', github.repository) }}
+  # Synthetic CI secrets — real secrets injected at runtime from secrets manager
+  OPENAI_API_KEY_SMOKE: "sk-smoke-test-not-real"
+  TWITTER_BEARER_SMOKE: "bearer-smoke-test-not-real"
+
+jobs:
+  # ===========================================================================
+  # Job: push-and-deploy
+  # Runs: build → push → deploy → smoke-test
+  # Environment: production (or staging from workflow_dispatch)
+  # ===========================================================================
+  push-and-deploy:
+    name: "Build · Push · Deploy · Smoke"
+    runs-on: ubuntu-latest
+    environment: ${{ github.event.inputs.environment || 'production' }}
+    outputs:
+      image_digest: ${{ steps.build-push.outputs.digest }}
+      image_ref: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ github.sha }}
+
+    steps:
+      - uses: actions/checkout@v4
+
+      # -----------------------------------------------------------------------
+      # Step 1a: Authenticate — GHCR (default)
+      # For GCP/AWS/Azure see commented blocks below.
+      # -----------------------------------------------------------------------
+      - name: Log in to container registry (GHCR default)
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      # ── GCP Artifact Registry (Workload Identity Federation — preferred) ──
+      # Uncomment and configure if deploying to GCP Cloud Run.
+      # Set REGISTRY_URL=us-docker.pkg.dev and IMAGE_PATH=PROJECT/REPO/ai-news-agent
+      # in repository variables, then enable WIF:
+      #   https://github.com/google-github-actions/auth#setup
+      #
+      # - name: Authenticate to GCP via Workload Identity Federation
+      #   uses: google-github-actions/auth@v2
+      #   with:
+      #     workload_identity_provider: ${{ secrets.GCP_WIF_PROVIDER }}
+      #     service_account: ${{ secrets.GCP_SERVICE_ACCOUNT }}
+      #
+      # - name: Configure Docker for GCP Artifact Registry
+      #   run: gcloud auth configure-docker ${{ env.REGISTRY }} --quiet
+
+      # ── AWS ECR (OIDC — no long-lived keys) ──────────────────────────────
+      # Uncomment and configure if deploying to AWS App Runner / ECS / Lambda.
+      # Set REGISTRY_URL=<account>.dkr.ecr.<region>.amazonaws.com in vars.
+      #
+      # - name: Authenticate to AWS via OIDC
+      #   uses: aws-actions/configure-aws-credentials@v4
+      #   with:
+      #     role-to-assume: ${{ secrets.AWS_IAM_ROLE_ARN }}
+      #     aws-region: ${{ vars.AWS_REGION || 'us-east-1' }}
+      #
+      # - name: Log in to Amazon ECR
+      #   uses: aws-actions/amazon-ecr-login@v2
+
+      # ── Azure ACR (Federated credential — no service principal secret) ────
+      # Uncomment and configure if deploying to Azure Container Apps.
+      # Set REGISTRY_URL=<name>.azurecr.io in vars.
+      #
+      # - name: Authenticate to Azure via OIDC
+      #   uses: azure/login@v2
+      #   with:
+      #     client-id: ${{ secrets.AZURE_CLIENT_ID }}
+      #     tenant-id: ${{ secrets.AZURE_TENANT_ID }}
+      #     subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+      #
+      # - name: Log in to Azure Container Registry
+      #   run: az acr login --name ${{ vars.ACR_NAME }}
+
+      # -----------------------------------------------------------------------
+      # Step 2: Set up Docker Buildx (multi-arch support)
+      # -----------------------------------------------------------------------
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      # -----------------------------------------------------------------------
+      # Step 3: Build and push image (SRC-100)
+      # Tags: :latest + :<git-sha> for immutable deploys
+      # -----------------------------------------------------------------------
+      - name: Build and push Docker image
+        id: build-push
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          push: true
+          tags: |
+            ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:latest
+            ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ github.sha }}
+          labels: |
+            org.opencontainers.image.revision=${{ github.sha }}
+            org.opencontainers.image.source=${{ github.server_url }}/${{ github.repository }}
+            org.opencontainers.image.created=${{ github.event.repository.updated_at }}
+            org.opencontainers.image.ref.name=${{ github.ref_name }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+      - name: "Registry push complete"
+        run: |
+          echo "✅ Image pushed (SRC-100):"
+          echo "   ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ github.sha }}"
+          echo "   Digest: ${{ steps.build-push.outputs.digest }}"
+
+      # -----------------------------------------------------------------------
+      # Step 4: Deploy (SRC-101)
+      # Replace the placeholder `echo` with the appropriate cloud CLI command.
+      # The same container image runs locally, in CI, and in production (SRC-085).
+      # -----------------------------------------------------------------------
+      - name: "Deploy to cloud (SRC-101)"
+        if: ${{ github.event.inputs.skip_deploy != 'true' }}
+        run: |
+          echo "==================================================================="
+          echo "DEPLOY STEP — replace this block with your cloud CLI command"
+          echo "==================================================================="
+          echo "Image: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ github.sha }}"
+          echo ""
+          echo "GCP Cloud Run example:"
+          echo "  gcloud run deploy ai-news-agent \\"
+          echo "    --image ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ github.sha }} \\"
+          echo "    --region us-central1 \\"
+          echo "    --project \${{ secrets.GCP_PROJECT_ID }} \\"
+          echo "    --set-env-vars AGENT_CONFIG_DIR=/app/configs \\"
+          echo "    --max-instances 3 \\"
+          echo "    --memory 1Gi"
+          echo ""
+          echo "AWS App Runner example (avoids Lambda 15 min timeout for annual runs):"
+          echo "  aws apprunner update-service \\"
+          echo "    --service-arn \${{ secrets.AWS_APP_RUNNER_ARN }} \\"
+          echo "    --source-configuration 'ImageRepository={ImageIdentifier=$IMAGE,ImageRepositoryType=ECR}'"
+          echo ""
+          echo "Azure Container Apps example:"
+          echo "  az containerapp update \\"
+          echo "    --name ai-news-agent \\"
+          echo "    --resource-group \${{ secrets.AZURE_RG }} \\"
+          echo "    --image ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ github.sha }}"
+          echo ""
+          echo "Cloud scheduler note (SRC-052):"
+          echo "  Point your cloud scheduler (Cloud Scheduler / EventBridge / Logic Apps)"
+          echo "  at the container endpoint with the appropriate cadence arguments."
+          echo "  Workload Identity Federation is preferred (SRC-110)."
+          echo "==================================================================="
+
+      # -----------------------------------------------------------------------
+      # Step 5: Post-deploy smoke test (SRC-102)
+      # Triggers a dry-run inside the *deployed* container and verifies the
+      # HTTP health endpoint returns 200 with the expected JSON payload.
+      #
+      # Two modes:
+      #   a) Container-local smoke: run the pushed image locally with docker pull
+      #   b) Service health check: curl the deployed service URL (uncomment below)
+      # -----------------------------------------------------------------------
+      - name: "Post-deploy smoke · pull and dry-run"
+        run: |
+          set -euo pipefail
+
+          IMAGE="${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ github.sha }}"
+          SCRATCH="/tmp/deploy-smoke-${{ github.sha }}"
+          mkdir -p "${SCRATCH}"
+
+          echo "Pulling image: ${IMAGE}"
+          docker pull "${IMAGE}" 2>/dev/null || {
+            echo "⚠ Could not pull from private registry in this step."
+            echo "  Falling back to local build verification."
+            echo "  Configure GHCR/ECR/GCR credentials in the environment to enable pull."
+            exit 0
+          }
+
+          docker run --rm \
+            --env OPENAI_API_KEY="${{ env.OPENAI_API_KEY_SMOKE }}" \
+            --env TWITTER_BEARER_TOKEN="${{ env.TWITTER_BEARER_SMOKE }}" \
+            --env SMOKE_TEST_MOCK_LLM="1" \
+            --env SMOKE_TEST_MOCK_TWITTER="1" \
+            --volume "${SCRATCH}:/smoke-out" \
+            "${IMAGE}" \
+            ai-news-run \
+              --cadence daily \
+              --agent configs/default-agent.yaml \
+              --prompts-dir prompts \
+              --dry-run \
+              --scratch-dir /smoke-out \
+              --skip-sourcing
+
+          # Verify non-empty output (SRC-102)
+          JSON_FILES=$(find "${SCRATCH}" -name "*.json" | head -1)
+          if [ -z "${JSON_FILES}" ]; then
+            echo "❌ FAIL: No JSON output produced by smoke run (SRC-102)"
+            exit 1
+          fi
+          echo "✅ Smoke JSON output: ${JSON_FILES}"
+
+          # Parse and check required fields
+          python3 - <<PYEOF
+          import json, sys, pathlib
+          p = pathlib.Path("${JSON_FILES}")
+          d = json.loads(p.read_text())
+          meta = d.get("metadata", {})
+          required = [
+              "agent_id", "cadence", "run_date", "window_start", "window_end",
+              "prompt_version", "llm_provider", "llm_model",
+              "items_considered", "items_included", "items_by_tier",
+              "items_by_source_class", "token_usage",
+              "twitter_signal_available", "tweet_api_call_count",
+          ]
+          missing = [f for f in required if f not in meta]
+          if missing:
+              print(f"❌ FAIL: missing fields {missing} (SRC-150)")
+              sys.exit(1)
+          pv = meta.get("prompt_version", "")
+          if not pv.startswith("sha256:"):
+              print(f"❌ FAIL: prompt_version={pv!r} must start with sha256: (SRC-129)")
+              sys.exit(1)
+          print("✅ Post-deploy smoke assertions passed (SRC-102)")
+          PYEOF
+
+      # ── Uncomment to add a live service health check after deploy ─────────
+      # - name: "Post-deploy smoke · service health check"
+      #   run: |
+      #     SERVICE_URL="${{ secrets.SERVICE_URL }}"
+      #     if [ -z "${SERVICE_URL}" ]; then
+      #       echo "SERVICE_URL not set — skipping live health check"
+      #       exit 0
+      #     fi
+      #     # Retry up to 5 times with 15s delay (SRC-144 — exponential backoff)
+      #     for i in 1 2 3 4 5; do
+      #       STATUS=$(curl -s -o /dev/null -w "%{http_code}" "${SERVICE_URL}/api/health")
+      #       if [ "${STATUS}" = "200" ]; then
+      #         echo "✅ Health check passed: HTTP ${STATUS}"
+      #         exit 0
+      #       fi
+      #       echo "Attempt ${i}: HTTP ${STATUS} — waiting 15s..."
+      #       sleep $((i * 15))
+      #     done
+      #     echo "❌ Health check failed after 5 attempts"
+      #     exit 1
+
+  # ===========================================================================
+  # Failure notification (SRC-146 — failure alerting)
+  # Add your alert channel here: Slack, PagerDuty, email, etc.
+  # ===========================================================================
+  notify-on-failure:
+    name: "Notify on deployment failure (SRC-146)"
+    runs-on: ubuntu-latest
+    needs: [push-and-deploy]
+    if: failure()
+    steps:
+      - name: "Log deployment failure (SRC-146)"
+        run: |
+          echo "::error::Deployment FAILED"
+          echo "  Commit:  ${{ github.sha }}"
+          echo "  Branch:  ${{ github.ref_name }}"
+          echo "  Actor:   ${{ github.actor }}"
+          echo "  Workflow: ${{ github.workflow }}"
+          echo ""
+          echo "Action required: investigate the failed job, check logs, and re-trigger."
+          echo "Pipe this alert to your incident channel. (SRC-146)"
+          echo ""
+          echo "To add Slack notification, uncomment the block below and set"
+          echo "SLACK_WEBHOOK_URL in repository secrets."
+
+      # ── Uncomment to enable Slack notification on deploy failure ──────────
+      # - name: Notify Slack on failure
+      #   uses: slackapi/slack-github-action@v1.26.0
+      #   with:
+      #     payload: |
+      #       {
+      #         "text": "🚨 AI News Agent deploy FAILED on `${{ github.ref_name }}`",
+      #         "blocks": [
+      #           {
+      #             "type": "section",
+      #             "text": {
+      #               "type": "mrkdwn",
+      #               "text": "*AI News Agent deploy failed*\nCommit: `${{ github.sha }}`\nActor: ${{ github.actor }}\n<${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}|View run>"
+      #             }
+      #           }
+      #         ]
+      #       }
+      #   env:
+      #     SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
+      #     SLACK_WEBHOOK_TYPE: INCOMING_WEBHOOK

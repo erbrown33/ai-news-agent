@@ -1,0 +1,118 @@
+# configs/default-agent.yaml — Default Agent Configuration
+#
+# Curation theme: AI news from a business and society impact perspective.
+# This is the primary agent; it runs by default for all cadences.
+#
+# Traces: SRC-046 (configurable handles without code changes),
+#         SRC-071–SRC-073 (runtime config; secrets in env vars only),
+#         SRC-017–SRC-021 (source tier lists),
+#         SRC-029–SRC-032 (top-N limits per cadence),
+#         SRC-054 (research LLM overrides for monthly/annual),
+#         SRC-057 (provider selection)
+#
+# JSON Schema: configs/agent-config.schema.json
+# Validate with: python -m ai_news_agent.config.schema --validate configs/default-agent.yaml
+#
+# SECRETS: NEVER place API keys or tokens here.
+# Required env vars: OPENAI_API_KEY, TWITTER_BEARER_TOKEN  (SRC-073, SRC-111)
+# Optional env vars: WEB_SEARCH_API_KEY, WEB_SEARCH_PROVIDER
+
+agent_id: default
+
+# ─────────────────────────────────────────────────────────────────────────────
+# LLM configuration  (SRC-057)
+# ─────────────────────────────────────────────────────────────────────────────
+llm:
+  provider: openai                  # "openai" | "anthropic"  (SRC-057)
+  model: gpt-4o                     # Default model for daily + weekly curation
+
+  # Per-cadence model overrides (SRC-054)
+  # Monthly and annual benefit from higher-reasoning / research-grade models.
+  cadence_overrides:
+    monthly:
+      model: o3                     # Research-grade model (SRC-054, SRC-031)
+      thinking: false
+    annual:
+      model: o3
+      thinking: true                # Extended thinking enabled (SRC-032, SRC-054)
+
+# Path to the default prompt template. The curation agent selects the
+# cadence-specific file (daily.md / weekly.md / monthly.md / annual.md)
+# at runtime from the prompts/ directory.
+# Prompt SHA-256 hash is recorded in all digest outputs for regression tracing (SRC-129).
+curation_prompt: prompts/daily.md
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Source tier configuration  (SRC-016–SRC-021, SRC-034)
+# ─────────────────────────────────────────────────────────────────────────────
+sources:
+  # Tier 1a — User-configured priority sources (SRC-017)
+  # Optional. Add domain strings here for any priority sources not in tiers below.
+  # Example: ["myblog.example.com", "internal-ai-research.company.com"]
+  custom: []
+
+  # Tier 1b — Popular business press (SRC-018)
+  tier_1b:
+    - reuters.com
+    - bloomberg.com
+    - wsj.com
+    - ft.com
+    - economist.com
+    - axios.com
+
+  # Tier 2 — Top tech and AI blogs (SRC-019)
+  tier_2:
+    - news.ycombinator.com
+    - techblog.netflix.com
+    - anthropic.com
+    - openai.com
+    - huggingface.co
+    - towardsai.net
+
+  # Tier 3 — Tech business press (SRC-020)
+  tier_3:
+    - theinformation.com
+    - stratechery.com
+    - platformer.news
+    - techcrunch.com
+    - theverge.com
+    - technologyreview.com
+    - wired.com
+    - fastcompany.com
+
+  # Tier 4 — Policy and research (SRC-021)
+  tier_4:
+    - brookings.edu
+    - rand.org
+    - hai.stanford.edu
+    - ainowresearch.org
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Twitter/X influencer configuration (SRC-036–SRC-046)
+# Add, remove, or re-weight handles without code changes (SRC-046).
+# Twitter content = signal and commentary, NOT primary news (SRC-047).
+# ─────────────────────────────────────────────────────────────────────────────
+twitter:
+  enabled: true
+  handles:
+    - { handle: karpathy,      weight: 1.0 }   # Andrej Karpathy   (SRC-037)
+    - { handle: sama,          weight: 1.0 }   # Sam Altman        (SRC-038)
+    - { handle: demishassabis, weight: 1.0 }   # Demis Hassabis    (SRC-039)
+    - { handle: DarioAmodei,   weight: 1.0 }   # Dario Amodei      (SRC-040)
+    - { handle: ylecun,        weight: 1.0 }   # Yann LeCun        (SRC-041)
+    - { handle: AndrewYNg,     weight: 1.0 }   # Andrew Ng         (SRC-042)
+    - { handle: fchollet,      weight: 1.0 }   # François Chollet  (SRC-043)
+    - { handle: drfeifei,      weight: 1.0 }   # Fei-Fei Li        (SRC-044)
+    - { handle: emilymbender,  weight: 1.0 }   # Emily M. Bender   (SRC-045)
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Top-N article limits per cadence  (SRC-029–SRC-032)
+# ─────────────────────────────────────────────────────────────────────────────
+limits:
+  daily_top_n:   10    # Top articles selected from prior day (SRC-029)
+  weekly_top_n:  7     # Top articles for week summary (SRC-030)
+  monthly_top_n: 10    # Top articles for month summary (SRC-031)
+  annual_top_n:  10    # Top 10 articles + 10 predictions for annual (SRC-032)
+
+# Base output directory — {agent_id} resolved to "default" at runtime (SRC-145)
+output_dir: outputs/{agent_id}

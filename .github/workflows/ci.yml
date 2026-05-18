@@ -1,0 +1,455 @@
+# .github/workflows/ci.yml — Lint · Type-check · Test · Docker build · Container smoke
+#
+# Runs on every push and pull-request to every branch.
+# Push to `main` additionally triggers deploy.yml.
+#
+# Pipeline stages (SRC-097–SRC-099, SRC-102, SRC-104):
+#   1. lint           ruff check + ruff format --check          (SRC-098)
+#   2. typecheck      mypy src/                                 (advisory)
+#   3. test           pytest unit + integration + ci/           (SRC-098)
+#   4. prompt-hashes  ai-news-prompt-hashes --verify            (SRC-129)
+#   5. docker-build   docker buildx build + import-test         (SRC-099)
+#   6. smoke-docker   dry-run pipeline inside built container → (SRC-102)
+#                     assert non-empty output + all required fields
+#
+# Secrets handling (SRC-073, SRC-111):
+#   CI uses synthetic dummy env-var values (never real keys).
+#   Real secrets are injected only in protected GitHub Environments via
+#   Workload Identity Federation or repository secrets.
+#   See docs/deployment/secrets-management.md for details.
+#
+# Traces: SRC-073, SRC-085, SRC-097, SRC-098, SRC-099, SRC-102, SRC-104,
+#         SRC-110, SRC-111, SRC-129, SRC-144, SRC-145, SRC-148, SRC-150
+
+name: CI
+
+on:
+  push:
+    branches: ["**"]
+  pull_request:
+    branches: ["main"]
+
+# Minimal permissions — CI never writes to the registry.
+# Separate deploy.yml holds id-token: write for WIF. (SRC-110)
+permissions:
+  contents: read
+
+# Cancel in-progress runs for the same ref to save CI minutes
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+# ---------------------------------------------------------------------------
+# Shared environment (non-secret, safe for all jobs)
+# ---------------------------------------------------------------------------
+env:
+  PYTHON_VERSION: "3.12"
+  # Synthetic dummy secrets — real secrets live only in protected Environments
+  # and are never committed. (SRC-073, SRC-111)
+  OPENAI_API_KEY: "sk-ci-test-not-real"
+  TWITTER_BEARER_TOKEN: "ci-bearer-not-real"
+  PIP_DISABLE_PIP_VERSION_CHECK: "1"
+
+jobs:
+  # ===========================================================================
+  # Stage 1 — Lint (ruff check + ruff format)
+  # SRC-098: ruff check enforced in CI on every push
+  # ===========================================================================
+  lint:
+    name: "Lint · ruff"
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python ${{ env.PYTHON_VERSION }}
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+          cache: pip
+
+      - name: Install dev dependencies
+        run: |
+          pip install --upgrade pip
+          pip install -e ".[dev]"
+
+      - name: ruff check (lint rules)
+        run: ruff check src/ tests/
+
+      - name: ruff format --check
+        run: ruff format --check src/ tests/
+
+  # ===========================================================================
+  # Stage 2 — Type check (mypy — advisory)
+  # Advisory because stub-heavy scaffolding produces residual Any warnings;
+  # treated as warning until all stubs are fully resolved. Blocking is
+  # enabled once strict=True is clean end-to-end.
+  # ===========================================================================
+  typecheck:
+    name: "Type check · mypy (advisory)"
+    runs-on: ubuntu-latest
+    needs: [lint]
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python ${{ env.PYTHON_VERSION }}
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+          cache: pip
+
+      - name: Install dependencies
+        run: |
+          pip install --upgrade pip
+          pip install -e ".[dev]"
+
+      - name: mypy src/
+        run: mypy src/
+        continue-on-error: true   # Advisory — does not block merge
+
+  # ===========================================================================
+  # Stage 3 — Tests (unit + integration + CI smoke assertions)
+  # SRC-098: pytest with mocked LLM and Twitter calls
+  # ===========================================================================
+  test:
+    name: "Tests · Python ${{ matrix.python-version }}"
+    runs-on: ubuntu-latest
+    needs: [lint]
+    strategy:
+      fail-fast: false
+      matrix:
+        python-version: ["3.12"]   # Extend to ["3.12", "3.13"] when stubs are clean
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python ${{ matrix.python-version }}
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python-version }}
+          cache: pip
+
+      - name: Install dependencies
+        run: |
+          pip install --upgrade pip
+          pip install -e ".[dev]"
+
+      # ── Unit tests (no external I/O) ────────────────────────────────────────
+      - name: "pytest · unit tests"
+        env:
+          OPENAI_API_KEY: ${{ env.OPENAI_API_KEY }}
+          TWITTER_BEARER_TOKEN: ${{ env.TWITTER_BEARER_TOKEN }}
+        run: |
+          pytest tests/unit/ \
+            -v --tb=short \
+            -m "not integration" \
+            --cov=src/ai_news_agent \
+            --cov-report=term-missing \
+            --cov-report=xml:coverage-unit.xml \
+            --cov-fail-under=85
+
+      # ── Integration tests (mocked externals, real wiring) ───────────────────
+      - name: "pytest · integration tests"
+        env:
+          OPENAI_API_KEY: ${{ env.OPENAI_API_KEY }}
+          TWITTER_BEARER_TOKEN: ${{ env.TWITTER_BEARER_TOKEN }}
+        run: |
+          pytest tests/integration/ \
+            -v --tb=short \
+            -m "integration"
+
+      # ── CI smoke-assertion tests ────────────────────────────────────────────
+      # These are the same assertions run inside the container smoke step, but
+      # exercised here in plain Python for fast feedback (SRC-102).
+      - name: "pytest · CI smoke assertions"
+        env:
+          OPENAI_API_KEY: ${{ env.OPENAI_API_KEY }}
+          TWITTER_BEARER_TOKEN: ${{ env.TWITTER_BEARER_TOKEN }}
+        run: |
+          pytest tests/ci/ \
+            -v --tb=short
+
+      - name: Upload unit coverage to Codecov
+        uses: codecov/codecov-action@v4
+        with:
+          file: coverage-unit.xml
+          flags: unit
+        continue-on-error: true   # Don't fail CI if Codecov is unavailable
+
+  # ===========================================================================
+  # Stage 4 — Prompt hash verification (SRC-129)
+  # Ensures prompt templates have not been silently modified without updating
+  # prompts/prompt_hashes.json. Blocks merge on mismatch.
+  # ===========================================================================
+  prompt-hashes:
+    name: "Prompt hash · integrity check (SRC-129)"
+    runs-on: ubuntu-latest
+    needs: [lint]
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python ${{ env.PYTHON_VERSION }}
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+          cache: pip
+
+      - name: Install package
+        run: |
+          pip install --upgrade pip
+          pip install -e ".[dev]"
+
+      - name: Verify prompt hashes match manifest
+        run: |
+          ai-news-prompt-hashes --verify
+          echo "✅ Prompt hash manifest is consistent (SRC-129)"
+
+  # ===========================================================================
+  # Stage 5 — Docker build
+  # SRC-099: verify Dockerfile integrity; same image runs locally/CI/prod (SRC-085)
+  # Runs after lint + test to avoid wasting build minutes on obvious failures.
+  # ===========================================================================
+  docker-build:
+    name: "Docker build · integrity check (SRC-099)"
+    runs-on: ubuntu-latest
+    needs: [lint, test]
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Build Docker image (no push)
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          push: false
+          load: true    # Make image available to subsequent docker run steps
+          tags: ai-news-agent:ci-${{ github.sha }}
+          labels: |
+            org.opencontainers.image.revision=${{ github.sha }}
+            org.opencontainers.image.ref.name=${{ github.ref_name }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+      # ── Basic package import + version check ─────────────────────────────
+      - name: "Container check · import + version"
+        run: |
+          docker run --rm \
+            --env OPENAI_API_KEY="${{ env.OPENAI_API_KEY }}" \
+            --env TWITTER_BEARER_TOKEN="${{ env.TWITTER_BEARER_TOKEN }}" \
+            ai-news-agent:ci-${{ github.sha }} \
+            python -c "
+          import ai_news_agent
+          assert ai_news_agent.__version__, 'version string is empty'
+          print('✅ Import OK — version:', ai_news_agent.__version__)
+          "
+
+      # ── CLI entry-point registration check ──────────────────────────────
+      - name: "Container check · CLI entry-points registered"
+        run: |
+          docker run --rm \
+            --env OPENAI_API_KEY="${{ env.OPENAI_API_KEY }}" \
+            --env TWITTER_BEARER_TOKEN="${{ env.TWITTER_BEARER_TOKEN }}" \
+            ai-news-agent:ci-${{ github.sha }} \
+            python -c "
+          from importlib.metadata import entry_points
+          eps = {ep.name for ep in entry_points(group='console_scripts')}
+          required = {
+              'ai-news-source', 'ai-news-curate', 'ai-news-render',
+              'ai-news-schedule', 'ai-news-portal', 'ai-news-run',
+              'ai-news-oneshot', 'ai-news-prompt-hashes',
+          }
+          missing = required - eps
+          assert not missing, f'Missing entry-points: {missing}'
+          print('✅ All CLI entry-points registered:', sorted(required))
+          "
+
+  # ===========================================================================
+  # Stage 6 — Container smoke test (SRC-102)
+  #
+  # Runs ai-news-run --dry-run inside the built container and asserts:
+  #   • Exit code 0
+  #   • Markdown, HTML, and JSON files written and non-empty        (SRC-004)
+  #   • JSON has schema_version, metadata{}, items[]               (SRC-102)
+  #   • All §8.2 monitoring fields present in metadata             (SRC-150)
+  #   • prompt_version starts with "sha256:"                       (SRC-129)
+  #   • No items present without a valid URL                       (SRC-049, SRC-141)
+  #   • twitter_signal_available is a boolean                      (SRC-148)
+  #   • Filename stem matches YYYY-MM-DD-{cadence}                 (SRC-145)
+  #
+  # All LLM and Twitter calls are mocked inside the container via:
+  #   SMOKE_TEST_MOCK_LLM=1   (recognised by the pipeline's LLM factory)
+  #   SMOKE_TEST_MOCK_TWITTER=1
+  # No real API spend occurs in CI.
+  # ===========================================================================
+  smoke-docker:
+    name: "Container smoke test · dry-run pipeline (SRC-102)"
+    runs-on: ubuntu-latest
+    needs: [docker-build, prompt-hashes]
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      # Re-build from cache populated by docker-build job (no registry push needed)
+      - name: Rebuild image from GHA cache
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          push: false
+          load: true
+          tags: ai-news-agent:ci-${{ github.sha }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+      - name: Set up Python ${{ env.PYTHON_VERSION }} (for assertion script)
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+          cache: pip
+
+      - name: Install test dependencies (for assertion parsing)
+        run: pip install --upgrade pip && pip install -e ".[dev]"
+
+      # ── Run the pipeline in dry-run mode inside the container ─────────────
+      - name: "Smoke · run pipeline dry-run in container"
+        id: smoke_run
+        run: |
+          set -euo pipefail
+          SCRATCH="/tmp/smoke-scratch-${{ github.sha }}"
+          mkdir -p "${SCRATCH}"
+          echo "SCRATCH_DIR=${SCRATCH}" >> "$GITHUB_OUTPUT"
+
+          docker run --rm \
+            --env OPENAI_API_KEY="${{ env.OPENAI_API_KEY }}" \
+            --env TWITTER_BEARER_TOKEN="${{ env.TWITTER_BEARER_TOKEN }}" \
+            --env SMOKE_TEST_MOCK_LLM="1" \
+            --env SMOKE_TEST_MOCK_TWITTER="1" \
+            --volume "${SCRATCH}:/smoke-out" \
+            ai-news-agent:ci-${{ github.sha }} \
+            ai-news-run \
+              --cadence daily \
+              --agent configs/default-agent.yaml \
+              --prompts-dir prompts \
+              --dry-run \
+              --scratch-dir /smoke-out \
+              --skip-sourcing
+
+          echo "✅ Pipeline dry-run completed"
+
+      # ── Assert all required fields and non-empty output ───────────────────
+      # Uses a Python heredoc so the assertion logic is version-controlled and
+      # consistent with tests/ci/test_smoke_assertions.py. The SCRATCH_DIR env
+      # var is set from step output before entering the heredoc.
+      - name: "Smoke · assert non-empty output + all required fields"
+        env:
+          SCRATCH_DIR: ${{ steps.smoke_run.outputs.SCRATCH_DIR }}
+        run: |
+          set -euo pipefail
+          python3 - <<'PYEOF'
+          import json, re, sys, pathlib, os
+
+          scratch = pathlib.Path(os.environ["SCRATCH_DIR"])
+          print(f"Inspecting smoke output in: {scratch}")
+
+          # ── Locate output files ──────────────────────────────────────────
+          md_files   = sorted(scratch.glob("*.md"))
+          html_files = sorted(scratch.glob("*.html"))
+          json_files = sorted(scratch.glob("*.json"))
+
+          assert md_files,   f"FAIL: No .md file found in {scratch} (SRC-004)"
+          assert html_files, f"FAIL: No .html file found in {scratch} (SRC-004)"
+          assert json_files, f"FAIL: No .json file found in {scratch} (SRC-004)"
+
+          md_path   = md_files[0]
+          html_path = html_files[0]
+          json_path = json_files[0]
+
+          # ── Non-empty check (SRC-102) ────────────────────────────────────
+          assert md_path.stat().st_size > 0,   f"FAIL: {md_path.name} is empty (SRC-102)"
+          assert html_path.stat().st_size > 0, f"FAIL: {html_path.name} is empty (SRC-102)"
+          assert json_path.stat().st_size > 0, f"FAIL: {json_path.name} is empty (SRC-102)"
+
+          print(f"  ✅ Markdown  : {md_path.name}  ({md_path.stat().st_size} bytes)")
+          print(f"  ✅ HTML      : {html_path.name}  ({html_path.stat().st_size} bytes)")
+          print(f"  ✅ JSON      : {json_path.name}  ({json_path.stat().st_size} bytes)")
+
+          # ── JSON structure check (SRC-102) ───────────────────────────────
+          digest = json.loads(json_path.read_text("utf-8"))
+          assert "schema_version" in digest, "FAIL: schema_version missing from JSON (SRC-102)"
+          assert "metadata"       in digest, "FAIL: metadata block missing from JSON (SRC-102)"
+          assert "items"          in digest, "FAIL: items array missing from JSON (SRC-102)"
+
+          meta = digest["metadata"]
+
+          # ── §8.2 monitoring fields (SRC-150) ─────────────────────────────
+          REQUIRED_META_FIELDS = [
+              "agent_id",
+              "cadence",
+              "run_date",
+              "window_start",
+              "window_end",
+              "prompt_version",         # SRC-129
+              "llm_provider",           # SRC-150
+              "llm_model",              # SRC-150
+              "items_considered",       # SRC-150
+              "items_included",         # SRC-150
+              "items_by_tier",          # SRC-150
+              "items_by_source_class",  # SRC-150
+              "token_usage",            # SRC-150
+              "twitter_signal_available",  # SRC-148
+              "tweet_api_call_count",      # SRC-150
+          ]
+          missing = [f for f in REQUIRED_META_FIELDS if f not in meta]
+          assert not missing, f"FAIL: required metadata fields missing: {missing} (SRC-150)"
+          print("  ✅ All §8.2 monitoring fields present (SRC-150)")
+
+          # ── prompt_version SHA-256 format (SRC-129) ───────────────────────
+          pv = meta["prompt_version"]
+          assert isinstance(pv, str) and pv.startswith("sha256:"), (
+              f"FAIL: prompt_version must start with 'sha256:', got: {pv!r} (SRC-129)"
+          )
+          print(f"  ✅ prompt_version SHA-256 present: {pv[:24]}… (SRC-129)")
+
+          # ── URL enforcement: no items without URL (SRC-049, SRC-141) ──────
+          bad_items = [
+              it for it in digest.get("items", [])
+              if not str(it.get("url", "")).startswith("http")
+          ]
+          assert not bad_items, (
+              f"FAIL: {len(bad_items)} item(s) missing valid URL (SRC-049, SRC-141): "
+              + str([it.get("headline", "?") for it in bad_items])
+          )
+          print("  ✅ URL enforcement: 0 items without valid URL (SRC-049, SRC-141)")
+
+          # ── twitter_signal_available is boolean (SRC-148) ─────────────────
+          tsa = meta.get("twitter_signal_available")
+          assert isinstance(tsa, bool), (
+              f"FAIL: twitter_signal_available must be bool, got {type(tsa)} (SRC-148)"
+          )
+          print(f"  ✅ twitter_signal_available={tsa} (SRC-148)")
+
+          # ── Filename convention: YYYY-MM-DD-{cadence}.* (SRC-145) ─────────
+          stem_re = re.compile(r"^\d{4}-\d{2}-\d{2}-\w+$")
+          for p in (md_path, html_path, json_path):
+              assert stem_re.match(p.stem), (
+                  f"FAIL: filename {p.name!r} does not match YYYY-MM-DD-cadence "
+                  f"pattern (SRC-145)"
+              )
+          print("  ✅ Filename convention: YYYY-MM-DD-{cadence}.ext (SRC-145)")
+
+          # ── agent_id non-empty (SRC-072) ──────────────────────────────────
+          assert meta["agent_id"], "FAIL: agent_id is empty in metadata (SRC-072)"
+          print(f"  ✅ agent_id: {meta['agent_id']!r} (SRC-072)")
+
+          print("\n🎉 All smoke assertions passed (SRC-102)")
+          PYEOF
+
+      # ── Publish smoke artefact for CI inspection ──────────────────────────
+      - name: Upload smoke-test outputs as artefact
+        uses: actions/upload-artifact@v4
+        if: always()   # Upload even on failure so we can inspect bad output
+        with:
+          name: smoke-output-${{ github.sha }}
+          path: /tmp/smoke-scratch-${{ github.sha }}/
+          retention-days: 7

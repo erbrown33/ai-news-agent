@@ -1,0 +1,3 @@
+# outputs/.gitkeep — Keeps the outputs/ directory tracked by git.
+# Runtime digest files are gitignored; this placeholder ensures the directory exists.
+# Traces: SRC-145 (date-stamped output directory)
