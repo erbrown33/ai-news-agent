@@ -840,9 +840,13 @@ def cli_main() -> None:  # noqa: C901 — deliberately a unified CLI with full o
     )
     parser.add_argument(
         "--prompts-dir",
-        default="prompts",
+        default=None,
         metavar="DIR",
-        help="Directory containing prompt template files (default: prompts/)",
+        help=(
+            "Directory containing prompt template files. "
+            "When omitted, resolved from the agent config's curation_prompt "
+            "(falls back to prompts/ if neither resolves)."
+        ),
     )
 
     # Window override (SRC-028, SRC-147)

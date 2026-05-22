@@ -693,8 +693,12 @@ def cli_main() -> None:
     )
     parser.add_argument(
         "--prompts-dir",
-        default="prompts",
-        help="Directory containing prompt template files (default: prompts/)",
+        default=None,
+        help=(
+            "Directory containing prompt template files. "
+            "When omitted, resolved from the agent config's curation_prompt "
+            "(falls back to prompts/ if neither resolves)."
+        ),
     )
     parser.add_argument(
         "--window-start",
@@ -760,10 +764,20 @@ def cli_main() -> None:
     config = load_agent_config(args.agent)
     secrets = RuntimeSecrets()  # type: ignore[call-arg]
 
+    # Resolve prompts_dir: explicit --prompts-dir wins, else fall back to the
+    # same config-driven resolution Pipeline uses (deferred import avoids the
+    # pipeline → curation.agent circular import).
+    if args.prompts_dir is not None:
+        prompts_dir = args.prompts_dir
+    else:
+        from ai_news_agent.pipeline import _resolve_prompts_dir
+
+        prompts_dir = _resolve_prompts_dir(config.curation_prompt)
+
     agent = CurationAgent(
         config=config,
         secrets=secrets,
-        prompts_dir=args.prompts_dir,
+        prompts_dir=prompts_dir,
     )
 
     result = agent.run(
