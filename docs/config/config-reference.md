@@ -22,6 +22,7 @@
    - 3.5 [twitter](#35-twitter)
    - 3.6 [limits](#36-limits)
    - 3.7 [output_dir](#37-output_dir)
+   - 3.8 [store_backend](#38-store_backend)
 4. [Scheduler Configuration (`scheduler.yaml`)](#4-scheduler-configuration-scheduleryaml)
    - 4.1 [scheduler (retry policy)](#41-scheduler-retry-policy)
    - 4.2 [api (manual override)](#42-api-manual-override)
@@ -325,6 +326,27 @@ outputs/{agent_id}/YYYY-MM-DD-weekly.md
 Re-runs overwrite cleanly (idempotent by date — SRC-145).
 
 **Traces:** SRC-072, SRC-145
+
+---
+
+### 3.8 `store_backend`
+
+Article store backend. Controls where fetched articles, tweet signals, and digest records are persisted for deduplication and curation window queries.
+
+```yaml
+store_backend: tinydb    # default — zero-infrastructure JSON file
+# store_backend: sqlite  # production-grade — indexed SQLite database
+```
+
+| Value | File | Best for |
+|-------|------|----------|
+| `tinydb` *(default)* | `outputs/{agent_id}/store.json` | Local dev, low article volumes (<50 k records) |
+| `sqlite` | `outputs/{agent_id}/store.db` | Production, higher volumes, concurrent reads |
+
+**Switching from TinyDB to SQLite:**
+Set `store_backend: sqlite` in your agent YAML. On the next run, if `store.json` already exists in the output directory and the SQLite store is empty, all existing articles, tweet signals, and digest records are automatically imported before the pipeline runs. The original `store.json` is kept as a backup.
+
+**Traces:** SRC-053, SRC-072, SRC-076, SRC-085
 
 ---
 
@@ -644,6 +666,7 @@ unconfigured agent — useful for quick testing.
 | `limits.monthly_top_n` | SRC-031 |
 | `limits.annual_top_n` | SRC-032 |
 | `output_dir` | SRC-136, SRC-145 |
+| `store_backend` | SRC-053, SRC-072, SRC-076, SRC-085 |
 | Secrets in env vars only | SRC-073, SRC-105–SRC-111 |
 | `scheduler.max_retries` | SRC-144 |
 | `scheduler.retry_backoff_base_seconds` | SRC-144 |

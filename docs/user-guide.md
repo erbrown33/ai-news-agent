@@ -684,7 +684,7 @@ outputs/
     ├── 2026-05-12-daily.md      ← Paste into Slack or Teams
     ├── 2026-05-12-daily.html    ← Paste into Gmail, Outlook
     ├── 2026-05-12-daily.json    ← Machine-readable; contains all monitoring metadata
-    └── store.json               ← TinyDB article store (internal; do not edit)
+    └── store.json               ← Article store (TinyDB default; use store.db with store_backend: sqlite)
 ```
 
 ### 6.2 Running stages individually
@@ -756,7 +756,7 @@ ai-news-run --cadence daily --dry-run --skip-sourcing
 In dry-run mode:
 - Outputs go to a temporary directory (e.g., `/tmp/ai-news-dry-run-XXXX/`)
 - The `PipelineRunResult.dry_run` flag is set to `True`
-- No writes to `outputs/default/` or `store.json`
+- No writes to `outputs/default/` or the article store (`store.json` / `store.db`)
 - The structured log at run end marks `"dry_run": true`
 
 ### 6.4 Historical backfill and re-runs
@@ -839,7 +839,7 @@ outputs/
     ├── 2026-05-12-weekly.md       ← Weekly digest (written Monday, covers Sun–Sat)
     ├── 2026-05-01-monthly.md      ← Monthly digest (written 1st, covers prior month)
     ├── 2026-01-01-annual.md       ← Annual digest (written Jan 1, covers prior year)
-    └── store.json                 ← TinyDB article store (internal — do not edit)
+    └── store.json                 ← Article store (TinyDB default; use store.db with store_backend: sqlite)
 ```
 
 **Re-runs overwrite cleanly.** The date in the filename ensures idempotency — running the

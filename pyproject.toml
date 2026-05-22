@@ -145,9 +145,9 @@ ignore = [
     "ANN102",  # missing cls annotation
     "ANN401",  # Any allowed in abstraction layer
     "E501",    # line too long — SRC-* traces and docstrings intentionally exceed 100 chars
-    "TC001",   # TYPE_CHECKING block moves — acceptable in a stub-heavy scaffolding stage
-    "TC002",   # same
-    "TC003",   # same
+    "TCH001",  # TYPE_CHECKING block moves — acceptable in a stub-heavy scaffolding stage
+    "TCH002",  # same
+    "TCH003",  # same
 ]
 
 [tool.ruff.lint.per-file-ignores]

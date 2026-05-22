@@ -14,6 +14,11 @@ Usage (throughout pipeline):
     # or directly:
     store = StoreFactory.from_backend("sqlite", db_path="outputs/agent/store.db")
 
+Auto-migration: when ``store_backend: sqlite`` is set for the first time on an
+agent that previously used TinyDB, ``StoreFactory.create()`` detects the
+existing ``store.json`` alongside the new ``store.db`` and imports all records
+automatically (articles, tweets, digests) before the pipeline runs.
+
 Traces: SRC-053 (pluggable document store), SRC-072 (per-agent scoped store),
         SRC-076 (local dev: TinyDB), SRC-085 (container: SQLite on mounted volume)
 """
@@ -26,7 +31,12 @@ from typing import TYPE_CHECKING
 
 from ai_news_agent.storage.base import AbstractArticleStore
 from ai_news_agent.storage.sqlite_store import SQLiteArticleStore
-from ai_news_agent.storage.tinydb_store import TinyDBArticleStore
+from ai_news_agent.storage.tinydb_store import (
+    TinyDBArticleStore,
+    _doc_to_article,
+    _doc_to_digest,
+    _doc_to_tweet,
+)
 
 if TYPE_CHECKING:
     from ai_news_agent.config.models import AgentConfig
@@ -49,6 +59,59 @@ _EXT: dict[str, str] = {
 }
 
 
+def _migrate_tinydb_to_sqlite(
+    tinydb_path: Path,
+    dest: AbstractArticleStore,
+) -> dict[str, int]:
+    """
+    One-shot import of all records from a TinyDB JSON store into ``dest``.
+
+    Reads the raw TinyDB tables directly (no TinyDBArticleStore wrapper) and
+    inserts via the AbstractArticleStore interface so dedup logic is preserved.
+    Records that fail to deserialise are skipped with a WARNING.
+
+    Returns counts: ``{"articles": n, "tweets": n, "digests": n}``.
+    """
+    from tinydb import TinyDB  # local import — tinydb is an optional dep for sqlite-only users
+
+    counts: dict[str, int] = {"articles": 0, "tweets": 0, "digests": 0}
+    src = TinyDB(str(tinydb_path))
+    try:
+        for doc in src.table("articles").all():
+            try:
+                if dest.insert_if_new(_doc_to_article(doc)):
+                    counts["articles"] += 1
+            except Exception as exc:
+                logger.warning(
+                    "tinydb_migration_article_skip",
+                    extra={"doc_keys": list(doc.keys()), "error": str(exc)},
+                )
+
+        for doc in src.table("tweets").all():
+            try:
+                if dest.insert_tweet_signal(_doc_to_tweet(doc)):
+                    counts["tweets"] += 1
+            except Exception as exc:
+                logger.warning(
+                    "tinydb_migration_tweet_skip",
+                    extra={"doc_keys": list(doc.keys()), "error": str(exc)},
+                )
+
+        for doc in src.table("digests").all():
+            try:
+                dest.upsert_digest(_doc_to_digest(doc))
+                counts["digests"] += 1
+            except Exception as exc:
+                logger.warning(
+                    "tinydb_migration_digest_skip",
+                    extra={"doc_keys": list(doc.keys()), "error": str(exc)},
+                )
+    finally:
+        src.close()
+
+    return counts
+
+
 class StoreFactory:
     """
     Factory for :class:`~ai_news_agent.storage.base.AbstractArticleStore`.
@@ -68,9 +131,10 @@ class StoreFactory:
         """
         Create the store for ``agent_cfg`` under ``output_base/{agent_id}/``.
 
-        The backend key is read from ``agent_cfg.store_backend`` when present
-        (future YAML extension); it defaults to ``"tinydb"`` for all
-        existing agent configs (SRC-053 backward-compat).
+        The backend key is read from ``agent_cfg.store_backend``; it defaults
+        to ``"tinydb"`` for existing agent configs (SRC-053 backward-compat).
+        When switching to ``"sqlite"``, existing TinyDB data is auto-migrated
+        on first use if ``store.json`` is present in the output directory.
 
         Args:
             agent_cfg:   Validated AgentConfig for this agent instance.
@@ -99,7 +163,25 @@ class StoreFactory:
                 "db_path": str(db_path),
             },
         )
-        return StoreFactory.from_backend(backend, db_path)
+        store = StoreFactory.from_backend(backend, db_path)
+
+        # Auto-migrate from TinyDB when switching to SQLite for the first time.
+        # Condition: store.json exists alongside the new store.db AND the SQLite
+        # store is empty for this agent (meaning no prior migration has run).
+        if backend == "sqlite":
+            tinydb_path = output_dir / "store.json"
+            if tinydb_path.exists() and store.count_articles(agent_cfg.agent_id) == 0:
+                logger.info(
+                    "tinydb_migration_start",
+                    extra={"agent_id": agent_cfg.agent_id, "source": str(tinydb_path)},
+                )
+                counts = _migrate_tinydb_to_sqlite(tinydb_path, store)
+                logger.info(
+                    "tinydb_migration_complete",
+                    extra={"agent_id": agent_cfg.agent_id, **counts},
+                )
+
+        return store
 
     @staticmethod
     def from_backend(

@@ -581,16 +581,30 @@ def get_search_tool(llm_cfg: LLMConfig, secrets: RuntimeSecrets) -> AbstractSear
 
 **Source requirements:** SRC-008–SRC-013, SRC-053
 
-#### Store choice: TinyDB (default)
+#### Store choice: TinyDB (default) or SQLite
 
-**Rationale (SRC-053):**
-- Zero external infrastructure — runs as a JSON file on disk; ideal for Phase 1 local dev (SRC-076) and serverless containers where storage is a mounted volume or synced from cloud storage.
-- Native Python; no server process; perfectly stateless container model (SRC-085).
-- Schema-free JSON document model fits the heterogeneous article + tweet record structure (SRC-011).
-- Volumes expected: hundreds of articles per day per agent — well within TinyDB capacity.
-- **Swap path:** `AbstractArticleStore` interface means TinyDB can be replaced with SQLite, DynamoDB (AWS), Firestore (GCP), or Cosmos DB (Azure) with zero changes to sourcing or curation modules.
+The backend is selected via `store_backend` in the agent YAML (default: `tinydb`).
 
-**Storage file location:** `outputs/{agent_id}/store.json` — one store file per agent, so multiple agent configurations never interfere with each other (SRC-072).
+| Backend | File | Use case |
+|---------|------|----------|
+| `tinydb` | `outputs/{agent_id}/store.json` | Local dev, low volume (<50 k records) |
+| `sqlite` | `outputs/{agent_id}/store.db` | Production, higher volumes, concurrent reads |
+
+**TinyDB rationale (SRC-053, SRC-076):**
+- Zero external infrastructure — JSON file on disk; ideal for local dev and serverless containers where storage is a mounted volume or synced from cloud storage.
+- Native Python; no server process; stateless container model (SRC-085).
+
+**SQLite rationale (SRC-053, SRC-085):**
+- Indexed `(url_hash, agent_id)` dedup checks: O(log n) vs TinyDB's O(n) full scan.
+- Indexed window queries on `(agent_id, pub_date)` for the same efficiency gain.
+- WAL mode supports concurrent reads while a write is in progress.
+- More compact storage for large article volumes; SQLite is in Python's stdlib — no added dependency.
+
+**Swap path:** `AbstractArticleStore` interface means either backend can be replaced with DynamoDB (AWS), Firestore (GCP), or Cosmos DB (Azure) with zero changes to sourcing or curation modules.
+
+**Storage file location:** `outputs/{agent_id}/store.{json|db}` — one file per agent so multiple agent configurations never interfere with each other (SRC-072).
+
+**Auto-migration:** When an agent switches from `tinydb` to `sqlite`, `StoreFactory.create()` detects the existing `store.json` and imports all records (articles, tweets, digests) into the new SQLite store on the first run. The original `store.json` is kept as a backup.
 
 #### Deduplication strategy (SRC-012)
 

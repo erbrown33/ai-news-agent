@@ -25,6 +25,7 @@ from pydantic_settings import BaseSettings, SettingsConfigDict
 # ---------------------------------------------------------------------------
 
 LLMProvider = Literal["openai", "anthropic", "google"]
+StoreBackend = Literal["tinydb", "sqlite"]
 
 # ---------------------------------------------------------------------------
 # LLM configuration models (SRC-054, SRC-057)
@@ -368,6 +369,7 @@ class AgentConfig(BaseModel):
         limits:
           daily_top_n: 10
         output_dir: outputs/{agent_id}
+        store_backend: sqlite
     """
 
     agent_id: str = Field(
@@ -415,6 +417,14 @@ class AgentConfig(BaseModel):
             "Output file pattern: ``{output_dir}/YYYY-MM-DD-{cadence}.{md|html|json}``."
         ),
         min_length=1,
+    )
+    store_backend: StoreBackend = Field(
+        default="tinydb",
+        description=(
+            "Article store backend. ``tinydb`` (default) is zero-infrastructure and "
+            "stores articles in a JSON file. ``sqlite`` is better suited for larger "
+            "article volumes and concurrent reads."
+        ),
     )
 
     @model_validator(mode="after")
