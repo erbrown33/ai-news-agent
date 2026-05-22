@@ -94,21 +94,15 @@
     All
     <span class="filter-count">{{ items | length }}</span>
   </button>
-  {% if impact_freq.get('business_impact', 0) > 0 %}
-  <button class="filter-pill" data-filter="business_impact" type="button">
-    💼 Business <span class="filter-count">{{ impact_freq.get('business_impact', 0) }}</span>
-  </button>
-  {% endif %}
-  {% if impact_freq.get('workforce_impact', 0) > 0 %}
-  <button class="filter-pill" data-filter="workforce_impact" type="button">
-    👥 Workforce <span class="filter-count">{{ impact_freq.get('workforce_impact', 0) }}</span>
-  </button>
-  {% endif %}
-  {% if impact_freq.get('policy_impact', 0) > 0 %}
-  <button class="filter-pill" data-filter="policy_impact" type="button">
-    ⚖️ Policy <span class="filter-count">{{ impact_freq.get('policy_impact', 0) }}</span>
-  </button>
-  {% endif %}
+  {% for tag, count in impact_freq | dictsort(by='value', reverse=true) %}
+    {% if count > 0 %}
+    {% set d = tag_display(tag) %}
+    <button class="filter-pill" data-filter="{{ tag }}" type="button"
+            style="--pill-active-bg: {{ d.bg }}; --pill-active-color: {{ d.color }}; --pill-active-border: {{ d.border }};">
+      {{ d.emoji }} {{ d.label }} <span class="filter-count">{{ count }}</span>
+    </button>
+    {% endif %}
+  {% endfor %}
 </div>
 {% endif %}
 
@@ -132,12 +126,10 @@
         <time class="article-date">{{ item.pub_date[:10] if item.pub_date else '' }}</time>
         {% endif %}
         {% for tag in item.impact_tags %}
-        <span class="impact-badge impact-{{ tag }}">
-          {% if tag == 'business_impact' %}💼 Business
-          {% elif tag == 'workforce_impact' %}👥 Workforce
-          {% elif tag == 'policy_impact' %}⚖️ Policy
-          {% else %}{{ tag }}{% endif %}
-        </span>
+          {% set d = tag_display(tag) %}
+          <span class="impact-badge" style="background: {{ d.bg }}; color: {{ d.color }};">
+            {{ d.emoji }} {{ d.label }}
+          </span>
         {% endfor %}
       </div>
       <h3 class="article-headline">

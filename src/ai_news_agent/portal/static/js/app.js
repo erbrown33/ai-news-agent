@@ -182,8 +182,10 @@ function initImpactFilter() {
           card.style.display = "";
           card.classList.remove("dimmed");
         } else {
-          const hasTag = card.querySelector(`.impact-badge.impact-${activeFilter}`);
-          card.style.display = hasTag ? "" : "none";
+          // Match against the space-separated data-tags attribute on the card
+          // (set from item.impact_tags by the template).
+          const tags = (card.dataset.tags || "").split(/\s+/).filter(Boolean);
+          card.style.display = tags.includes(activeFilter) ? "" : "none";
         }
       });
     });

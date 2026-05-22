@@ -61,18 +61,19 @@ def _esc_attr(url: str) -> str:
 
 
 def _impact_badges_html(tags: list[str]) -> str:
-    """Render impact tags as styled HTML inline badges."""
-    tag_map: dict[str, tuple[str, str, str]] = {
-        "business_impact": ("💼", "Business Impact", "#e3f2fd"),
-        "workforce_impact": ("👥", "Workforce Impact", "#e8f5e9"),
-        "policy_impact": ("⚖️", "Policy Impact", "#fce4ec"),
-    }
+    """Render impact tags as styled HTML inline badges using the shared registry."""
+    from ai_news_agent.rendering.impact_tags import display_for
+
     badges: list[str] = []
     for tag in tags:
-        icon, label, color = tag_map.get(tag, ("📌", tag, "#f5f5f5"))
+        d = display_for(tag)
+        # Standalone-HTML export uses the "<short> Impact" form for clarity
+        # in email/web destinations that show the badge without a tooltip.
+        label = f"{d.label} Impact" if d.label else tag
         badges.append(
-            f'<span style="background:{color};padding:2px 8px;border-radius:12px;'
-            f'font-size:0.8em;white-space:nowrap">{icon} {_esc(label)}</span>'
+            f'<span style="background:{d.bg};color:{d.color};padding:2px 8px;'
+            f'border-radius:12px;font-size:0.8em;white-space:nowrap">'
+            f"{d.emoji} {_esc(label)}</span>"
         )
     if not badges:
         badges.append(

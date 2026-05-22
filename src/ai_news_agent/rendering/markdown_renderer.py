@@ -34,13 +34,10 @@ log = structlog.get_logger(__name__)
 
 
 def _impact_badge(tags: list[str]) -> str:
-    """Format impact tags as compact inline badges."""
-    tag_map = {
-        "business_impact": "💼 Business",
-        "workforce_impact": "👥 Workforce",
-        "policy_impact": "⚖️ Policy",
-    }
-    parts = [tag_map.get(t, t) for t in tags]
+    """Format impact tags as compact inline badges using the shared registry."""
+    from ai_news_agent.rendering.impact_tags import display_for
+
+    parts = [f"{display_for(t).emoji} {display_for(t).label}" for t in tags]
     return " · ".join(parts) if parts else "📌 General"
 
 

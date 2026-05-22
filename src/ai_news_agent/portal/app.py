@@ -84,6 +84,24 @@ def create_app(
     templates_dir = Path(__file__).parent / "templates"
     templates = Jinja2Templates(directory=str(templates_dir))
 
+    # Expose the impact-tag registry so templates render any agent's tag
+    # vocabulary (default, developer, etc.) without per-template hardcoding.
+    from ai_news_agent.rendering.impact_tags import display_for as _tag_display
+
+    templates.env.globals["tag_display"] = _tag_display
+
+    # Cache-busting for static assets: append the file's mtime as ?v=… so the
+    # browser refetches whenever a CSS/JS file is edited.
+    def _static_url(relpath: str) -> str:
+        path = static_dir / relpath
+        try:
+            mtime = int(path.stat().st_mtime)
+        except OSError:
+            return f"/static/{relpath}"
+        return f"/static/{relpath}?v={mtime}"
+
+    templates.env.globals["static_url"] = _static_url
+
     # Store in app state so routes can access them
     _app.state.outputs_dir = Path(outputs_dir)
     _app.state.configs_dir = Path(configs_dir)

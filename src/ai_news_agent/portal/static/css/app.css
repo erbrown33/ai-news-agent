@@ -61,13 +61,9 @@
   --cadence-annual-color:  #b45309;   /* amber-700 */
   --cadence-annual-bg:     #fef3c7;   /* amber-100 */
 
-  /* Impact tag colors */
-  --impact-business-color:  #1d4ed8;
-  --impact-business-bg:     #dbeafe;
-  --impact-workforce-color: #15803d;
-  --impact-workforce-bg:    #dcfce7;
-  --impact-policy-color:    #be185d;
-  --impact-policy-bg:       #fce7f3;
+  /* Impact-tag colors are supplied per-pill via inline CSS custom properties
+     (--pill-active-bg / --pill-active-color / --pill-active-border) from the
+     impact_tags registry. See src/ai_news_agent/rendering/impact_tags.py. */
 
   /* Layout */
   --max-w:         1180px;
@@ -347,11 +343,15 @@ code, kbd {
   border-color: var(--color-border);
 }
 .filter-pill:hover { border-color: var(--color-primary); color: var(--color-primary); }
-.filter-pill.active { border-color: var(--color-primary); background: var(--color-primary-lt); color: var(--color-primary); }
+/* Active filter pill: colors come from inline --pill-active-* custom properties
+   set by the template (one of the impact tag's color triplet). The "All" pill
+   has no inline overrides so it falls through to the primary defaults. */
+.filter-pill.active {
+  background: var(--pill-active-bg, var(--color-primary-lt));
+  color: var(--pill-active-color, var(--color-primary));
+  border-color: var(--pill-active-border, var(--color-primary));
+}
 .filter-pill[data-filter="all"].active { background: var(--color-primary); color: white; border-color: var(--color-primary-dk); }
-.filter-pill[data-filter="business_impact"].active { background: var(--impact-business-bg); color: var(--impact-business-color); border-color: #93c5fd; }
-.filter-pill[data-filter="workforce_impact"].active { background: var(--impact-workforce-bg); color: var(--impact-workforce-color); border-color: #86efac; }
-.filter-pill[data-filter="policy_impact"].active { background: var(--impact-policy-bg); color: var(--impact-policy-color); border-color: #f9a8d4; }
 
 .filter-count {
   background: rgba(0,0,0,0.08);
@@ -431,10 +431,8 @@ code, kbd {
   font-weight: 700;
   white-space: nowrap;
   letter-spacing: 0.02em;
+  /* background + color set inline by templates from the impact_tags registry */
 }
-.impact-badge.impact-business_impact  { background: var(--impact-business-bg);  color: var(--impact-business-color); }
-.impact-badge.impact-workforce_impact { background: var(--impact-workforce-bg); color: var(--impact-workforce-color); }
-.impact-badge.impact-policy_impact    { background: var(--impact-policy-bg);    color: var(--impact-policy-color); }
 
 /* Article headline */
 .article-headline {
