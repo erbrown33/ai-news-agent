@@ -386,7 +386,8 @@ def _cli_main(argv: list[str] | None = None) -> int:
     mode.add_argument(
         "--validate",
         metavar="PATH",
-        help="Path to a YAML config file to validate.",
+        nargs="+",
+        help="One or more YAML config files to validate.",
     )
 
     parser.add_argument(
@@ -414,7 +415,7 @@ def _cli_main(argv: list[str] | None = None) -> int:
         return 0
 
     # ── Validate mode ─────────────────────────────────────────────────────────
-    path = Path(args.validate)
+    paths = [Path(p) for p in args.validate]
     config_type = args.type
 
     if args.json_schema:
@@ -422,31 +423,33 @@ def _cli_main(argv: list[str] | None = None) -> int:
         print(json.dumps(schema, indent=2))
         print()
 
-    try:
-        if config_type == "agent":
-            config = validate_agent_yaml(path)
-            print(f"✓ {path} — valid agent configuration")
-            if args.summary:
-                print(summarise_agent_config(config))
-        else:
-            sched = validate_scheduler_yaml(path)
-            enabled = sum(1 for a in sched.agents if a.enabled)
-            print(
-                f"✓ {path} — valid scheduler configuration "
-                f"({len(sched.agents)} agents registered, {enabled} enabled)"
-            )
-            if args.summary:
-                print(f"  Agents: {', '.join(a.id for a in sched.agents)}")
-                print(f"  Retries: {sched.scheduler.max_retries}")
-                print(f"  Backoff: {sched.scheduler.retry_backoff_base_seconds}s base")
+    exit_code = 0
+    for path in paths:
+        try:
+            if config_type == "agent":
+                config = validate_agent_yaml(path)
+                print(f"✓ {path} — valid agent configuration")
+                if args.summary:
+                    print(summarise_agent_config(config))
+            else:
+                sched = validate_scheduler_yaml(path)
+                enabled = sum(1 for a in sched.agents if a.enabled)
+                print(
+                    f"✓ {path} — valid scheduler configuration "
+                    f"({len(sched.agents)} agents registered, {enabled} enabled)"
+                )
+                if args.summary:
+                    print(f"  Agents: {', '.join(a.id for a in sched.agents)}")
+                    print(f"  Retries: {sched.scheduler.max_retries}")
+                    print(f"  Backoff: {sched.scheduler.retry_backoff_base_seconds}s base")
 
-    except SchemaValidationError as exc:
-        print(f"✗ Validation FAILED for {path}:", file=sys.stderr)
-        for error in exc.errors:
-            print(f"  • {error}", file=sys.stderr)
-        return 1
+        except SchemaValidationError as exc:
+            print(f"✗ Validation FAILED for {path}:", file=sys.stderr)
+            for error in exc.errors:
+                print(f"  • {error}", file=sys.stderr)
+            exit_code = 1
 
-    return 0
+    return exit_code
 
 
 if __name__ == "__main__":

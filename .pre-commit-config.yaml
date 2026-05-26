@@ -47,7 +47,7 @@ repos:
     hooks:
       - id: validate-agent-configs
         name: Validate per-agent YAML configs
-        language: python
+        language: system
         entry: python -m ai_news_agent.config.schema --validate
         files: "^configs/.*-agent\\.yaml$|^configs/default-agent\\.yaml$|^configs/example-.*\\.yaml$"
         pass_filenames: true
@@ -56,14 +56,14 @@ repos:
 
       - id: validate-scheduler-config
         name: Validate scheduler.yaml
-        language: python
+        language: system
         entry: python -m ai_news_agent.config.schema --validate configs/scheduler.yaml --type scheduler
         files: "^configs/scheduler\\.yaml$"
         pass_filenames: false
 
       - id: check-no-secrets-in-configs
         name: Check YAML configs for accidentally committed secrets (SRC-073)
-        language: python
+        language: system
         entry: |
           python -c "
           import sys
