@@ -32,19 +32,16 @@ agent_id: developer
 
 # ─────────────────────────────────────────────────────────────────────────────
 # LLM configuration  (SRC-057)
-# Daily/weekly use gpt-4o; monthly/annual escalate to o3 for synthesis depth.
+# gpt-4.1 (1M-token context) is used for every cadence so weekly/monthly/annual
+# runs don't hit the 128k ceiling once the corpus grows.
 # ─────────────────────────────────────────────────────────────────────────────
 llm:
   provider: openai
-  model: gpt-4o
+  model: gpt-4.1
 
-  cadence_overrides:
-    monthly:
-      model: o3
-      thinking: false
-    annual:
-      model: o3
-      thinking: true                # Extended thinking for annual synthesis (SRC-032, SRC-054)
+  # No cadence overrides — gpt-4.1 has enough headroom for every cadence.
+  # Add entries here to escalate specific cadences to an o-series reasoning model.
+  cadence_overrides: {}
 
 # Path to the developer-focused prompt directory. The cadence-specific file
 # (daily.md / weekly.md / monthly.md / annual.md) is selected at runtime.

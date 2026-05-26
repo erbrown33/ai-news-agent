@@ -97,10 +97,12 @@ class LLMConfig(BaseModel):
         ),
     )
     model: str = Field(
-        default="gpt-4o",
+        default="gpt-4.1",
         description=(
-            "Default model name for daily and weekly curation. "
-            "OpenAI examples: 'gpt-4o', 'o3-mini'. "
+            "Default model name for all cadences (unless overridden). "
+            "Defaults to gpt-4.1 (1M-token context) so weekly/monthly/annual "
+            "runs don't exceed the prompt window as the corpus grows. "
+            "OpenAI examples: 'gpt-4.1', 'gpt-4o', 'o3-mini'. "
             "Anthropic examples: 'claude-3-7-sonnet-20250219'."
         ),
         min_length=1,

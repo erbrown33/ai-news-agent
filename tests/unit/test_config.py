@@ -36,7 +36,7 @@ class TestAgentConfigModel:
         """AgentConfig defaults match the spec defaults."""
         config = AgentConfig(agent_id="test")
         assert config.llm.provider == "openai"
-        assert config.llm.model == "gpt-4o"
+        assert config.llm.model == "gpt-4.1"
         assert config.limits.daily_top_n == 10
         assert config.limits.annual_top_n == 10
         assert config.twitter.enabled is True

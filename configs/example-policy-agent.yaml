@@ -23,20 +23,17 @@ agent_id: policy
 
 # ─────────────────────────────────────────────────────────────────────────────
 # LLM configuration  (SRC-057)
-# Policy analysis benefits from a capable model; using gpt-4o for daily/weekly
-# and o3 research mode for monthly/annual synthesis (SRC-054).
+# gpt-4.1 (1M-token context) is used for every cadence so policy analysis on
+# weekly/monthly/annual aggregations doesn't overflow the prompt window.
 # ─────────────────────────────────────────────────────────────────────────────
 llm:
   provider: openai                  # "openai" | "anthropic"  (SRC-057)
-  model: gpt-4o
+  model: gpt-4.1
 
-  cadence_overrides:
-    monthly:
-      model: o3                     # Deeper policy analysis with research-grade model (SRC-054)
-      thinking: false
-    annual:
-      model: o3
-      thinking: true                # Extended thinking for annual policy predictions (SRC-032, SRC-054)
+  # No cadence overrides — gpt-4.1 has enough headroom for every cadence.
+  # Add entries here to escalate specific cadences to an o-series reasoning
+  # model for deeper policy synthesis if desired.
+  cadence_overrides: {}
 
 # Path to the default prompt template. Cadence-specific files
 # (daily.md / weekly.md / monthly.md / annual.md) are selected at runtime.

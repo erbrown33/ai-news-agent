@@ -136,7 +136,7 @@ class TestLLMConfig:
         """Default provider is OpenAI — no configuration required (SRC-057)."""
         cfg = LLMConfig()
         assert cfg.provider == "openai"
-        assert cfg.model == "gpt-4o"
+        assert cfg.model == "gpt-4.1"
 
     def test_anthropic_provider_accepted(self) -> None:
         """Switching to Anthropic requires only a field value change (SRC-056)."""
@@ -421,7 +421,7 @@ class TestAgentConfigModel:
         config = AgentConfig(agent_id="minimal")
         assert config.agent_id == "minimal"
         assert config.llm.provider == "openai"
-        assert config.llm.model == "gpt-4o"
+        assert config.llm.model == "gpt-4.1"
         assert config.sources.custom == []
         assert config.twitter.enabled is True
         assert config.twitter.handles == []
@@ -689,7 +689,7 @@ class TestLoadAgentConfig:
         config = load_agent_config("configs/default-agent.yaml")
         assert config.agent_id == "default"
         assert config.llm.provider == "openai"
-        assert config.llm.model == "gpt-4o"
+        assert config.llm.model == "gpt-4.1"
         # All 9 default handles present (SRC-037–SRC-045)
         handles = {h.handle for h in config.twitter.handles}
         for expected in [
@@ -775,9 +775,9 @@ class TestLoadSchedulerConfig:
         cfg = load_scheduler_config("configs/scheduler.yaml")
         for agent in cfg.agents:
             if agent.id in ("technical", "policy"):
-                assert agent.enabled is False, (
-                    f"Example agent '{agent.id}' should be disabled by default"
-                )
+                assert (
+                    agent.enabled is False
+                ), f"Example agent '{agent.id}' should be disabled by default"
 
     def test_missing_scheduler_yaml_raises_config_error(self) -> None:
         with pytest.raises(ConfigError, match="not found"):
@@ -853,7 +853,7 @@ class TestLoadAllEnabledAgents:
         )
         result = load_all_enabled_agents(cfg)
         assert set(result.keys()) == {"agent-a", "agent-b"}
-        assert result["agent-a"].llm.model == "gpt-4o"  # default
+        assert result["agent-a"].llm.model == "gpt-4.1"  # default
         assert result["agent-b"].twitter.handles[0].handle == "karpathy"
 
     def test_id_mismatch_logs_warning_but_loads(self, tmp_path: Path) -> None:
@@ -1007,9 +1007,9 @@ class TestRuntimeSecrets:
         dumped = config.model_dump()
         secret_keywords = ["api_key", "bearer_token", "secret", "password", "token"]
         for key in dumped:
-            assert not any(kw in key.lower() for kw in secret_keywords), (
-                f"Possible secret field found in AgentConfig: '{key}'"
-            )
+            assert not any(
+                kw in key.lower() for kw in secret_keywords
+            ), f"Possible secret field found in AgentConfig: '{key}'"
 
     def test_real_config_files_contain_no_secrets(self) -> None:
         """All shipped YAML config files are free of secret values (SRC-073)."""

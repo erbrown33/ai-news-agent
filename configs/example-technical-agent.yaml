@@ -17,17 +17,12 @@ agent_id: technical
 # ─────────────────────────────────────────────────────────────────────────────
 llm:
   provider: openai
-  model: gpt-4o
+  model: gpt-4.1
 
-  # Technical agent uses the same model for all cadences by default
-  # Override for monthly/annual if deeper reasoning is needed (SRC-054)
-  cadence_overrides:
-    monthly:
-      model: o3
-      thinking: false
-    annual:
-      model: o3
-      thinking: true
+  # gpt-4.1's 1M-token context fits every cadence; no overrides needed.
+  # Add entries here to escalate specific cadences to an o-series reasoning
+  # model if deeper reasoning is wanted (SRC-054).
+  cadence_overrides: {}
 
 # Path to the default prompt (same files as default agent; curation prompt
 # is what differentiates agents — the prompt itself is the curation "theme") (SRC-113)

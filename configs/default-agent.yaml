@@ -24,17 +24,15 @@ agent_id: default
 # ─────────────────────────────────────────────────────────────────────────────
 llm:
   provider: openai                  # "openai" | "anthropic"  (SRC-057)
-  model: gpt-4o                     # Default model for daily + weekly curation
+  model: gpt-4.1                    # Default for all cadences — 1M-token context
+                                    # avoids the gpt-4o 128k ceiling once the
+                                    # weekly/monthly/annual corpus grows large.
 
   # Per-cadence model overrides (SRC-054)
-  # Monthly and annual benefit from higher-reasoning / research-grade models.
-  cadence_overrides:
-    monthly:
-      model: o3                     # Research-grade model (SRC-054, SRC-031)
-      thinking: false
-    annual:
-      model: o3
-      thinking: true                # Extended thinking enabled (SRC-032, SRC-054)
+  # Left empty: gpt-4.1's 1M context comfortably fits every cadence, so no
+  # override is needed. Add entries here if you want a different model
+  # (e.g. an o-series reasoning model) for specific cadences.
+  cadence_overrides: {}
 
 # Path to the default prompt template. The curation agent selects the
 # cadence-specific file (daily.md / weekly.md / monthly.md / annual.md)
