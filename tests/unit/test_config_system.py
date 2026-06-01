@@ -775,9 +775,9 @@ class TestLoadSchedulerConfig:
         cfg = load_scheduler_config("configs/scheduler.yaml")
         for agent in cfg.agents:
             if agent.id in ("technical", "policy"):
-                assert (
-                    agent.enabled is False
-                ), f"Example agent '{agent.id}' should be disabled by default"
+                assert agent.enabled is False, (
+                    f"Example agent '{agent.id}' should be disabled by default"
+                )
 
     def test_missing_scheduler_yaml_raises_config_error(self) -> None:
         with pytest.raises(ConfigError, match="not found"):
@@ -1007,9 +1007,9 @@ class TestRuntimeSecrets:
         dumped = config.model_dump()
         secret_keywords = ["api_key", "bearer_token", "secret", "password", "token"]
         for key in dumped:
-            assert not any(
-                kw in key.lower() for kw in secret_keywords
-            ), f"Possible secret field found in AgentConfig: '{key}'"
+            assert not any(kw in key.lower() for kw in secret_keywords), (
+                f"Possible secret field found in AgentConfig: '{key}'"
+            )
 
     def test_real_config_files_contain_no_secrets(self) -> None:
         """All shipped YAML config files are free of secret values (SRC-073)."""
