@@ -73,6 +73,61 @@ _SEARCH_BUDGET_TEXT: dict[str, str] = {
 }
 
 # ---------------------------------------------------------------------------
+# Universal selection guidance — appended to EVERY prompt (SRC-118 quality bar)
+# ---------------------------------------------------------------------------
+
+#: De-duplication + variety guidance appended by ``build()`` to every curation
+#: prompt — the default cadence templates *and* any custom ``curation_prompt``
+#: override. Centralising it here (rather than copying it into each template
+#: file) means the rule is a single, code-reviewed source of truth that cannot be
+#: dropped by pointing ``curation_prompt`` at a custom prompt directory.
+#:
+#: It applies *on top of* the inclusion/exclusion criteria in the template above —
+#: it governs how to choose among items that already qualify, never overriding the
+#: template's own criteria. ``{{top_n}}`` is substituted at build time like any
+#: other placeholder. Editing this text changes the runtime ``prompt_version`` hash
+#: (SRC-129), so changes remain attributable for regression tracing.
+_UNIVERSAL_SELECTION_GUIDANCE: str = """
+
+---
+
+## Universal Selection Rules — Consolidate Duplicate Coverage and Maximize Variety
+
+These rules apply to **every** digest, on top of the inclusion and exclusion criteria
+above. They do not override those criteria — they govern how you choose among the items
+that already qualify.
+
+The candidate pool routinely contains **multiple articles covering the same underlying
+event** — the same announcement, deal, study, ruling, incident, release, or launch —
+reported by different outlets under different headlines and wording (for example, several
+separate write-ups of a single Google AI announcement). These are **not** distinct news
+items. They are duplicate coverage of one story.
+
+**One story, one item — this is a hard rule:**
+
+1. When two or more candidates describe the same underlying development, select the
+   **single best** article to represent it. Prefer the most authoritative primary source,
+   the most complete and accurate reporting, and the stronger outlet — weighing source tier,
+   but a superior lower-tier report can outrank a thin higher-tier rewrite.
+2. Include that one item only. Put the other URLs that cover the same story in that item's
+   `cross_refs` field — do **not** list them as separate items.
+3. Judge "same story" by **substance, not wording**: the same actors, the same event, the
+   same time frame, and the same core facts almost always mean one story even when the
+   headlines differ. Differing titles are not evidence of differing stories.
+
+**Maximize variety within the criteria above.** A digest of {{top_n}} items covering
+{{top_n}} *different* significant developments is far more valuable than {{top_n}} angles on
+the same event or the same organisation. If your strongest candidates cluster around one
+story, one organisation, or one theme, keep the best one or two and spend the remaining
+slots on the next most significant *distinct* developments — across different organisations,
+sectors, and impact types. Breadth of coverage is a primary quality goal, not an afterthought.
+
+**Never duplicate to reach the target count.** Distinctness and quality outrank count: if
+collapsing duplicates leaves fewer than {{top_n}} genuinely distinct qualifying stories,
+return only those that qualify.
+"""
+
+# ---------------------------------------------------------------------------
 # Internal helpers
 # ---------------------------------------------------------------------------
 
@@ -88,6 +143,21 @@ def _sha256_file(path: Path) -> str:
     Traces: SRC-129 (prompt version recorded in all digest outputs)
     """
     digest = hashlib.sha256(path.read_bytes()).hexdigest()
+    return f"sha256:{digest}"
+
+
+def _sha256_text(text: str) -> str:
+    """
+    Compute the SHA-256 hex digest of a prompt's full instructional text.
+
+    Used for the runtime ``prompt_version`` (SRC-129), computed over the template
+    plus the appended universal selection guidance, BEFORE runtime substitution —
+    so the version uniquely identifies the prompt text actually sent and changes
+    whenever either the template or the universal guidance changes.
+
+    Returns the canonical string ``"sha256:<64-char-hex>"``.
+    """
+    digest = hashlib.sha256(text.encode("utf-8")).hexdigest()
     return f"sha256:{digest}"
 
 
@@ -432,8 +502,10 @@ class PromptBuilder:
         Returns:
             ``(prompt_text, prompt_version)``
 
-            - ``prompt_text``:    Fully interpolated prompt string ready for the LLM.
-            - ``prompt_version``: ``"sha256:<64-char-hex>"`` of the template file (SRC-129).
+            - ``prompt_text``:    Fully interpolated prompt string ready for the LLM,
+              including the universal selection guidance appended to every prompt.
+            - ``prompt_version``: ``"sha256:<64-char-hex>"`` of the template plus the
+              appended universal guidance, before substitution (SRC-129).
 
         Raises:
             FileNotFoundError: If the prompt file does not exist.
@@ -459,16 +531,24 @@ class PromptBuilder:
             )
 
         # ------------------------------------------------------------------
-        # Step 2: SHA-256 hash of raw template — BEFORE substitution (SRC-129)
+        # Step 2: Append the universal selection guidance, then hash the full
+        #         instructional text BEFORE substitution (SRC-118, SRC-129)
         # ------------------------------------------------------------------
-        prompt_version = _sha256_file(prompt_path)
-        template = prompt_path.read_text(encoding="utf-8")
+        # The universal de-duplication / variety guidance is appended to EVERY
+        # prompt — default cadence templates and custom ``curation_prompt``
+        # overrides alike — so the rule cannot be dropped by configuration.
+        # The version hashes template + guidance so it uniquely identifies the
+        # prompt actually sent and changes if either the template or the guidance
+        # changes (SRC-129).
+        template = prompt_path.read_text(encoding="utf-8") + _UNIVERSAL_SELECTION_GUIDANCE
+        prompt_version = _sha256_text(template)
 
         log.debug(
             "prompt_builder_load",
             cadence=cadence,
             prompt_path=str(prompt_path),
             prompt_version=prompt_version,
+            universal_guidance_appended=True,
             candidates=len(candidates) if candidates else 0,
             tweet_signals=len(tweet_signals),
             twitter_api_available=twitter_api_available,
@@ -544,10 +624,14 @@ class PromptBuilder:
 
     def get_prompt_version(self, cadence: Cadence) -> str:
         """
-        Return the current SHA-256 hash of the prompt file for ``cadence``
-        without building the full prompt.
+        Return the runtime ``prompt_version`` for ``cadence`` without building the
+        full prompt — i.e. the SHA-256 of the template file plus the appended
+        universal selection guidance, matching what :meth:`build` records.
 
-        Used for pre-flight version checks, monitoring, and manifest generation.
+        Used for pre-flight version checks and monitoring. Note this differs from
+        :class:`PromptManifest` (and the ``--verify`` CLI), which hash the raw
+        template *files* to detect unreviewed edits to the configurable templates;
+        this method reflects the full prompt actually sent to the model (SRC-129).
 
         Traces: SRC-129
         """
@@ -555,7 +639,7 @@ class PromptBuilder:
         prompt_path = self._prompts_dir / filename
         if not prompt_path.exists():
             raise FileNotFoundError(f"Prompt file not found: {prompt_path!r} (SRC-113)")
-        return _sha256_file(prompt_path)
+        return _sha256_text(prompt_path.read_text(encoding="utf-8") + _UNIVERSAL_SELECTION_GUIDANCE)
 
     def get_manifest(self) -> PromptManifest:
         """

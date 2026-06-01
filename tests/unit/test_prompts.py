@@ -33,11 +33,13 @@ from pathlib import Path
 import pytest
 
 from ai_news_agent.curation.prompt_builder import (
+    _UNIVERSAL_SELECTION_GUIDANCE,
     PromptBuilder,
     PromptManifest,
     _format_tier_articles,
     _format_twitter_section,
     _sha256_file,
+    _sha256_text,
     compute_all_hashes,
 )
 from ai_news_agent.storage.models import (
@@ -787,10 +789,15 @@ class TestPromptBuilderBuild:
         assert version.startswith("sha256:")
         assert len(version) == 71  # "sha256:" + 64-char hex
 
-    def test_prompt_version_is_hash_of_raw_template(self) -> None:
-        """The returned version is the SHA-256 of the raw prompt file bytes (SRC-129)."""
+    def test_prompt_version_is_hash_of_template_plus_universal_guidance(self) -> None:
+        """
+        The returned version is the SHA-256 of the template text plus the appended
+        universal selection guidance, before substitution (SRC-129). The universal
+        guidance is part of the prompt actually sent, so it is folded into the hash.
+        """
         daily_path = REAL_PROMPTS_DIR / "daily.md"
-        expected = f"sha256:{hashlib.sha256(daily_path.read_bytes()).hexdigest()}"
+        combined = daily_path.read_text(encoding="utf-8") + _UNIVERSAL_SELECTION_GUIDANCE
+        expected = _sha256_text(combined)
         _, version = self._build(cadence="daily")
         assert version == expected
 
@@ -970,6 +977,101 @@ class TestPromptBuilderBuild:
         assert "2026-05-09" in prompt
         assert "Custom Prompt" in prompt
         assert version.startswith("sha256:")
+
+
+# ---------------------------------------------------------------------------
+# TestUniversalSelectionGuidance — de-dup / variety guidance injected in code
+# ---------------------------------------------------------------------------
+
+
+class TestUniversalSelectionGuidance:
+    """
+    The de-duplication / variety guidance is appended to EVERY built prompt by the
+    PromptBuilder — default cadence templates AND custom ``curation_prompt`` overrides
+    alike — so the rule cannot be dropped by configuration. Traces: SRC-118, SRC-129.
+    """
+
+    # A distinctive phrase that must survive into every built prompt.
+    MARKER = "Universal Selection Rules"
+    HARD_RULE = "One story, one item"
+
+    def _builder(self) -> PromptBuilder:
+        return PromptBuilder(prompts_dir=REAL_PROMPTS_DIR)
+
+    def test_guidance_present_in_all_default_cadences(self) -> None:
+        """Every default cadence prompt carries the universal guidance (SRC-118)."""
+        builder = self._builder()
+        for cadence in ("daily", "weekly", "monthly", "annual"):
+            prompt, _ = builder.build(
+                cadence=cadence,
+                window_start=datetime(2026, 1, 1, tzinfo=UTC),
+                window_end=datetime(2026, 1, 31, tzinfo=UTC),
+                tweet_signals=[],
+                top_n=10,
+            )
+            assert self.MARKER in prompt, f"{cadence}: missing universal guidance section"
+            assert self.HARD_RULE in prompt, f"{cadence}: missing one-story-one-item rule"
+
+    def test_guidance_present_with_custom_prompt_directory(self, tmp_path: Path) -> None:
+        """
+        A custom ``curation_prompt`` pointing at a minimal template that contains NONE
+        of the guidance still gets it appended — this is the config-independence
+        guarantee (SRC-118).
+        """
+        custom_dir = tmp_path / "custom_prompts"
+        custom_dir.mkdir()
+        # Minimal custom template — deliberately omits any de-dup / variety language.
+        (custom_dir / "daily.md").write_text(
+            "# Custom Prompt\n\nSelect the top {{top_n}} items for {{window_start_iso}}.\n",
+            encoding="utf-8",
+        )
+        builder = PromptBuilder(prompts_dir=custom_dir)
+        prompt, _ = builder.build(
+            cadence="daily",
+            window_start=datetime(2026, 1, 1, tzinfo=UTC),
+            window_end=datetime(2026, 1, 1, tzinfo=UTC),
+            tweet_signals=[],
+            top_n=5,
+        )
+        assert "Custom Prompt" in prompt  # the custom template is used
+        assert self.MARKER in prompt  # ...and the guidance is still appended
+        assert self.HARD_RULE in prompt
+
+    def test_guidance_top_n_placeholder_is_substituted(self) -> None:
+        """``{{top_n}}`` inside the appended guidance is substituted at build time."""
+        builder = self._builder()
+        prompt, _ = builder.build(
+            cadence="daily",
+            window_start=datetime(2026, 1, 1, tzinfo=UTC),
+            window_end=datetime(2026, 1, 1, tzinfo=UTC),
+            tweet_signals=[],
+            top_n=7,
+        )
+        # No raw placeholder survives, and the guidance references the concrete count.
+        assert "{{top_n}}" not in prompt
+        guidance_tail = prompt.split(self.MARKER, 1)[1]
+        assert "7 items" in guidance_tail
+
+    def test_prompt_version_folds_in_guidance(self) -> None:
+        """
+        The runtime ``prompt_version`` hashes template + guidance, so it differs from
+        the raw-template-file hash and changes if the guidance changes (SRC-129).
+        """
+        builder = self._builder()
+        _, version = builder.build(
+            cadence="daily",
+            window_start=datetime(2026, 1, 1, tzinfo=UTC),
+            window_end=datetime(2026, 1, 1, tzinfo=UTC),
+            tweet_signals=[],
+            top_n=10,
+        )
+        raw_file_hash = _sha256_file(REAL_PROMPTS_DIR / "daily.md")
+        assert version != raw_file_hash, "version must reflect the appended guidance"
+        # It equals the hash of (template text + guidance) before substitution.
+        combined = (REAL_PROMPTS_DIR / "daily.md").read_text(
+            encoding="utf-8"
+        ) + _UNIVERSAL_SELECTION_GUIDANCE
+        assert version == _sha256_text(combined)
 
 
 # ---------------------------------------------------------------------------
