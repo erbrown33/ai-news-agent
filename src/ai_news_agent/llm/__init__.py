@@ -15,9 +15,9 @@ Provider clients (accessed via factory; never imported directly by pipeline):
   GoogleLLMClient    — Google Gemini / Vertex AI (SRC-055–SRC-056)
 
 Search tools (accessed via factory; never imported directly by pipeline):
-  NativeOpenAISearchTool — OpenAI Responses API web_search (SRC-060)
-  BraveSearchTool        — Brave Search API (SRC-060 fallback)
-  TavilySearchTool       — Tavily Search API (SRC-060 fallback)
+  NativeOpenAISearchTool — OpenAI Responses API web_search (fallback for provider=openai)
+  BraveSearchTool        — Brave Search API (WEB_SEARCH_PROVIDER=brave, SRC-060)
+  TavilySearchTool       — Tavily Search API (WEB_SEARCH_PROVIDER=tavily, SRC-060; default)
 
 Traces: SRC-055–SRC-061 (provider-agnostic design), SRC-057 (OpenAI default),
         SRC-144 (retry/backoff via LLMError + with_retry)

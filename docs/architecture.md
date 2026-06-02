@@ -392,9 +392,8 @@ AbstractSearchTool         (llm/search_tools.py)
   ├── search(query, n) → list[SearchResult]
   └── hydrate_url(url) → str | None
 
-NativeOpenAISearchTool     (llm/search_tools.py)    # OpenAI built-in web search
-BraveSearchTool            (llm/search_tools.py)    # Brave Search API (SRC-060 fallback)
-TavilySearchTool           (llm/search_tools.py)    # Tavily API (SRC-060 fallback)
+BraveSearchTool            (llm/search_tools.py)    # Brave Search API (WEB_SEARCH_PROVIDER=brave)
+TavilySearchTool           (llm/search_tools.py)    # Tavily API (WEB_SEARCH_PROVIDER=tavily; default)
 
 get_llm_client(cfg, secrets) → AbstractLLMClient    (llm/factory.py)
 get_search_tool(cfg, secrets) → AbstractSearchTool  (llm/factory.py)
@@ -456,8 +455,7 @@ class AbstractLLMClient(ABC):
     ) -> list[SearchResult]:
         """
         Execute a web search. (SRC-121)
-        Uses provider's native search tool if available; otherwise
-        delegates to configured AbstractSearchTool adapter. (SRC-060)
+        Delegates to the configured AbstractSearchTool adapter (Brave or Tavily). (SRC-060)
         """
 
     @abstractmethod
@@ -473,15 +471,15 @@ class AbstractLLMClient(ABC):
 #### `llm/openai_client.py` — Default implementation
 
 ```python
-# Traces: SRC-057 (OpenAI as default), SRC-060 (native search tool),
+# Traces: SRC-057 (OpenAI as default), SRC-060 (Brave/Tavily search),
 #         SRC-061 (output parsing from text), SRC-032/SRC-054 (extended thinking)
 
 class OpenAILLMClient(AbstractLLMClient):
     """
-    Wraps the OpenAI Agents SDK (openai-agents package) for all LLM interactions.
+    Wraps the OpenAI Python SDK for all LLM interactions.
 
-    Sourcing: uses the Responses API with web_search tool (native) or falls back
-    to BraveSearchTool / TavilySearchTool matching the same AbstractSearchTool interface.
+    Sourcing: delegates to injected BraveSearchTool or TavilySearchTool
+    via the AbstractSearchTool interface. (SRC-060)
 
     Curation: sends structured prompt; parses embedded JSON block from response.
 
@@ -538,9 +536,6 @@ class AbstractSearchTool(ABC):
     def hydrate_url(self, url: str) -> str | None:
         """Fetch and return page text for URL hydration. Returns None on failure."""
 
-
-class NativeOpenAISearchTool(AbstractSearchTool):
-    """Uses OpenAI's built-in web search (via Responses API or tool call)."""
 
 class BraveSearchTool(AbstractSearchTool):
     """Brave Search API via httpx. API key from WEB_SEARCH_API_KEY env var. (SRC-109)"""
@@ -2059,7 +2054,7 @@ Stage 7: Smoke       --dry-run mode → scratch location           (SRC-102)
 
 | Env Var | Required | Purpose | Source |
 |---------|----------|---------|--------|
-| `OPENAI_API_KEY` | Yes (default provider) | LLM completions + native search | SRC-107 |
+| `OPENAI_API_KEY` | Yes (default provider) | LLM completions | SRC-107 |
 | `TWITTER_BEARER_TOKEN` | Yes | tweepy auth (Basic tier+) | SRC-108 |
 | `WEB_SEARCH_API_KEY` | Optional | Brave/Tavily fallback search | SRC-109 |
 | `WEB_SEARCH_PROVIDER` | Optional | `"brave"` \| `"tavily"` | SRC-060 |

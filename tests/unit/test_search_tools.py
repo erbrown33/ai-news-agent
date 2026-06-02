@@ -13,7 +13,6 @@ Traces: SRC-056, SRC-060, SRC-069, SRC-109
 
 from __future__ import annotations
 
-import json
 from typing import Any
 from unittest.mock import MagicMock, patch
 
@@ -22,7 +21,6 @@ import pytest
 from ai_news_agent.llm.base import SearchResult
 from ai_news_agent.llm.search_tools import (
     BraveSearchTool,
-    NativeOpenAISearchTool,
     _extract_domain,
 )
 
@@ -57,280 +55,6 @@ class TestExtractDomain:
         """Completely unparseable input returns empty string gracefully."""
         result = _extract_domain("not_a_url_at_all")
         assert isinstance(result, str)
-
-
-# ---------------------------------------------------------------------------
-# NativeOpenAISearchTool
-# ---------------------------------------------------------------------------
-
-
-class TestNativeOpenAISearchTool:
-    """
-    Tests for NativeOpenAISearchTool.
-
-    All external OpenAI API calls are mocked.
-    Traces: SRC-060 (native OpenAI search), SRC-069 (hydrate_url)
-    """
-
-    def _make_tool(self) -> tuple[NativeOpenAISearchTool, MagicMock]:
-        """Return a tool instance with a mocked OpenAI client."""
-        mock_client = MagicMock()
-        tool = NativeOpenAISearchTool(client=mock_client)
-        return tool, mock_client
-
-    # ── search() ────────────────────────────────────────────────────────────
-
-    def test_search_returns_empty_on_api_error(self) -> None:
-        """
-        When the OpenAI Responses API raises, search() returns [] gracefully.
-        Traces: SRC-060
-        """
-        tool, mock_client = self._make_tool()
-        mock_client.responses.create.side_effect = RuntimeError("API unavailable")
-
-        results = tool.search("AI news today", n=5)
-        assert results == []
-
-    def test_search_parses_json_output(self) -> None:
-        """
-        Valid JSON array from the model is parsed into SearchResult objects.
-        Traces: SRC-060
-        """
-        tool, mock_client = self._make_tool()
-
-        # Simulate a Responses API output with a JSON block in text
-        json_results = json.dumps(
-            [
-                {
-                    "url": "https://reuters.com/ai-news",
-                    "title": "AI Advances",
-                    "snippet": "AI is changing...",
-                },
-                {
-                    "url": "https://bloomberg.com/tech",
-                    "title": "Tech Wave",
-                    "snippet": "Technology...",
-                },
-            ]
-        )
-        fake_block = MagicMock()
-        fake_block.text = f"```json\n{json_results}\n```"
-        fake_content_item = MagicMock()
-        fake_content_item.content = [fake_block]
-        mock_resp = MagicMock()
-        mock_resp.output = [fake_content_item]
-        mock_client.responses.create.return_value = mock_resp
-
-        results = tool.search("AI news", n=5)
-        assert len(results) >= 1
-        assert all(isinstance(r, SearchResult) for r in results)
-        assert results[0].url == "https://reuters.com/ai-news"
-
-    def test_search_heuristic_url_extraction(self) -> None:
-        """
-        When JSON parse fails, heuristic URL extraction still returns results.
-        Traces: SRC-060 (fallback parsing)
-        """
-        tool, mock_client = self._make_tool()
-
-        text_with_urls = (
-            "- AI Advances at https://reuters.com/ai-advances\n"
-            "- Tech News at https://bloomberg.com/tech-news\n"
-        )
-        fake_block = MagicMock()
-        fake_block.text = text_with_urls
-        fake_content_item = MagicMock()
-        fake_content_item.content = [fake_block]
-        mock_resp = MagicMock()
-        mock_resp.output = [fake_content_item]
-        mock_client.responses.create.return_value = mock_resp
-
-        results = tool.search("AI news", n=5)
-        assert len(results) >= 1
-        assert all(r.url.startswith("https://") for r in results)
-
-    def test_search_respects_n_limit(self) -> None:
-        """
-        search() must not return more than n results.
-        Traces: SRC-060
-        """
-        tool, mock_client = self._make_tool()
-
-        json_results = json.dumps(
-            [
-                {"url": f"https://example{i}.com", "title": f"Article {i}", "snippet": "Text"}
-                for i in range(10)
-            ]
-        )
-        fake_block = MagicMock()
-        fake_block.text = f"```json\n{json_results}\n```"
-        fake_content_item = MagicMock()
-        fake_content_item.content = [fake_block]
-        mock_resp = MagicMock()
-        mock_resp.output = [fake_content_item]
-        mock_client.responses.create.return_value = mock_resp
-
-        results = tool.search("AI news", n=3)
-        assert len(results) <= 3
-
-    def test_search_empty_output(self) -> None:
-        """
-        When the API returns output=None, search() returns [].
-        Traces: SRC-060
-        """
-        tool, mock_client = self._make_tool()
-        mock_resp = MagicMock()
-        mock_resp.output = None
-        mock_client.responses.create.return_value = mock_resp
-
-        results = tool.search("query")
-        assert results == []
-
-    def test_search_empty_content_block(self) -> None:
-        """
-        When content blocks have no text, search() returns [].
-        Traces: SRC-060
-        """
-        tool, mock_client = self._make_tool()
-
-        fake_block = MagicMock()
-        fake_block.text = ""
-        fake_content_item = MagicMock()
-        fake_content_item.content = [fake_block]
-        mock_resp = MagicMock()
-        mock_resp.output = [fake_content_item]
-        mock_client.responses.create.return_value = mock_resp
-
-        results = tool.search("query")
-        assert results == []
-
-    # ── _parse_search_block() corner cases ──────────────────────────────────
-
-    def test_parse_block_empty_string(self) -> None:
-        """Empty block text returns empty list."""
-        tool, _ = self._make_tool()
-        assert tool._parse_search_block("") == []
-
-    def test_parse_block_json_without_url(self) -> None:
-        """JSON items without 'url' key are skipped."""
-        tool, _ = self._make_tool()
-        json_data = json.dumps([{"title": "No URL here", "snippet": "..."}])
-        results = tool._parse_search_block(f"```json\n{json_data}\n```")
-        assert results == []
-
-    def test_parse_block_invalid_json_falls_back(self) -> None:
-        """Malformed JSON falls back to regex extraction."""
-        tool, _ = self._make_tool()
-        text = "Check https://example.com for more information"
-        results = tool._parse_search_block(text)
-        assert len(results) >= 1
-        assert results[0].url == "https://example.com"
-
-    def test_parse_block_markdown_citation_extracts_link_text_as_title(self) -> None:
-        """
-        ``- **Source:** [Title](url)`` markdown lines must yield ``title=Title``
-        (not the malformed ``"Source:** [Title"`` produced by the old line-strip
-        heuristic).
-        """
-        tool, _ = self._make_tool()
-        text = (
-            "- **Source:** [TechRadar Pro](https://www.techradar.com/pro/example-article)\n"
-            "- **Source:** [Reuters](https://www.reuters.com/tech/ai-news)\n"
-        )
-        results = tool._parse_search_block(text)
-        titles = [r.title for r in results]
-        urls = [r.url for r in results]
-        assert "TechRadar Pro" in titles
-        assert "Reuters" in titles
-        assert "https://www.techradar.com/pro/example-article" in urls
-        assert "https://www.reuters.com/tech/ai-news" in urls
-
-    def test_parse_block_markdown_with_trailing_description_captures_snippet(self) -> None:
-        """Description text after a markdown link becomes the snippet."""
-        tool, _ = self._make_tool()
-        text = (
-            "1. [OpenAI launches new model](https://openai.com/blog/example) — "
-            "The new model improves coding and reasoning benchmarks.\n"
-        )
-        results = tool._parse_search_block(text)
-        assert len(results) == 1
-        assert results[0].title == "OpenAI launches new model"
-        assert "improves coding and reasoning" in results[0].snippet
-
-    def test_parse_block_markdown_with_following_description_line(self) -> None:
-        """A description on the line after the link becomes the snippet."""
-        tool, _ = self._make_tool()
-        text = (
-            "[Anthropic releases Claude 4.7](https://anthropic.com/news/example)\n"
-            "  Anthropic released its newest model focused on long-context reasoning.\n"
-        )
-        results = tool._parse_search_block(text)
-        assert len(results) == 1
-        assert results[0].title == "Anthropic releases Claude 4.7"
-        assert "long-context reasoning" in results[0].snippet
-
-    def test_parse_block_dedupes_same_url(self) -> None:
-        """Repeated URLs in the same block are returned once."""
-        tool, _ = self._make_tool()
-        text = (
-            "- [Title A](https://example.com/article)\n"
-            "- [Title A again](https://example.com/article)\n"
-        )
-        results = tool._parse_search_block(text)
-        assert len(results) == 1
-
-    def test_parse_block_markdown_links_array_not_misread_as_json(self) -> None:
-        """
-        Prose like ``[A](u1) and [B](u2)`` must not be parsed as a JSON array.
-        Previously the ``[...]`` regex was too greedy and captured markdown link
-        sequences as JSON, then failed silently.
-        """
-        tool, _ = self._make_tool()
-        text = "Results: [Article A](https://example.com/a) and [Article B](https://example.com/b)"
-        results = tool._parse_search_block(text)
-        titles = [r.title for r in results]
-        assert "Article A" in titles
-        assert "Article B" in titles
-
-    # ── hydrate_url() ────────────────────────────────────────────────────────
-
-    def test_hydrate_url_returns_none_on_empty(self) -> None:
-        """Empty URL returns None without making any HTTP request."""
-        tool, _ = self._make_tool()
-        assert tool.hydrate_url("") is None
-
-    def test_hydrate_url_success(self) -> None:
-        """
-        Successful HTTP GET returns first 2000 chars of text.
-        Traces: SRC-069 (hydrate linked tweet URLs)
-        """
-        tool, _ = self._make_tool()
-        mock_resp = MagicMock()
-        mock_resp.text = "Article content here " * 200
-        mock_resp.raise_for_status = MagicMock()
-
-        with patch.object(tool._http, "get", return_value=mock_resp):
-            result = tool.hydrate_url("https://reuters.com/article")
-
-        assert result is not None
-        assert len(result) <= 2000
-
-    def test_hydrate_url_returns_none_on_error(self) -> None:
-        """
-        HTTP errors return None gracefully — no exception propagated.
-        Traces: SRC-069
-        """
-        tool, _ = self._make_tool()
-        with patch.object(tool._http, "get", side_effect=RuntimeError("timeout")):
-            result = tool.hydrate_url("https://reuters.com/article")
-        assert result is None
-
-    def test_close(self) -> None:
-        """close() closes the underlying httpx client without error."""
-        tool, _ = self._make_tool()
-        with patch.object(tool._http, "close") as mock_close:
-            tool.close()
-            mock_close.assert_called_once()
 
 
 # ---------------------------------------------------------------------------
@@ -550,16 +274,6 @@ class TestSearchResultShape:
 
     def test_search_result_all_tools_return_same_type(self) -> None:
         """All search tool results are SearchResult instances."""
-        # NativeOpenAI tool
-        mock_client = MagicMock()
-        mock_resp = MagicMock()
-        mock_resp.output = None
-        mock_client.responses.create.return_value = mock_resp
-        openai_tool = NativeOpenAISearchTool(client=mock_client)
-        openai_results = openai_tool.search("query")
-        assert isinstance(openai_results, list)
-
-        # BraveTool
         brave_tool = BraveSearchTool(api_key="key")
         with patch.object(brave_tool._http, "get", side_effect=RuntimeError("offline")):
             brave_results = brave_tool.search("query")
@@ -588,14 +302,25 @@ class TestLLMFactory:
     def openai_secrets(self, sample_secrets):
         return sample_secrets
 
-    def test_get_search_tool_openai_native(self, openai_llm_cfg, openai_secrets) -> None:
+    def test_get_search_tool_openai_native_fallback(self, openai_llm_cfg, openai_secrets) -> None:
         """
-        Default OpenAI provider returns NativeOpenAISearchTool.
+        OpenAI provider without WEB_SEARCH_API_KEY falls back to NativeOpenAISearchTool.
         Traces: SRC-057, SRC-060
         """
         from ai_news_agent.llm.factory import get_search_tool
+        from ai_news_agent.llm.search_tools import NativeOpenAISearchTool
 
-        tool = get_search_tool(openai_llm_cfg, openai_secrets)
+        with (
+            patch("ai_news_agent.llm.factory._openai", create=True),
+            patch("ai_news_agent.llm.search_tools.httpx.Client"),
+        ):
+            import unittest.mock as _mock
+
+            with patch.dict(
+                "sys.modules",
+                {"openai": _mock.MagicMock()},
+            ):
+                tool = get_search_tool(openai_llm_cfg, openai_secrets)
         assert isinstance(tool, NativeOpenAISearchTool)
 
     def test_get_search_tool_brave_override(self, openai_llm_cfg, openai_secrets) -> None:

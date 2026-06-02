@@ -682,8 +682,8 @@ class RuntimeSecrets(BaseSettings):
 
     Optional environment variables:
     - ``ANTHROPIC_API_KEY``      — LLM API key for Anthropic provider (SRC-055)
-    - ``WEB_SEARCH_API_KEY``     — Key for Brave/Tavily search fallback (SRC-109)
-    - ``WEB_SEARCH_PROVIDER``    — "brave" | "tavily" | "native" (SRC-060)
+    - ``WEB_SEARCH_API_KEY``     — Key for Brave or Tavily search (SRC-109)
+    - ``WEB_SEARCH_PROVIDER``    — "brave" | "tavily" (SRC-060); defaults to "tavily"
     - ``SCHEDULER_API_KEY``      — Bearer token for POST /api/trigger (SRC-147)
 
     In production, these are injected by the cloud's secrets manager at container
@@ -709,8 +709,8 @@ class RuntimeSecrets(BaseSettings):
         default=None,
         alias="WEB_SEARCH_PROVIDER",
         description=(
-            "Search provider override: 'native' | 'brave' | 'tavily' (SRC-060). "
-            "Defaults to 'native' (OpenAI built-in) when not set."
+            "Search provider: 'brave' | 'tavily' (SRC-060). "
+            "Defaults to 'tavily' when WEB_SEARCH_API_KEY is set without an explicit provider."
         ),
     )
     scheduler_api_key: str | None = Field(

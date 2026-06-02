@@ -2,14 +2,14 @@
 llm/search_tools.py — AbstractSearchTool and concrete provider adapters.
 
 Three implementations:
-  NativeOpenAISearchTool — OpenAI Responses API web_search tool (preferred when provider=openai)
-  BraveSearchTool        — Brave Search API via httpx (Brave API key from WEB_SEARCH_API_KEY)
+  NativeOpenAISearchTool — OpenAI Responses API web_search tool (fallback for provider=openai)
+  BraveSearchTool        — Brave Search API via httpx (key from WEB_SEARCH_API_KEY)
   TavilySearchTool       — Tavily Search API via tavily-python (key from WEB_SEARCH_API_KEY)
 
 All implementations return the identical ``list[SearchResult]`` shape so the pipeline
 above this layer is completely provider-agnostic. (SRC-060)
 
-Traces: SRC-060 (abstract tool use; Brave/Tavily fallback),
+Traces: SRC-060 (abstract tool use; Brave/Tavily search),
         SRC-069 (hydrate linked URLs from tweets),
         SRC-109 (WEB_SEARCH_API_KEY),
         SRC-056 (provider-agnostic — no provider types leak to pipeline)
@@ -56,9 +56,9 @@ class AbstractSearchTool(ABC):
     Provider-agnostic search tool interface.
 
     Concrete implementations:
-      NativeOpenAISearchTool — uses OpenAI's built-in web search tool
-      BraveSearchTool        — Brave Search API (SRC-060 fallback)
-      TavilySearchTool       — Tavily Search API (SRC-060 fallback)
+      NativeOpenAISearchTool — OpenAI Responses API web_search (fallback for provider=openai)
+      BraveSearchTool        — Brave Search API (key from WEB_SEARCH_API_KEY)
+      TavilySearchTool       — Tavily Search API (key from WEB_SEARCH_API_KEY)
 
     The pipeline depends **only** on this interface so search providers can be
     swapped transparently. (SRC-060)
@@ -103,30 +103,16 @@ class NativeOpenAISearchTool(AbstractSearchTool):
     """
     Uses OpenAI's built-in web_search tool via the Responses API.
 
-    Preferred when ``llm.provider = "openai"`` because no external API key is
-    needed and results are tightly integrated with the model's reasoning.
+    Used as a fallback when ``llm.provider = "openai"`` and no
+    ``WEB_SEARCH_API_KEY`` is set — no external API key required beyond the
+    existing OpenAI key. Brave/Tavily take priority when explicitly configured.
 
-    Falls back to a plain ``requests.get`` for ``hydrate_url`` since the Responses
-    API does not offer a direct URL-fetch primitive.
-
-    Traces: SRC-060 (native tool — preferred when available), SRC-057 (OpenAI default)
+    Traces: SRC-060 (native tool — OpenAI fallback), SRC-057 (OpenAI default)
     """
 
-    # Regex to extract JSON array from the OpenAI web_search tool output.
-    # Use a JSON-object-of-object guard so that markdown link arrays like
-    # ``[text](url)`` do not accidentally match. The model is told to return a
-    # JSON array of dicts; require ``{`` after ``[`` so we only match that shape.
     _JSON_RE = re.compile(r"\[\s*\{.*\}\s*\]", re.DOTALL)
-
-    # Markdown link: [link text](url). Used by the fallback parser to extract a
-    # title and URL from prose-formatted search results.
     _MD_LINK_RE = re.compile(r"\[([^\]]+)\]\((https?://[^)\s]+)\)")
-
-    # Bare URL fallback when no markdown links are present.
     _BARE_URL_RE = re.compile(r"https?://[^\s)>\]]+")
-
-    # Prefixes the model often prepends before the actual title in citation-style
-    # output (e.g. ``- **Source:** [Foo](url)``). Stripped during cleanup.
     _TITLE_PREFIX_RE = re.compile(
         r"^\s*(?:\d+[.)]\s*)?(?:[-*•]\s*)?(?:\*+\s*)?"
         r"(?:source|title|article|read|reference|via)\s*[:\-—]\s*",
@@ -134,10 +120,6 @@ class NativeOpenAISearchTool(AbstractSearchTool):
     )
 
     def __init__(self, client: Any) -> None:
-        """
-        Args:
-            client: Initialised ``openai.OpenAI`` (or ``AsyncOpenAI``) client.
-        """
         self._client = client
         self._http = httpx.Client(
             timeout=15.0,
@@ -146,18 +128,11 @@ class NativeOpenAISearchTool(AbstractSearchTool):
         )
 
     def search(self, query: str, n: int = 10) -> list[SearchResult]:
-        """
-        Call the OpenAI Responses API with the ``web_search_preview`` tool.
-
-        The model returns a list of search results with URL, title, and snippet.
-        We parse the tool-call output into normalised ``SearchResult`` objects.
-
-        Traces: SRC-060 (OpenAI native search tool)
-        """
+        """Call the OpenAI Responses API with the ``web_search_preview`` tool."""
         log.debug("native_openai_search", query=query[:80], n=n)
         try:
             response = self._client.responses.create(
-                model="gpt-4o-mini",  # lightweight model for search orchestration
+                model="gpt-4o-mini",
                 tools=[{"type": "web_search_preview"}],
                 input=f"Search for: {query}\nReturn the top {n} results with title, URL, and snippet.",
             )
@@ -167,71 +142,40 @@ class NativeOpenAISearchTool(AbstractSearchTool):
 
         results: list[SearchResult] = []
         for item in response.output or []:
-            # The Responses API returns tool call results; extract the text content
             if hasattr(item, "content"):
                 for block in item.content or []:
-                    parsed = self._parse_search_block(getattr(block, "text", ""))
-                    results.extend(parsed)
+                    results.extend(self._parse_search_block(getattr(block, "text", "")))
 
         log.debug("native_openai_search_results", count=len(results))
         return results[:n]
 
     def _parse_search_block(self, text: str) -> list[SearchResult]:
-        """
-        Parse search results from the OpenAI Responses API output text.
-
-        The model is instructed to return structured data; we attempt JSON first,
-        then fall back to markdown-aware extraction that handles both
-        ``[title](url)`` links and bare URLs. (SRC-061 — parse from plain text)
-        """
         if not text:
             return []
-
-        # Attempt 1: JSON array of objects in the response
         match = self._JSON_RE.search(text)
         if match:
             try:
                 items = json.loads(match.group(0))
-                results = []
-                for item in items:
-                    if isinstance(item, dict) and item.get("url"):
-                        results.append(
-                            SearchResult(
-                                url=item.get("url", ""),
-                                title=item.get("title", "")[:200],
-                                snippet=item.get("snippet", "")[:_MAX_SNIPPET_LEN],
-                                source=_extract_domain(item.get("url", "")),
-                            )
-                        )
+                results = [
+                    SearchResult(
+                        url=item.get("url", ""),
+                        title=item.get("title", "")[:200],
+                        snippet=item.get("snippet", "")[:_MAX_SNIPPET_LEN],
+                        source=_extract_domain(item.get("url", "")),
+                    )
+                    for item in items
+                    if isinstance(item, dict) and item.get("url")
+                ]
                 if results:
                     return results
             except (json.JSONDecodeError, KeyError, TypeError):
                 pass
-
-        # Attempt 2: Markdown-aware fallback.
         return self._fallback_parse_markdown(text)
 
     def _fallback_parse_markdown(self, text: str) -> list[SearchResult]:
-        """
-        Extract results from prose/markdown output.
-
-        Strategy:
-        1. Prefer ``[title](url)`` markdown links — link text is the title, URL is
-           the target. The line containing the link (with the link inlined as text)
-           plus any preceding non-link prose serves as the snippet.
-        2. Fall back to bare URLs when no markdown links are present — the text
-           preceding the URL on the same line becomes the title.
-
-        Title cleanup strips citation prefixes (``Source:``, ``Article:``, etc.)
-        and stray markdown punctuation. Snippets are deduplicated against the
-        title so we never emit ``title == snippet``.
-        """
         lines = text.splitlines()
         results: list[SearchResult] = []
         seen_urls: set[str] = set()
-
-        # Track the most recent non-empty, non-link line so it can serve as
-        # context/snippet for a following citation-style entry.
         last_prose = ""
 
         for idx, raw_line in enumerate(lines):
@@ -248,14 +192,10 @@ class NativeOpenAISearchTool(AbstractSearchTool):
                     if not url or url in seen_urls:
                         continue
                     seen_urls.add(url)
-
                     title = self._clean_title(link_text) or _extract_domain(url) or url
-
-                    # Snippet: prefer following line(s), else preceding prose.
                     snippet = self._collect_snippet(lines, idx, exclude_text=link_text, title=title)
                     if not snippet and last_prose:
                         snippet = self._clean_snippet(last_prose, title=title)
-
                     results.append(
                         SearchResult(
                             url=url,
@@ -264,8 +204,6 @@ class NativeOpenAISearchTool(AbstractSearchTool):
                             source=_extract_domain(url),
                         )
                     )
-                # A line containing markdown links is itself not "prose context"
-                # for the next entry.
                 continue
 
             url_match = self._BARE_URL_RE.search(line)
@@ -274,13 +212,11 @@ class NativeOpenAISearchTool(AbstractSearchTool):
                 if not url or url in seen_urls:
                     continue
                 seen_urls.add(url)
-
                 before = line[: url_match.start()]
                 title = self._clean_title(before) or _extract_domain(url) or url
                 snippet = self._collect_snippet(lines, idx, exclude_text=url, title=title)
                 if not snippet and last_prose:
                     snippet = self._clean_snippet(last_prose, title=title)
-
                 results.append(
                     SearchResult(
                         url=url,
@@ -297,53 +233,26 @@ class NativeOpenAISearchTool(AbstractSearchTool):
 
     @classmethod
     def _clean_title(cls, raw: str) -> str:
-        """Strip citation prefixes and stray markdown chars from a candidate title."""
         if not raw:
             return ""
-        # Strip leading bullet/numbering and "Source:"-style prefixes.
         cleaned = cls._TITLE_PREFIX_RE.sub("", raw)
-        # Strip bold/emphasis/markup wrappers.
         cleaned = cleaned.strip().strip("*_`#[]()<> \t-•")
-        cleaned = re.sub(r"\s+", " ", cleaned).strip()
-        return cleaned
+        return re.sub(r"\s+", " ", cleaned).strip()
 
     @classmethod
     def _clean_snippet(cls, raw: str, title: str = "") -> str:
-        """Normalize a snippet string and avoid echoing the title verbatim."""
         if not raw:
             return ""
-        # Inline markdown links: [text](url) → text
         snippet = cls._MD_LINK_RE.sub(r"\1", raw)
-        snippet = re.sub(r"\s+", " ", snippet).strip()
-        snippet = snippet.strip("*_`#[]()<> \t-•")
-        if title and snippet.lower() == title.lower():
-            return ""
-        return snippet
+        snippet = re.sub(r"\s+", " ", snippet).strip().strip("*_`#[]()<> \t-•")
+        return "" if (title and snippet.lower() == title.lower()) else snippet
 
     @classmethod
-    def _collect_snippet(
-        cls,
-        lines: list[str],
-        idx: int,
-        exclude_text: str,
-        title: str,
-    ) -> str:
-        """
-        Build a snippet for the link at ``lines[idx]`` by joining nearby prose.
-
-        Looks at the rest of the current line (after removing ``exclude_text``)
-        plus the next non-empty, non-link line — this covers both
-        ``[title](url) — description`` and ``[title](url)\\n  description`` shapes.
-        """
-        current = lines[idx]
-        # Remove the link or URL from the current line so we don't echo it.
-        remainder = current.replace(exclude_text, " ").strip()
+    def _collect_snippet(cls, lines: list[str], idx: int, exclude_text: str, title: str) -> str:
+        remainder = lines[idx].replace(exclude_text, " ").strip()
         snippet = cls._clean_snippet(remainder, title=title)
-
         if snippet:
             return snippet
-
-        # Look ahead for a description line.
         for follower in lines[idx + 1 : idx + 4]:
             f = follower.strip()
             if not f:
@@ -357,28 +266,19 @@ class NativeOpenAISearchTool(AbstractSearchTool):
         return ""
 
     def hydrate_url(self, url: str) -> str | None:
-        """
-        Fetch page content via plain HTTP GET using httpx.
-
-        Returns the first 2 000 characters of response text, or ``None`` on failure.
-
-        Traces: SRC-069 (hydrate linked tweet URLs)
-        """
+        """Fetch page content via plain HTTP GET. Returns first 2000 chars or None."""
         if not url:
             return None
         try:
             resp = self._http.get(url)
             resp.raise_for_status()
-            text = resp.text
-            # Strip excessive whitespace from HTML
-            text = re.sub(r"\s+", " ", text).strip()
+            text = re.sub(r"\s+", " ", resp.text).strip()
             return text[:2000] if text else None
         except Exception as exc:  # noqa: BLE001
             log.debug("native_openai_hydrate_error", url=url[:80], error=str(exc))
             return None
 
     def close(self) -> None:
-        """Close the underlying httpx client."""
         self._http.close()
 
 

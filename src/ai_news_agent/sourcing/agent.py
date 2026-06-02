@@ -35,7 +35,7 @@ from typing import TYPE_CHECKING
 
 import structlog
 
-from ai_news_agent.config.loader import load_agent_config
+from ai_news_agent.config.loader import ConfigError, load_agent_config
 from ai_news_agent.config.models import AgentConfig, RuntimeSecrets
 from ai_news_agent.llm.factory import get_llm_client, get_search_tool
 from ai_news_agent.sourcing.twitter_fetcher import TwitterFetcher
@@ -143,8 +143,18 @@ class SourcingAgent:
         )
         # LLM client — used by WebFetcher for prompt-assisted sourcing (future)
         self._llm = get_llm_client(config.llm, secrets)
-        # Search tool — used by WebFetcher for tier queries
-        search_tool = get_search_tool(config.llm, secrets)
+        # Search tool — optional; web fetch is skipped gracefully when None.
+        # Anthropic/Google users without WEB_SEARCH_API_KEY still get Twitter.
+        try:
+            search_tool = get_search_tool(config.llm, secrets)
+        except ConfigError:
+            search_tool = None
+            log.warning(
+                "sourcing_no_search_tool",
+                provider=config.llm.provider,
+                msg="No web search tool configured — web sourcing disabled, Twitter only. "
+                "Set WEB_SEARCH_API_KEY (brave or tavily) to enable web sourcing.",
+            )
         self._web_fetcher = WebFetcher(
             config=config,
             llm_client=self._llm,

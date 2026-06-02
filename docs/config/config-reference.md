@@ -566,7 +566,7 @@ In File → Settings → Languages & Frameworks → Schemas and DTDs → JSON Sc
 | `OPENAI_API_KEY` | Required (OpenAI) | OpenAI API key | SRC-107 |
 | `TWITTER_BEARER_TOKEN` | Required | Twitter/X v2 bearer token | SRC-108 |
 | `WEB_SEARCH_API_KEY` | Optional | Brave or Tavily API key | SRC-109 |
-| `WEB_SEARCH_PROVIDER` | Optional | `"native"` \| `"brave"` \| `"tavily"` | SRC-060 |
+| `WEB_SEARCH_PROVIDER` | Optional | `"brave"` \| `"tavily"` (default: `"tavily"`) | SRC-060 |
 | `ANTHROPIC_API_KEY` | Required (Anthropic) | Anthropic API key | SRC-055 |
 | `SCHEDULER_API_KEY` | Optional | Bearer token for `POST /api/trigger` | SRC-147 |
 

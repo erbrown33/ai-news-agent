@@ -80,10 +80,8 @@ class OpenAILLMClient(AbstractLLMClient):
     └───────────────────────────┘
 
     Search routing (SRC-060):
-    ┌─ injected search_tool is NativeOpenAISearchTool? ─────┐
-    │  YES → delegates to that tool (Responses API search)   │
-    │  NO  → delegates to BraveSearchTool / TavilySearchTool │
-    └────────────────────────────────────────────────────────┘
+      Delegates to injected BraveSearchTool or TavilySearchTool.
+      search_tool=None is accepted; search() raises LLMError if called without one.
 
     parse_structured uses regex-based JSON-block extraction — never provider
     schema-enforcement (SRC-061).
@@ -92,11 +90,12 @@ class OpenAILLMClient(AbstractLLMClient):
             SRC-144, SRC-150
     """
 
-    def __init__(self, api_key: str, search_tool: AbstractSearchTool) -> None:
+    def __init__(self, api_key: str, search_tool: AbstractSearchTool | None = None) -> None:
         """
         Args:
             api_key:     OpenAI API key (from ``OPENAI_API_KEY`` env var — SRC-107).
-            search_tool: Injected search tool; ``NativeOpenAISearchTool`` preferred.
+            search_tool: Injected BraveSearchTool or TavilySearchTool. Optional —
+                         if None, search() raises LLMError; complete() still works.
         """
         self._client = openai.OpenAI(api_key=api_key)
         self._search_tool = search_tool
@@ -258,11 +257,17 @@ class OpenAILLMClient(AbstractLLMClient):
         Execute a web search via the injected ``AbstractSearchTool``.
 
         ``budget_hint="deep"`` → 3× results requested for monthly/annual cadences (SRC-121).
-        The search tool (NativeOpenAI / Brave / Tavily) is always invoked through the
-        ``AbstractSearchTool`` interface — never directly. (SRC-060)
+        Always invoked through the ``AbstractSearchTool`` interface. (SRC-060)
 
         Traces: SRC-060 (abstract tool use), SRC-121 (search budget per cadence)
         """
+        if self._search_tool is None:
+            from ai_news_agent.llm.retry import LLMError
+
+            raise LLMError(
+                "OpenAILLMClient.search() requires an injected search_tool. "
+                "Configure WEB_SEARCH_API_KEY + WEB_SEARCH_PROVIDER in env vars."
+            )
         effective_n = n_results * 3 if budget_hint == "deep" else n_results
         log.debug(
             "openai_search",

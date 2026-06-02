@@ -35,7 +35,6 @@ from ai_news_agent.llm.retry import LLMError, _is_retryable, with_retry
 from ai_news_agent.llm.search_tools import (
     AbstractSearchTool,
     BraveSearchTool,
-    NativeOpenAISearchTool,
     TavilySearchTool,
 )
 from ai_news_agent.storage.models import CurationResponse
@@ -899,12 +898,6 @@ class TestAbstractSearchToolContract:
     when instantiated with minimal mocks. (SRC-060)
     """
 
-    def test_native_openai_search_tool_instantiation(self) -> None:
-        """NativeOpenAISearchTool can be constructed with a mock OpenAI client."""
-        mock_client = MagicMock()
-        tool = NativeOpenAISearchTool(client=mock_client)
-        assert isinstance(tool, AbstractSearchTool)
-
     def test_brave_search_tool_instantiation(self) -> None:
         """BraveSearchTool can be constructed with an API key."""
         with patch("ai_news_agent.llm.search_tools.httpx.Client"):
@@ -1038,67 +1031,6 @@ class TestBraveSearchTool:
 
 
 # ---------------------------------------------------------------------------
-# TestNativeOpenAISearchTool — response parsing (SRC-060)
-# ---------------------------------------------------------------------------
-
-
-class TestNativeOpenAISearchTool:
-    """Traces: SRC-060 (OpenAI native search tool)."""
-
-    def _make_tool(self) -> NativeOpenAISearchTool:
-        mock_client = MagicMock()
-        with patch("ai_news_agent.llm.search_tools.httpx.Client"):
-            return NativeOpenAISearchTool(client=mock_client)
-
-    def test_parse_json_array_from_block(self) -> None:
-        """_parse_search_block extracts JSON array of search results."""
-        tool = self._make_tool()
-        items = [
-            {"url": "https://reuters.com/story", "title": "Reuters", "snippet": "AI news"},
-            {"url": "https://bloomberg.com/story", "title": "Bloomberg", "snippet": "More AI"},
-        ]
-        text = f"```json\n{json.dumps(items)}\n```"
-        results = tool._parse_search_block(text)
-        assert len(results) == 2
-        assert results[0].url == "https://reuters.com/story"
-
-    def test_parse_heuristic_url_extraction(self) -> None:
-        """_parse_search_block falls back to heuristic URL extraction from plain text."""
-        tool = self._make_tool()
-        text = (
-            "- Reuters AI Story https://reuters.com/ai-story\n- Bloomberg https://bloomberg.com/ai"
-        )
-        results = tool._parse_search_block(text)
-        urls = {r.url for r in results}
-        assert "https://reuters.com/ai-story" in urls
-        assert "https://bloomberg.com/ai" in urls
-
-    def test_parse_empty_text_returns_empty(self) -> None:
-        """Empty text returns empty list."""
-        tool = self._make_tool()
-        assert tool._parse_search_block("") == []
-
-    def test_search_returns_empty_on_api_error(self) -> None:
-        """API errors must return empty list. (SRC-148)"""
-        tool = self._make_tool()
-        tool._client.responses.create.side_effect = Exception("API error")
-        results = tool.search("test query", n=5)
-        assert results == []
-
-    def test_hydrate_url_returns_none_on_failure(self) -> None:
-        """hydrate_url returns None on network error."""
-        tool = self._make_tool()
-        tool._http = MagicMock()
-        tool._http.get.side_effect = Exception("network error")
-        assert tool.hydrate_url("https://reuters.com") is None
-
-    def test_hydrate_url_returns_none_for_empty(self) -> None:
-        """hydrate_url with empty URL returns None immediately."""
-        tool = self._make_tool()
-        assert tool.hydrate_url("") is None
-
-
-# ---------------------------------------------------------------------------
 # TestFactory — get_llm_client() and get_search_tool() (SRC-055–SRC-057, SRC-060)
 # ---------------------------------------------------------------------------
 
@@ -1119,13 +1051,8 @@ class TestFactory:
         cfg = _make_llm_config("openai")
         secrets = _make_secrets(openai_key="sk-test")
 
-        with (
-            patch("ai_news_agent.llm.openai_client.openai") as mock_oa,
-            patch("ai_news_agent.llm.factory.openai") as mock_oa_factory,
-            patch("ai_news_agent.llm.search_tools.httpx.Client"),
-        ):
+        with patch("ai_news_agent.llm.openai_client.openai") as mock_oa:
             mock_oa.OpenAI.return_value = MagicMock()
-            mock_oa_factory.OpenAI.return_value = MagicMock()
             client = get_llm_client(cfg, secrets)
 
         assert isinstance(client, OpenAILLMClient)
@@ -1160,17 +1087,18 @@ class TestFactory:
             get_llm_client(bad_cfg, bad_secrets)
 
     def test_get_search_tool_native_openai_for_openai_provider(self) -> None:
-        """provider=openai with no explicit WEB_SEARCH_PROVIDER → NativeOpenAISearchTool. (SRC-060)"""
+        """provider=openai with no WEB_SEARCH_API_KEY falls back to NativeOpenAISearchTool. (SRC-060)"""
         from ai_news_agent.llm.factory import get_search_tool
+        from ai_news_agent.llm.search_tools import NativeOpenAISearchTool
 
         cfg = _make_llm_config("openai")
         secrets = _make_secrets(openai_key="sk-test")
 
+        mock_openai = MagicMock()
         with (
-            patch("ai_news_agent.llm.factory.openai") as mock_oa,
+            patch.dict("sys.modules", {"openai": mock_openai}),
             patch("ai_news_agent.llm.search_tools.httpx.Client"),
         ):
-            mock_oa.OpenAI.return_value = MagicMock()
             tool = get_search_tool(cfg, secrets)
 
         assert isinstance(tool, NativeOpenAISearchTool)
@@ -1216,7 +1144,7 @@ class TestFactory:
         """WEB_SEARCH_API_KEY with no WEB_SEARCH_PROVIDER should default to TavilySearchTool."""
         from ai_news_agent.llm.factory import get_search_tool
 
-        cfg = _make_llm_config("anthropic")  # Not openai, so no native search
+        cfg = _make_llm_config("anthropic")
         secrets = _make_secrets(web_key="tvly-key", web_provider=None, openai_key="sk-test")
 
         with patch("tavily.TavilyClient"):

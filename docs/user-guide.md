@@ -170,8 +170,8 @@ source .env     # Loads all variables into the current shell session
 | `TWITTER_BEARER_TOKEN` | Recommended | Twitter/X v2 API read access; Basic tier minimum | SRC-065, SRC-148 |
 | `ANTHROPIC_API_KEY` | Optional | LLM calls when `llm.provider: anthropic` | SRC-055–SRC-056 |
 | `GOOGLE_API_KEY` | Optional | LLM calls when `llm.provider: google` | SRC-055–SRC-056 |
-| `WEB_SEARCH_API_KEY` | Optional | Brave or Tavily search fallback (omit to use OpenAI native search) | SRC-109 |
-| `WEB_SEARCH_PROVIDER` | Optional | `"brave"` or `"tavily"` — only needed if `WEB_SEARCH_API_KEY` is set | SRC-060 |
+| `WEB_SEARCH_API_KEY` | Optional | Brave or Tavily API key — required for web sourcing search | SRC-109 |
+| `WEB_SEARCH_PROVIDER` | Optional | `"brave"` or `"tavily"` — defaults to `"tavily"` when key is set | SRC-060 |
 | `SCHEDULER_API_KEY` | Optional | Protects `POST /api/trigger` — generate with `python -c "import secrets; print(secrets.token_hex(32))"` | SRC-147 |
 
 For cloud deployment secrets (GCP WIF, AWS OIDC, Azure managed identity), see
@@ -1158,7 +1158,7 @@ Full quality monitoring playbook:
 **Cause:** Web search returned no results, or all results were filtered as duplicates.
 **Fix:**
 1. Check that `OPENAI_API_KEY` is valid and has active quota
-2. Verify the web search tool is configured (`WEB_SEARCH_PROVIDER` or OpenAI native search)
+2. Verify `WEB_SEARCH_API_KEY` is set and `WEB_SEARCH_PROVIDER` is `"brave"` or `"tavily"`
 3. Check that the lookback window dates are correct (run with `--window-start` / `--window-end`)
 4. Look at the sourcing log: `structlog` output includes `items_fetched` per source tier
 

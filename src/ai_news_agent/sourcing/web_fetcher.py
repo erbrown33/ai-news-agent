@@ -318,7 +318,9 @@ def _search_result_to_record(
 class WebFetcher:
     """
     Fetches web articles from all configured source tiers using the injected
-    search tool (LLM-native / Brave / Tavily).
+    search tool (NativeOpenAI / Brave / Tavily). When ``search_tool=None``,
+    ``fetch_all`` returns ``[]`` and ``fetch_from_tweet_urls`` creates stub
+    records without hydration — Twitter URLs are still preserved.
 
     Configurable search strategies (SRC-053, SRC-060):
     - Delegates all search calls to the injected :class:`AbstractSearchTool`
@@ -344,7 +346,7 @@ class WebFetcher:
         self,
         config: AgentConfig,
         llm_client: AbstractLLMClient,
-        search_tool: AbstractSearchTool,
+        search_tool: AbstractSearchTool | None = None,
     ) -> None:
         """
         Args:
@@ -352,6 +354,8 @@ class WebFetcher:
             llm_client:  Provider-agnostic LLM client (reserved for future prompt-based
                          sourcing expansion; not used for search queries today).
             search_tool: Injected search tool — NativeOpenAI / Brave / Tavily (SRC-060).
+                         ``None`` disables web fetching; ``fetch_all`` returns ``[]``
+                         and ``fetch_from_tweet_urls`` skips hydration.
         """
         self._config = config
         self._llm = llm_client
@@ -393,6 +397,10 @@ class WebFetcher:
         Traces: SRC-008–SRC-011, SRC-012, SRC-016–SRC-021, SRC-049,
                 SRC-053, SRC-060, SRC-116
         """
+        if self._search_tool is None:
+            log.debug("web_fetcher_skipped", reason="no search tool configured")
+            return []
+
         fetched_at = datetime.now(UTC)
         articles: list[ArticleRecord] = []
         seen_hashes: set[str] = set()  # intra-run dedup (SRC-012)
@@ -536,14 +544,13 @@ class WebFetcher:
             if record_hash in seen_hashes:
                 continue
 
-            try:
-                content = self._search_tool.hydrate_url(canonical)
-            except Exception as exc:  # noqa: BLE001
-                log.debug(
-                    "tweet_url_hydrate_error",
-                    url=canonical[:80],
-                    error=str(exc),
-                )
+            if self._search_tool is not None:
+                try:
+                    content = self._search_tool.hydrate_url(canonical)
+                except Exception as exc:  # noqa: BLE001
+                    log.debug("tweet_url_hydrate_error", url=canonical[:80], error=str(exc))
+                    content = None
+            else:
                 content = None
 
             if not content:

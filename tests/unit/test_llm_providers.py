@@ -1078,10 +1078,7 @@ class TestSmokeMockLLMClient:
             }
         )
         env_without_mock = {k: v for k, v in os.environ.items() if k != "SMOKE_TEST_MOCK_LLM"}
-        with (
-            patch.dict(os.environ, env_without_mock, clear=True),
-            patch("ai_news_agent.llm.factory.NativeOpenAISearchTool"),
-        ):
+        with patch.dict(os.environ, env_without_mock, clear=True):
             client = get_llm_client(cfg, secrets)
         assert isinstance(client, OpenAILLMClient), (
             f"Without SMOKE_TEST_MOCK_LLM, should get OpenAILLMClient not {type(client)}"

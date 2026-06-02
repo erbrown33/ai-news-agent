@@ -13,7 +13,7 @@
 
 The AI News Curation Agent automatically:
 
-1. **Sources** candidate articles from web search tools (OpenAI native / Brave / Tavily)
+1. **Sources** candidate articles from web search tools (Brave / Tavily)
    and Twitter/X influencer feeds via tweepy — storing each article exactly once per
    lookback window (SRC-008–SRC-012).
 
@@ -147,7 +147,7 @@ ai-news-run --cadence daily --dry-run --skip-sourcing
 Scheduler (APScheduler / Cloud Scheduler / EventBridge / Logic Apps)
   └── for each enabled agent config (configs/scheduler.yaml):
         ├── Sourcing Agent  → [TinyDB store: outputs/{agent_id}/store.json]
-        │     ├── Web fetcher (OpenAI native / Brave / Tavily)
+        │     ├── Web fetcher (Brave / Tavily)
         │     └── Twitter/X client (tweepy) — graceful degradation (SRC-148)
         └── Curation Agent → Rendering Agent → outputs/{agent_id}/
               ├── PromptBuilder (ISO dates + Twitter signal + SHA-256 hash)

@@ -8,12 +8,14 @@ factory. Adding a new provider requires only:
   2. A new ``case`` branch in ``get_llm_client()``.
   3. No other pipeline changes needed. (SRC-056)
 
-Search tool priority (SRC-060):
-  1. Native OpenAI search  — when provider=openai and no WEB_SEARCH_PROVIDER override
-  2. Tavily               — when WEB_SEARCH_API_KEY set and WEB_SEARCH_PROVIDER=tavily
-  3. Brave                — when WEB_SEARCH_API_KEY set and WEB_SEARCH_PROVIDER=brave
-  4. Google native grounding — when provider=google (wired inside GoogleLLMClient)
-  5. ConfigError          — if no search tool is resolvable
+Search tool selection (SRC-060):
+  1. Brave/Tavily (explicit) — WEB_SEARCH_API_KEY set; works for all providers
+  2. Native OpenAI fallback  — provider=openai, no WEB_SEARCH_API_KEY set
+  3. Google native grounding — provider=google (wired inside GoogleLLMClient)
+  4. ConfigError             — Anthropic/Google without WEB_SEARCH_API_KEY
+
+  Brave/Tavily always take priority when WEB_SEARCH_API_KEY is present.
+  OpenAI users get native search for free; Anthropic users need an explicit key.
 
 Smoke-test / CI mock mode (SRC-102):
   When ``SMOKE_TEST_MOCK_LLM=1`` is set in the environment the factory returns a
@@ -23,7 +25,7 @@ Smoke-test / CI mock mode (SRC-102):
   JSON so all §8.2 monitoring-field assertions pass.
 
 Traces: SRC-055 (provider-agnostic), SRC-056 (swap without pipeline changes),
-        SRC-057 (OpenAI as default), SRC-060 (search tool selection),
+        SRC-057 (OpenAI as default), SRC-060 (search tool selection — Brave/Tavily),
         SRC-102 (smoke-test mock), SRC-109 (WEB_SEARCH_API_KEY)
 """
 
@@ -32,8 +34,6 @@ from __future__ import annotations
 import json
 import os
 from typing import TYPE_CHECKING, Any
-
-import openai
 
 from ai_news_agent.config.loader import ConfigError
 from ai_news_agent.llm.search_tools import (
@@ -152,16 +152,14 @@ def get_search_tool(
     """
     Resolve and return the appropriate :class:`AbstractSearchTool`.
 
-    Priority (SRC-060):
-    1. If ``provider == "openai"`` and no explicit ``WEB_SEARCH_PROVIDER`` override →
-       ``NativeOpenAISearchTool`` (OpenAI's built-in web search via Responses API).
-    2. If ``WEB_SEARCH_API_KEY`` is set:
-       a. ``WEB_SEARCH_PROVIDER == "tavily"`` (or unset, with key present) → TavilySearchTool
-       b. ``WEB_SEARCH_PROVIDER == "brave"`` → BraveSearchTool
-    3. ``provider == "google"`` → returns ``None`` (Google grounding is wired inside
-       GoogleLLMClient; no separate search tool needed for ``complete()``). However, a
-       BraveSearchTool / TavilySearchTool is still returned for explicit ``search()`` calls.
-    4. Raises :class:`ConfigError` if no search tool is available.
+    Selection (SRC-060):
+    1. ``WEB_SEARCH_PROVIDER == "brave"`` and ``WEB_SEARCH_API_KEY`` set → BraveSearchTool
+    2. ``WEB_SEARCH_PROVIDER == "tavily"`` and ``WEB_SEARCH_API_KEY`` set → TavilySearchTool
+    3. ``WEB_SEARCH_API_KEY`` set without provider → TavilySearchTool (default)
+    4. ``provider == "google"`` without key → raises :class:`ConfigError`
+       (Google grounding is wired inside GoogleLLMClient for ``complete()``, but
+       explicit ``search()`` calls require an external key.)
+    5. Raises :class:`ConfigError` if no search tool can be resolved.
 
     Args:
         llm_cfg: LLM configuration block from the agent YAML.
@@ -176,26 +174,22 @@ def get_search_tool(
     web_key = secrets.web_search_api_key
     web_provider_override = (secrets.web_search_provider or "").lower().strip()
 
-    # Explicit WEB_SEARCH_PROVIDER override always wins
-    if web_provider_override == "tavily" and web_key:
-        return TavilySearchTool(api_key=web_key)
-
     if web_provider_override == "brave" and web_key:
         return BraveSearchTool(api_key=web_key)
 
-    if web_provider_override == "native" or (not web_provider_override and provider == "openai"):
-        # Native OpenAI search — the client itself is created in get_llm_client();
-        # we create a temporary client here solely to pass into NativeOpenAISearchTool.
-        # The factory creates a fresh client so we don't share state between search
-        # and completion calls.
-        client = openai.OpenAI(api_key=secrets.openai_api_key)
-        return NativeOpenAISearchTool(client=client)
-
-    # No override: fall back to any available external key
-    if web_key:
-        # Prefer Tavily if a key is present but no explicit provider specified
-        # (Tavily is optimised for LLM-oriented search workloads)
+    if web_provider_override == "tavily" and web_key:
         return TavilySearchTool(api_key=web_key)
+
+    # No explicit provider: default to Tavily when a key is present
+    if web_key:
+        return TavilySearchTool(api_key=web_key)
+
+    # OpenAI fallback: use the native Responses API web_search tool when no
+    # external key is configured. Requires only the existing OPENAI_API_KEY.
+    if provider == "openai":
+        import openai as _openai  # lazy — only needed for this branch
+
+        return NativeOpenAISearchTool(client=_openai.OpenAI(api_key=secrets.openai_api_key))
 
     # Google provider: grounding is wired inside GoogleLLMClient.complete().
     # For explicit .search() calls from the sourcing agent, a fallback tool is
@@ -208,10 +202,9 @@ def get_search_tool(
         )
 
     raise ConfigError(
-        "No search tool available. Options:\n"
-        "  1. Use provider=openai (native search via OpenAI Responses API)\n"
-        "  2. Set WEB_SEARCH_API_KEY + WEB_SEARCH_PROVIDER=tavily\n"
-        "  3. Set WEB_SEARCH_API_KEY + WEB_SEARCH_PROVIDER=brave\n"
+        "No search tool available. "
+        "Set WEB_SEARCH_API_KEY to a Brave or Tavily key "
+        "(WEB_SEARCH_PROVIDER=brave or WEB_SEARCH_PROVIDER=tavily). "
         "(SRC-060, SRC-109)"
     )
 
@@ -263,7 +256,13 @@ def get_llm_client(
                 )
             from ai_news_agent.llm.openai_client import OpenAILLMClient
 
-            search_tool = get_search_tool(llm_cfg, secrets)
+            # Search is optional — curation complete() works without it.
+            # Set WEB_SEARCH_API_KEY to enable sourcing search(). (SRC-060, SRC-109)
+            try:
+                search_tool = get_search_tool(llm_cfg, secrets)
+            except ConfigError:
+                search_tool = None  # type: ignore[assignment]
+
             return OpenAILLMClient(
                 api_key=secrets.openai_api_key,
                 search_tool=search_tool,
