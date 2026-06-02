@@ -692,7 +692,8 @@ class RuntimeSecrets(BaseSettings):
     Traces: SRC-073 (secrets in env vars), SRC-105–SRC-111 (required + optional secrets)
     """
 
-    openai_api_key: str = Field(
+    openai_api_key: str | None = Field(
+        default=None,
         alias="OPENAI_API_KEY",
         description="OpenAI API key (SRC-107). Required when provider=openai.",
     )

@@ -374,12 +374,14 @@ class TestLLMFactory:
         from ai_news_agent.llm.factory import get_search_tool
 
         google_cfg = LLMConfig(provider="google", model="gemini-1.5-pro")
-        secrets = RuntimeSecrets.model_validate(
-            {
-                "OPENAI_API_KEY": openai_secrets.openai_api_key,
-                "TWITTER_BEARER_TOKEN": openai_secrets.twitter_bearer_token,
-                "GOOGLE_API_KEY": "test-google-key",
-            }
+        secrets = RuntimeSecrets.model_construct(
+            openai_api_key=openai_secrets.openai_api_key,
+            twitter_bearer_token=openai_secrets.twitter_bearer_token,
+            google_api_key="test-google-key",
+            web_search_api_key=None,
+            web_search_provider=None,
+            anthropic_api_key=None,
+            scheduler_api_key=None,
         )
         with pytest.raises(ConfigError, match="WEB_SEARCH_API_KEY"):
             get_search_tool(google_cfg, secrets)
@@ -395,12 +397,14 @@ class TestLLMFactory:
 
         # Use anthropic provider with no search key — should raise
         anthropic_cfg = LLMConfig(provider="anthropic", model="claude-3-5-sonnet-20241022")
-        secrets = RuntimeSecrets.model_validate(
-            {
-                "OPENAI_API_KEY": openai_secrets.openai_api_key,
-                "TWITTER_BEARER_TOKEN": openai_secrets.twitter_bearer_token,
-                "ANTHROPIC_API_KEY": "test-ant-key",
-            }
+        secrets = RuntimeSecrets.model_construct(
+            openai_api_key=openai_secrets.openai_api_key,
+            twitter_bearer_token=openai_secrets.twitter_bearer_token,
+            anthropic_api_key="test-ant-key",
+            web_search_api_key=None,
+            web_search_provider=None,
+            google_api_key=None,
+            scheduler_api_key=None,
         )
         with pytest.raises(ConfigError):
             get_search_tool(anthropic_cfg, secrets)

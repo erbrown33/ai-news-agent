@@ -182,5 +182,5 @@ class TestRuntimeSecrets:
         monkeypatch.setenv("OPENAI_API_KEY", "sk-test")
         monkeypatch.setenv("TWITTER_BEARER_TOKEN", "bearer-test")
         monkeypatch.delenv("WEB_SEARCH_API_KEY", raising=False)
-        secrets = RuntimeSecrets()  # type: ignore[call-arg]
+        secrets = RuntimeSecrets(_env_file=None)  # type: ignore[call-arg]
         assert secrets.web_search_api_key is None

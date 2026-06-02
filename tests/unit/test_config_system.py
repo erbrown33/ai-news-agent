@@ -982,7 +982,7 @@ class TestRuntimeSecrets:
         monkeypatch.delenv("ANTHROPIC_API_KEY", raising=False)
         monkeypatch.delenv("SCHEDULER_API_KEY", raising=False)
         monkeypatch.delenv("WEB_SEARCH_PROVIDER", raising=False)
-        secrets = RuntimeSecrets()  # type: ignore[call-arg]
+        secrets = RuntimeSecrets(_env_file=None)  # type: ignore[call-arg]
         assert secrets.web_search_api_key is None
         assert secrets.anthropic_api_key is None
         assert secrets.scheduler_api_key is None

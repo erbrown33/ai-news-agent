@@ -27,11 +27,15 @@ dependencies = [
     "openai>=1.30.0",
     "openai-agents>=0.0.5",
 
+    # LLM providers — all configurable providers are always available (SRC-055–SRC-056)
+    "anthropic>=0.27.0",
+
     # Twitter/X integration (SRC-063)
     "tweepy>=4.14.0",
 
-    # Web search fallback tools (SRC-060, SRC-109)
+    # Web search tools — all configurable search backends always available (SRC-060, SRC-109)
     "httpx>=0.27.0",
+    "tavily-python>=0.3.3",
 
     # Document store (SRC-053)
     "tinydb>=4.8.0",
@@ -74,20 +78,9 @@ dev = [
     "types-aiofiles>=23.2.0",
 ]
 
-anthropic = [
-    # Anthropic Claude provider (SRC-055–SRC-056)
-    # Install: pip install 'ai-news-agent[anthropic]'
-    "anthropic>=0.27.0",
-]
-
 brave = [
     # Brave Search fallback (SRC-060, SRC-109)
     # Uses httpx (already in core deps); this group documents the dependency
-]
-
-tavily = [
-    # Tavily Search fallback (SRC-060, SRC-109)
-    "tavily-python>=0.3.3",
 ]
 
 google = [

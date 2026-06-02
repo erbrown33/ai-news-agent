@@ -2162,12 +2162,14 @@ class TestSecretsLoading:
         """Optional secrets (WEB_SEARCH_API_KEY, etc.) default to None (SRC-109)."""
         from ai_news_agent.config.models import RuntimeSecrets
 
-        secrets = RuntimeSecrets.model_validate(
-            {
-                "OPENAI_API_KEY": "sk-fake",
-                "TWITTER_BEARER_TOKEN": "fake-bearer",
-            }
-        )
+        monkeypatch.setenv("OPENAI_API_KEY", "sk-fake")
+        monkeypatch.setenv("TWITTER_BEARER_TOKEN", "fake-bearer")
+        monkeypatch.delenv("WEB_SEARCH_API_KEY", raising=False)
+        monkeypatch.delenv("ANTHROPIC_API_KEY", raising=False)
+        monkeypatch.delenv("SCHEDULER_API_KEY", raising=False)
+        monkeypatch.delenv("WEB_SEARCH_PROVIDER", raising=False)
+        monkeypatch.delenv("GOOGLE_API_KEY", raising=False)
+        secrets = RuntimeSecrets(_env_file=None)  # type: ignore[call-arg]
         assert secrets.web_search_api_key is None
         assert secrets.anthropic_api_key is None
         assert secrets.scheduler_api_key is None

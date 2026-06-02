@@ -76,15 +76,14 @@ def _make_secrets(
     anthropic_key: str | None = None,
     google_key: str | None = None,
 ) -> RuntimeSecrets:
-    return RuntimeSecrets.model_validate(
-        {
-            "OPENAI_API_KEY": openai_key,
-            "TWITTER_BEARER_TOKEN": "bearer-fake",
-            "WEB_SEARCH_API_KEY": web_key,
-            "WEB_SEARCH_PROVIDER": web_provider,
-            "ANTHROPIC_API_KEY": anthropic_key,
-            "GOOGLE_API_KEY": google_key,
-        }
+    return RuntimeSecrets.model_construct(
+        openai_api_key=openai_key,
+        twitter_bearer_token="bearer-fake",
+        web_search_api_key=web_key,
+        web_search_provider=web_provider,
+        anthropic_api_key=anthropic_key,
+        google_api_key=google_key,
+        scheduler_api_key=None,
     )
 
 

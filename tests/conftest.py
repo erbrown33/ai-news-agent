@@ -188,15 +188,17 @@ def sample_agent_config() -> AgentConfig:
 def sample_secrets() -> RuntimeSecrets:
     """
     Fake RuntimeSecrets for tests — never real keys.
+    Uses model_construct to bypass settings machinery (no env vars, no .env file).
     Traces: SRC-073 (secrets from env vars), SRC-098 (mocked)
     """
-    return RuntimeSecrets.model_validate(
-        {
-            "OPENAI_API_KEY": "sk-test-fake",
-            "TWITTER_BEARER_TOKEN": "test-bearer-fake",
-            "WEB_SEARCH_API_KEY": None,
-            "WEB_SEARCH_PROVIDER": None,
-        }
+    return RuntimeSecrets.model_construct(
+        openai_api_key="sk-test-fake",
+        twitter_bearer_token="test-bearer-fake",
+        web_search_api_key=None,
+        web_search_provider=None,
+        anthropic_api_key=None,
+        google_api_key=None,
+        scheduler_api_key=None,
     )
 
 
