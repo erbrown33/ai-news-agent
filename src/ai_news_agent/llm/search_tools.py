@@ -19,6 +19,7 @@ from __future__ import annotations
 
 import json
 import re
+import time
 import urllib.parse
 from abc import ABC, abstractmethod
 from typing import Any
@@ -294,14 +295,23 @@ class BraveSearchTool(AbstractSearchTool):
     API key sourced from ``WEB_SEARCH_API_KEY`` environment variable.
     Endpoint: ``https://api.search.brave.com/res/v1/web/search``
 
+    Rate limiting: enforces a minimum interval between successive API calls
+    (default 1.1 s — safe for Brave's free tier of 1 req/s) and retries on
+    429 with exponential back-off so burst query sequences don't lose results.
+
     Traces: SRC-060 (Brave fallback), SRC-109 (WEB_SEARCH_API_KEY)
     """
 
     _BASE_URL = "https://api.search.brave.com/res/v1/web/search"
     _FRESHNESS_URL = "https://api.search.brave.com/res/v1/news/search"
 
+    # Minimum seconds between API calls (free tier: 1 req/s; add 0.1 s headroom)
+    _MIN_INTERVAL: float = 1.1
+    _MAX_RETRIES: int = 3
+
     def __init__(self, api_key: str) -> None:
         self._api_key = api_key
+        self._last_call_time: float = 0.0
         self._http = httpx.Client(
             timeout=15.0,
             follow_redirects=True,
@@ -313,12 +323,20 @@ class BraveSearchTool(AbstractSearchTool):
             },
         )
 
+    def _throttle(self) -> None:
+        """Sleep until the minimum inter-request interval has elapsed."""
+        elapsed = time.monotonic() - self._last_call_time
+        if elapsed < self._MIN_INTERVAL:
+            time.sleep(self._MIN_INTERVAL - elapsed)
+        self._last_call_time = time.monotonic()
+
     def search(self, query: str, n: int = 10) -> list[SearchResult]:
         """
         Call the Brave Web Search API and return normalised results.
 
         Uses the news-optimised endpoint when the query contains date filters
         (``since:`` / ``until:``), falling back to the general web endpoint.
+        Retries up to ``_MAX_RETRIES`` times on 429 with exponential back-off.
 
         Traces: SRC-060 (Brave Search API fallback)
         """
@@ -331,23 +349,38 @@ class BraveSearchTool(AbstractSearchTool):
             else self._BASE_URL
         )
 
-        try:
-            resp = self._http.get(
-                endpoint,
-                params={
-                    "q": query,
-                    "count": min(n, 20),  # Brave max is 20 per call
-                    "text_decorations": "0",
-                    "search_lang": "en",
-                    "country": "us",
-                    "safesearch": "moderate",
-                },
-            )
-            resp.raise_for_status()
-            data = resp.json()
-        except Exception as exc:  # noqa: BLE001
-            log.warning("brave_search_error", error=str(exc))
-            return []
+        params = {
+            "q": query,
+            "count": min(n, 20),  # Brave max is 20 per call
+            "text_decorations": "0",
+            "search_lang": "en",
+            "country": "us",
+            "safesearch": "moderate",
+        }
+
+        delay = self._MIN_INTERVAL
+        for attempt in range(self._MAX_RETRIES + 1):
+            self._throttle()
+            try:
+                resp = self._http.get(endpoint, params=params)
+                if resp.status_code == 429:
+                    if attempt < self._MAX_RETRIES:
+                        log.warning(
+                            "brave_search_rate_limit",
+                            attempt=attempt + 1,
+                            retry_after=delay,
+                        )
+                        time.sleep(delay)
+                        delay *= 2
+                        continue
+                    log.warning("brave_search_error", error=f"429 after {self._MAX_RETRIES} retries")
+                    return []
+                resp.raise_for_status()
+                data = resp.json()
+            except Exception as exc:  # noqa: BLE001
+                log.warning("brave_search_error", error=str(exc))
+                return []
+            break
 
         return self._parse_response(data, n)
 
