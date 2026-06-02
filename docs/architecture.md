@@ -111,7 +111,7 @@ ai-news-agent/
 │       │   ├── __init__.py
 │       │   ├── base.py                   # AbstractLLMClient + SearchResult dataclass
 │       │   ├── openai_client.py          # Concrete: OpenAI Agents SDK (DEFAULT, SRC-057)
-│       │   ├── anthropic_client.py       # Concrete: Anthropic stub (future provider, SRC-055–SRC-056)
+│       │   ├── anthropic_client.py       # Concrete: Anthropic Claude provider (SRC-055–SRC-056)
 │       │   ├── search_tools.py           # AbstractSearchTool + Brave/Tavily adapters (SRC-060)
 │       │   └── factory.py               # get_llm_client() + get_search_tool() factories
 │       │
@@ -222,7 +222,7 @@ class LLMCadenceOverride(BaseModel):
 
 class LLMConfig(BaseModel):
     """LLM provider and model configuration (SRC-057)."""
-    provider: Literal["openai", "anthropic"] = "openai"
+    provider: Literal["openai", "anthropic", "google"] = "openai"
     model: str = "gpt-4o"
     # Per-cadence overrides; keys are "daily" | "weekly" | "monthly" | "annual"
     cadence_overrides: dict[str, LLMCadenceOverride] = Field(default_factory=dict)
@@ -319,6 +319,8 @@ class RuntimeSecrets(BaseSettings):
     web_search_api_key:    str | None = Field(None, alias="WEB_SEARCH_API_KEY") # SRC-109
     web_search_provider:   str | None = Field(None, alias="WEB_SEARCH_PROVIDER")
     scheduler_api_key:     str | None = Field(None, alias="SCHEDULER_API_KEY") # SRC-147
+    anthropic_api_key:     str | None = Field(None, alias="ANTHROPIC_API_KEY") # SRC-055
+    google_api_key:        str | None = Field(None, alias="GOOGLE_API_KEY")    # SRC-055
 
     model_config = SettingsConfigDict(
         env_file=".env",
@@ -384,7 +386,7 @@ AbstractLLMClient          (llm/base.py)
   └── parse_structured(raw_text, schema_cls) → T
 
 OpenAILLMClient            (llm/openai_client.py)   ← DEFAULT (SRC-057)
-AnthropicLLMClient         (llm/anthropic_client.py) ← STUB (future, SRC-055–SRC-056)
+AnthropicLLMClient         (llm/anthropic_client.py) ← Anthropic Claude (SRC-055–SRC-056)
 
 AbstractSearchTool         (llm/search_tools.py)
   ├── search(query, n) → list[SearchResult]

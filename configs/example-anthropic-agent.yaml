@@ -1,0 +1,98 @@
+# configs/example-anthropic-agent.yaml — Example agent using Anthropic Claude models.
+#
+# Demonstrates how to configure an agent that uses Anthropic's Claude instead of
+# the default OpenAI provider. Everything else (sources, Twitter, limits) follows
+# the same structure as configs/default-agent.yaml.
+#
+# Prerequisites:
+#   1. Install the Anthropic extras:  pip install 'ai-news-agent[anthropic]'
+#   2. Set ANTHROPIC_API_KEY in your .env (or secrets manager)
+#   3. WEB_SEARCH_API_KEY + WEB_SEARCH_PROVIDER are required for sourcing (web search),
+#      since Anthropic has no native hosted search tool (SRC-060).
+#      Example: WEB_SEARCH_PROVIDER=tavily + WEB_SEARCH_API_KEY=your-tavily-key
+#
+# Traces: SRC-055–SRC-056 (provider-agnostic LLM), SRC-057 (provider config),
+#         SRC-071–SRC-073 (config system; secrets from env vars only)
+#
+# Validate with:
+#   python -m ai_news_agent.config.schema --validate configs/example-anthropic-agent.yaml
+#
+# SECRETS: NEVER place API keys or tokens here.
+# Required env vars when using this config:
+#   ANTHROPIC_API_KEY       — Anthropic Claude API key     (SRC-055)
+#   TWITTER_BEARER_TOKEN    — Twitter/X bearer token       (SRC-108)
+#   WEB_SEARCH_API_KEY      — Brave or Tavily key          (SRC-060, SRC-109)
+#   WEB_SEARCH_PROVIDER     — "brave" or "tavily"          (SRC-060)
+
+agent_id: anthropic-example
+
+# ─────────────────────────────────────────────────────────────────────────────
+# LLM configuration — Anthropic Claude  (SRC-057)
+# ─────────────────────────────────────────────────────────────────────────────
+llm:
+  provider: anthropic
+  model: claude-sonnet-4-6          # Default for all cadences
+
+  # Per-cadence model overrides (SRC-054)
+  # claude-opus-4-8 with extended thinking for deep annual synthesis (SRC-032).
+  cadence_overrides:
+    monthly:
+      model: claude-sonnet-4-6
+      thinking: false
+    annual:
+      model: claude-opus-4-8
+      thinking: true                # Extended thinking for annual synthesis (SRC-032)
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Curation prompt (same prompt files work with any provider)
+# ─────────────────────────────────────────────────────────────────────────────
+curation_prompt: prompts/daily.md
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Source tier configuration  (SRC-016–SRC-021, SRC-034)
+# ─────────────────────────────────────────────────────────────────────────────
+sources:
+  tier_1b:
+    - reuters.com
+    - bloomberg.com
+    - wsj.com
+    - ft.com
+    - economist.com
+    - axios.com
+  tier_2:
+    - news.ycombinator.com
+    - anthropic.com
+    - openai.com
+    - huggingface.co
+  tier_3:
+    - techcrunch.com
+    - theverge.com
+    - technologyreview.com
+    - wired.com
+  tier_4:
+    - brookings.edu
+    - rand.org
+    - hai.stanford.edu
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Twitter/X influencer configuration (SRC-036–SRC-046)
+# ─────────────────────────────────────────────────────────────────────────────
+twitter:
+  enabled: true
+  handles:
+    - { handle: karpathy,      weight: 1.0 }
+    - { handle: sama,          weight: 1.0 }
+    - { handle: DarioAmodei,   weight: 1.0 }
+    - { handle: ylecun,        weight: 1.0 }
+    - { handle: AndrewYNg,     weight: 1.0 }
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Top-N article limits per cadence  (SRC-029–SRC-032)
+# ─────────────────────────────────────────────────────────────────────────────
+limits:
+  daily_top_n:   10
+  weekly_top_n:  7
+  monthly_top_n: 10
+  annual_top_n:  10
+
+output_dir: outputs/{agent_id}

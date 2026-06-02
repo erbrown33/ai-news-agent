@@ -75,7 +75,8 @@ dev = [
 ]
 
 anthropic = [
-    # Future: Anthropic provider (SRC-055–SRC-056 extensibility)
+    # Anthropic Claude provider (SRC-055–SRC-056)
+    # Install: pip install 'ai-news-agent[anthropic]'
     "anthropic>=0.27.0",
 ]
 

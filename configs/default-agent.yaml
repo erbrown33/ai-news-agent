@@ -23,7 +23,7 @@ agent_id: default
 # LLM configuration  (SRC-057)
 # ─────────────────────────────────────────────────────────────────────────────
 llm:
-  provider: openai                  # "openai" | "anthropic"  (SRC-057)
+  provider: openai                  # "openai" | "anthropic" | "google"  (SRC-057)
   model: gpt-4.1                    # Default for all cadences — 1M-token context
                                     # avoids the gpt-4o 128k ceiling once the
                                     # weekly/monthly/annual corpus grows large.

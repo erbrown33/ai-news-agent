@@ -42,8 +42,14 @@ T = TypeVar("T")
 # Models that support extended thinking (streaming + thinking budget)
 _THINKING_MODELS = frozenset(
     {
+        # Claude 3.7 Sonnet — introduced extended thinking
         "claude-3-7-sonnet-20250219",
         "claude-3-7-sonnet-latest",
+        # Claude 4 series — all Opus and Sonnet models support extended thinking
+        "claude-opus-4-8",
+        "claude-opus-4-5",
+        "claude-sonnet-4-6",
+        "claude-sonnet-4-5",
     }
 )
 
@@ -52,6 +58,9 @@ _THINKING_BUDGET_TOKENS: int = 10_000
 
 # Default max output tokens — generous for curation tasks
 _DEFAULT_MAX_TOKENS: int = 8_192
+
+# max_tokens when thinking is enabled must exceed budget_tokens (Anthropic API requirement)
+_THINKING_MAX_TOKENS: int = _THINKING_BUDGET_TOKENS + 4_096
 
 
 class AnthropicLLMClient(AbstractLLMClient):
@@ -169,6 +178,8 @@ class AnthropicLLMClient(AbstractLLMClient):
                 "type": "enabled",
                 "budget_tokens": _THINKING_BUDGET_TOKENS,
             }
+            # max_tokens must exceed budget_tokens (Anthropic API requirement)
+            req_kwargs["max_tokens"] = _THINKING_MAX_TOKENS
             # Extended thinking requires temperature=1 on supported models
             req_kwargs["temperature"] = 1
             log.debug("anthropic_extended_thinking_enabled", model=model)

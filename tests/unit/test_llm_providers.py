@@ -169,6 +169,133 @@ class TestAnthropicClient:
         assert isinstance(result, CurationResponse)
         assert result.themes == ["AI adoption"]
 
+    def test_last_token_usage_tracks_tokens(self, anthropic_client) -> None:
+        """
+        last_token_usage property reflects input+output tokens from the last call.
+        Traces: SRC-150 (token usage logging)
+        """
+        client, mock_instance = anthropic_client
+
+        mock_content_block = MagicMock()
+        mock_content_block.type = "text"
+        mock_content_block.text = "Token tracking test response."
+        mock_message = MagicMock()
+        mock_message.content = [mock_content_block]
+        mock_message.usage = MagicMock()
+        mock_message.usage.input_tokens = 300
+        mock_message.usage.output_tokens = 75
+        mock_instance.messages.create.return_value = mock_message
+
+        assert client.last_token_usage == 0  # before any call
+
+        client.complete(
+            messages=[{"role": "user", "content": "Track tokens."}],
+            model="claude-sonnet-4-6",
+        )
+
+        assert client.last_token_usage == 375  # 300 + 75
+
+    def test_complete_separates_system_message(self, anthropic_client) -> None:
+        """
+        complete() extracts system messages and passes them via the system param,
+        not as conversation turns (Anthropic API requirement).
+        Traces: SRC-059 (plain prompts)
+        """
+        client, mock_instance = anthropic_client
+
+        mock_content_block = MagicMock()
+        mock_content_block.type = "text"
+        mock_content_block.text = "System-aware response."
+        mock_message = MagicMock()
+        mock_message.content = [mock_content_block]
+        mock_message.usage = MagicMock()
+        mock_message.usage.input_tokens = 50
+        mock_message.usage.output_tokens = 20
+        mock_instance.messages.create.return_value = mock_message
+
+        client.complete(
+            messages=[
+                {"role": "system", "content": "You are a helpful AI news curator."},
+                {"role": "user", "content": "Summarize today's AI news."},
+            ],
+            model="claude-sonnet-4-6",
+        )
+
+        call_kwargs = mock_instance.messages.create.call_args.kwargs
+        # system prompt should be passed via the "system" kwarg, not as a message
+        assert "system" in call_kwargs
+        assert "You are a helpful AI news curator." in call_kwargs["system"]
+        # conversation messages should contain only the user turn
+        conv_messages = call_kwargs["messages"]
+        assert all(m.get("role") != "system" for m in conv_messages)
+
+    def test_search_deep_budget_triples_results(self, mock_anthropic_module) -> None:
+        """
+        search() with budget_hint='deep' requests 3x the n_results.
+        Traces: SRC-121 (search budget for monthly/annual cadences)
+        """
+        from ai_news_agent.llm.anthropic_client import AnthropicLLMClient
+
+        mock_search_tool = MagicMock()
+        mock_search_tool.search.return_value = []
+
+        client = AnthropicLLMClient(api_key="test-key", search_tool=mock_search_tool)
+        client.search("AI news today", n_results=5, budget_hint="deep")
+
+        # Called with 5 * 3 = 15 results
+        mock_search_tool.search.assert_called_once_with("AI news today", 15)
+
+    def test_init_raises_without_anthropic_package(self) -> None:
+        """
+        __init__ raises ImportError when the anthropic package is not installed.
+        Traces: SRC-055
+        """
+        with patch.dict("sys.modules", {"anthropic": None}):
+            import importlib
+
+            import ai_news_agent.llm.anthropic_client as ant_mod
+
+            importlib.reload(ant_mod)
+            try:
+                from ai_news_agent.llm.anthropic_client import AnthropicLLMClient
+
+                with pytest.raises(ImportError, match="anthropic is required"):
+                    AnthropicLLMClient(api_key="test-key")
+            except ImportError:
+                pass  # Expected — module itself failed to load
+
+    def test_extended_thinking_sets_thinking_max_tokens(self, anthropic_client) -> None:
+        """
+        complete() with thinking=True sets max_tokens above budget_tokens.
+        Without this fix, the Anthropic API would reject the request because
+        max_tokens must exceed budget_tokens. (SRC-032)
+        """
+        from ai_news_agent.llm.anthropic_client import _THINKING_BUDGET_TOKENS, _THINKING_MAX_TOKENS
+
+        client, mock_instance = anthropic_client
+
+        mock_content_block = MagicMock()
+        mock_content_block.type = "text"
+        mock_content_block.text = "Extended thinking response."
+        mock_message = MagicMock()
+        mock_message.content = [mock_content_block]
+        mock_message.usage = MagicMock()
+        mock_message.usage.input_tokens = 200
+        mock_message.usage.output_tokens = 100
+        mock_instance.messages.create.return_value = mock_message
+
+        client.complete(
+            messages=[{"role": "user", "content": "Annual review."}],
+            model="claude-3-7-sonnet-20250219",
+            thinking=True,
+        )
+
+        call_kwargs = mock_instance.messages.create.call_args.kwargs
+        assert call_kwargs["max_tokens"] == _THINKING_MAX_TOKENS
+        assert _THINKING_MAX_TOKENS > _THINKING_BUDGET_TOKENS, (
+            "max_tokens must exceed budget_tokens for extended thinking (Anthropic API requirement)"
+        )
+
 
 # ---------------------------------------------------------------------------
 # GoogleLLMClient
@@ -483,6 +610,44 @@ class TestFactoryProviderPaths:
             client = get_llm_client(cfg, secrets)
         # Should succeed with search_tool=None
         assert isinstance(client, AnthropicLLMClient)
+
+    def test_get_llm_client_anthropic_missing_key_raises_config_error(self, sample_secrets) -> None:
+        """
+        get_llm_client() raises ConfigError when provider=anthropic but ANTHROPIC_API_KEY
+        is not set. (SRC-055)
+        """
+        from ai_news_agent.config.loader import ConfigError
+        from ai_news_agent.config.models import LLMConfig
+        from ai_news_agent.llm.factory import get_llm_client
+
+        cfg = LLMConfig(provider="anthropic", model="claude-sonnet-4-6")
+        secrets = sample_secrets.model_copy(update={"anthropic_api_key": None})
+
+        with pytest.raises(ConfigError, match="ANTHROPIC_API_KEY"):
+            get_llm_client(cfg, secrets)
+
+    def test_get_llm_client_claude4_model_accepted(self, sample_secrets) -> None:
+        """
+        Factory accepts Claude 4 model names (claude-opus-4-8, claude-sonnet-4-6).
+        Traces: SRC-055, SRC-057
+        """
+        from ai_news_agent.config.models import LLMConfig
+        from ai_news_agent.llm.anthropic_client import AnthropicLLMClient
+        from ai_news_agent.llm.factory import get_llm_client
+
+        for model in ("claude-opus-4-8", "claude-sonnet-4-6"):
+            cfg = LLMConfig(provider="anthropic", model=model)
+            secrets = sample_secrets.model_copy(update={"anthropic_api_key": "test-ant-key"})
+
+            mock_ant = MagicMock()
+            mock_ant.APIError = Exception
+            mock_ant.RateLimitError = Exception
+            mock_ant.APIConnectionError = Exception
+            with patch.dict("sys.modules", {"anthropic": mock_ant}):
+                client = get_llm_client(cfg, secrets)
+            assert isinstance(client, AnthropicLLMClient), (
+                f"Expected AnthropicLLMClient for model={model}"
+            )
 
 
 # ---------------------------------------------------------------------------
