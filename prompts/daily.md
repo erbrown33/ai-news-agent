@@ -115,6 +115,21 @@ prioritization, but a highly significant Tier 3 or 4 item can outrank a routine 
 **Tier 4 — Policy and research** (Brookings, RAND, Stanford HAI, AI Now Institute, government press releases, academic policy papers):
 {{tier_4_articles}}
 
+**Tier 2 — Tracked influencer posts (source_class = twitter)**  <!-- SRC-047 exception -->
+
+Some candidates above will show `Source Class: twitter`. These are **standalone posts** from
+tracked AI influencers — tweets with no linked article, where the post content itself is what
+may be newsworthy. Evaluate them the same way you evaluate any other candidate:
+
+- **Include** if the tweet content itself meets the inclusion criteria — a credible announcement,
+  a documented technical achievement, or a substantive development that would matter to the
+  audience (e.g., an executive announcing a product shift, a researcher sharing a result that
+  has real-world deployment implications).
+- **Exclude** if the tweet is opinion, commentary, reaction, or general noise that does not
+  independently meet the inclusion criteria above — regardless of who posted it.
+- The `source_name` will be `@handle on X` and the `url` will be the tweet URL. Use both
+  in the output exactly as you would for any other source.
+
 ## Influencer Signal — For Context and Lead Generation Only  <!-- SRC-119, SRC-070 -->
 
 The tweets below are from tracked AI influencers and are provided **strictly as context

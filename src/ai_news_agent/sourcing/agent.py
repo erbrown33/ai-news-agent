@@ -6,12 +6,14 @@ configured sources and persist them in the store.  It **does not** score,
 rank, filter, or summarise — those are Curation Agent responsibilities (SRC-013).
 
 Pipeline (SRC-008–SRC-013):
-  1. Fetch tweet signals from configured influencer handles  (SRC-067–SRC-069)
-     → Graceful degradation if Twitter API is unavailable   (SRC-148)
-  2. Fetch web articles from all source tiers               (SRC-053, SRC-060)
-  3. Enrich with primary articles from tweet-linked URLs    (SRC-069–SRC-070)
-  4. Deduplicate by (url_hash, agent_id); insert new only   (SRC-012)
-  5. Log SourcingRunResult for quality monitoring           (SRC-150)
+  1.  Fetch tweet signals from configured influencer handles  (SRC-067–SRC-069)
+      → Graceful degradation if Twitter API is unavailable   (SRC-148)
+  1b. Convert standalone tweets (no linked URLs) to          (SRC-047 exception)
+      ArticleRecord candidates with source_class="twitter"
+  2.  Fetch web articles from all source tiers               (SRC-053, SRC-060)
+  3.  Enrich with primary articles from tweet-linked URLs    (SRC-069–SRC-070)
+  4.  Deduplicate by (url_hash, agent_id); insert new only   (SRC-012)
+  5.  Log SourcingRunResult for quality monitoring           (SRC-150)
 
 Lookback window defaults (SRC-009):
   - ``window_start``: 00:00 UTC today
@@ -40,6 +42,7 @@ from ai_news_agent.config.models import AgentConfig, RuntimeSecrets
 from ai_news_agent.llm.factory import get_llm_client, get_search_tool
 from ai_news_agent.sourcing.twitter_fetcher import TwitterFetcher
 from ai_news_agent.sourcing.web_fetcher import WebFetcher
+from ai_news_agent.storage.models import ArticleRecord, normalize_url, url_hash
 from ai_news_agent.storage.tinydb_store import TinyDBArticleStore
 
 if TYPE_CHECKING:
@@ -277,6 +280,49 @@ class SourcingAgent:
             )
 
         # ------------------------------------------------------------------
+        # Step 1b: Standalone-tweet article records (SRC-047 exception path)
+        #
+        # Tweets with no external linked URLs are potential "tweet IS the news"
+        # candidates (e.g. an executive announcement before press coverage).
+        # We build ArticleRecords so the Curation Agent can evaluate the tweet
+        # content on its merits alongside web articles. source_class="twitter"
+        # distinguishes them; the curation prompt instructs the LLM accordingly.
+        # ------------------------------------------------------------------
+        standalone_tweet_articles: list[ArticleRecord] = []
+        for signal in signals:
+            if not signal.linked_urls:
+                tweet_url_str = f"https://x.com/{signal.handle}/status/{signal.tweet_id}"
+                canonical = normalize_url(tweet_url_str)
+                if len(signal.text) > 120:
+                    truncated = signal.text[:120]
+                    last_space = truncated.rfind(" ")
+                    headline = truncated[:last_space] if last_space > 60 else truncated
+                else:
+                    headline = signal.text
+                standalone_tweet_articles.append(
+                    ArticleRecord(
+                        url_hash=url_hash(canonical),
+                        url=canonical,
+                        headline=headline,
+                        abstract=signal.text,
+                        source_name=f"@{signal.handle} on X",
+                        pub_date=signal.created_at,
+                        fetched_at=signal.fetched_at,
+                        tier="2",
+                        source_class="twitter",
+                        agent_id=signal.agent_id,
+                        twitter_handle=signal.handle,
+                        tweet_url=canonical,
+                    )
+                )
+        if standalone_tweet_articles:
+            log.debug(
+                "sourcing_standalone_tweet_articles",
+                agent_id=self._config.agent_id,
+                count=len(standalone_tweet_articles),
+            )
+
+        # ------------------------------------------------------------------
         # Step 2: Web article fetch (SRC-053, SRC-060)
         # ------------------------------------------------------------------
         web_articles = self._web_fetcher.fetch_all(
@@ -305,7 +351,7 @@ class SourcingAgent:
                 articles_produced=len(tweet_url_articles),
             )
 
-        all_articles = web_articles + tweet_url_articles
+        all_articles = web_articles + tweet_url_articles + standalone_tweet_articles
         result.articles_fetched = len(all_articles)
 
         # ------------------------------------------------------------------
