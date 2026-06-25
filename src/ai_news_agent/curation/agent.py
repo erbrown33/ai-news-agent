@@ -25,9 +25,11 @@ Traces: SRC-014–SRC-032 (curation agent, all four cadences),
 from __future__ import annotations
 
 import argparse
+import json
 import sys
 from dataclasses import dataclass, field
-from datetime import UTC, datetime, timedelta
+from datetime import UTC, date, datetime, timedelta
+from pathlib import Path
 from typing import TYPE_CHECKING
 
 import structlog
@@ -343,6 +345,35 @@ class CurationAgent:
         self._scorer = Scorer(llm_client=self._llm)
 
     # ------------------------------------------------------------------
+    # Cross-digest deduplication (daily cadence)
+    # ------------------------------------------------------------------
+
+    def _get_recently_curated_urls(self, cadence: str, lookback_days: int = 7) -> set[str]:
+        """
+        Return the set of article URLs that appeared in the last ``lookback_days``
+        daily digest JSON files.  Used to prevent the same article from showing
+        up in consecutive daily digests when the curation window overlaps.
+
+        Silently skips missing or malformed files.
+        """
+        seen: set[str] = set()
+        output_dir = Path(self._config.output_dir)
+        today = date.today()
+        for i in range(1, lookback_days + 1):
+            target = today - timedelta(days=i)
+            path = output_dir / f"{target}-{cadence}.json"
+            if path.exists():
+                try:
+                    data = json.loads(path.read_text())
+                    for item in data.get("items", []):
+                        url = item.get("url")
+                        if url:
+                            seen.add(url)
+                except Exception:  # noqa: BLE001
+                    pass
+        return seen
+
+    # ------------------------------------------------------------------
     # Public API
     # ------------------------------------------------------------------
 
@@ -421,6 +452,31 @@ class CurationAgent:
             window_start=window_start,
             window_end=window_end,
         )
+
+        # ------------------------------------------------------------------
+        # Step 1b: Cross-digest dedup — filter URLs seen in recent daily digests
+        #
+        # The daily window is yesterday-00:00 → now, creating a ~7-hour overlap
+        # with tomorrow's window.  Without this filter the same article can appear
+        # in two consecutive daily digests.  We scan the last 7 daily JSON output
+        # files and exclude any candidate whose URL was already featured.
+        # Only applied to the daily cadence; weekly/monthly/annual are unaffected.
+        # ------------------------------------------------------------------
+        if cadence == "daily" and not dry_run:
+            recently_shown = self._get_recently_curated_urls(cadence, lookback_days=7)
+            if recently_shown:
+                before = len(candidates)
+                candidates = [c for c in candidates if c.url not in recently_shown]
+                log.info(
+                    "curation_cross_digest_dedup",
+                    agent_id=self._config.agent_id,
+                    cadence=cadence,
+                    digests_scanned=7,
+                    urls_in_recent_digests=len(recently_shown),
+                    candidates_before=before,
+                    candidates_after=len(candidates),
+                    filtered_out=before - len(candidates),
+                )
 
         # ------------------------------------------------------------------
         # Step 2: Resolve Twitter availability (SRC-148)
