@@ -47,3 +47,9 @@ Thumbs.db
 
 # TinyDB store files
 *.json.bak
+
+# Local deployment configs — keep personal configs out of this public repo.
+# Put your own agent configs in configs/local/ or name them *.local.yaml.
+configs/local/
+*.local.yaml
+*.local.yml

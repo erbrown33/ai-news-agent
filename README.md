@@ -212,6 +212,10 @@ All runtime behavior is controlled by YAML files in `configs/`. No code changes 
 
 Full config reference: [`docs/config/config-reference.md`](docs/config/config-reference.md)
 
+**Personal / deployment configs:** copy an example into `configs/local/` (or name it
+`*.local.yaml`) and point `--agent` at it. Both are gitignored so your own configs never
+land in this repo. `--agent` also accepts an absolute path to a config kept elsewhere.
+
 ---
 
 ## All Run Commands
