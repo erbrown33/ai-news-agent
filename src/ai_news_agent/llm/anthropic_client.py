@@ -2,8 +2,9 @@
 llm/anthropic_client.py — Anthropic concrete LLM client.
 
 Uses the Anthropic Python SDK (``anthropic>=0.27``) for:
-  • Messages API — all Claude models (claude-3-7-sonnet, claude-3-5-haiku, etc.)
-  • Extended thinking — claude-3-7-sonnet with ``thinking`` budget (SRC-032)
+  • Messages API — all Claude models, from Claude 3.x through Sonnet 5 / Opus 5 / Fable
+  • Extended thinking — adaptive on Opus/Sonnet 4.6 and newer; legacy ``budget_tokens``
+    on 3.7 / 4.0–4.5 / Haiku 4.5 (SRC-032)
   • Search fallback  — delegates to injected AbstractSearchTool (Brave or Tavily)
   • Automatic retry  — exponential backoff via ``with_retry`` decorator (SRC-144)
   • parse_structured — identical Markdown + ```json``` block extraction (SRC-061)
@@ -39,28 +40,76 @@ if TYPE_CHECKING:
 log = structlog.get_logger(__name__)
 T = TypeVar("T")
 
-# Models that support extended thinking (streaming + thinking budget)
-_THINKING_MODELS = frozenset(
-    {
-        # Claude 3.7 Sonnet — introduced extended thinking
-        "claude-3-7-sonnet-20250219",
-        "claude-3-7-sonnet-latest",
-        # Claude 4 series — all Opus and Sonnet models support extended thinking
-        "claude-opus-4-8",
-        "claude-opus-4-5",
-        "claude-sonnet-4-6",
-        "claude-sonnet-4-5",
-    }
+# ---------------------------------------------------------------------------
+# Model capability families (matched by model-id prefix)
+#
+# The Messages API request shape differs by model generation:
+#   • Sampling params (temperature/top_p/top_k) are accepted up to Opus 4.6 /
+#     Sonnet 4.6 / Haiku 4.5, and rejected (HTTP 400) by Opus 4.7+, Sonnet 5+,
+#     Fable, and Mythos.
+#   • Thinking: pre-4.6 models take {"type": "enabled", "budget_tokens": N};
+#     Opus 4.6 / Sonnet 4.6 and every newer model take {"type": "adaptive"}
+#     (budget_tokens is deprecated on 4.6 and rejected on 4.7+ / 5.x).
+#   • Claude 3.5 and older have no thinking support at all.
+# Unknown (future) models are treated as the newest generation: no sampling
+# params, adaptive thinking.
+# ---------------------------------------------------------------------------
+_NO_THINKING_PREFIXES: tuple[str, ...] = (
+    "claude-3-5",
+    "claude-3-haiku",
+    "claude-3-opus",
+    "claude-3-sonnet",
+)
+_BUDGET_THINKING_PREFIXES: tuple[str, ...] = (
+    "claude-3-7",
+    "claude-haiku-4",
+    "claude-sonnet-4-0",
+    "claude-sonnet-4-2",  # claude-sonnet-4-20250514
+    "claude-sonnet-4-5",
+    "claude-opus-4-0",
+    "claude-opus-4-1",
+    "claude-opus-4-2",  # claude-opus-4-20250514
+    "claude-opus-4-5",
+)
+_SAMPLING_PREFIXES: tuple[str, ...] = (
+    "claude-3",
+    "claude-haiku-4",
+    "claude-sonnet-4",  # all Sonnet 4.x (incl. 4.6)
+    "claude-opus-4-0",
+    "claude-opus-4-1",
+    "claude-opus-4-2",
+    "claude-opus-4-5",
+    "claude-opus-4-6",
 )
 
-# Maximum tokens for extended thinking budget (used when thinking=True)
+
+def _accepts_sampling_params(model: str) -> bool:
+    """True if the model accepts ``temperature`` (rejected from Opus 4.7 / Sonnet 5 on)."""
+    return model.startswith(_SAMPLING_PREFIXES)
+
+
+def _thinking_style(model: str) -> str:
+    """Return ``"none"``, ``"budget"`` (legacy budget_tokens), or ``"adaptive"``."""
+    if model.startswith(_NO_THINKING_PREFIXES):
+        return "none"
+    if model.startswith(_BUDGET_THINKING_PREFIXES):
+        return "budget"
+    return "adaptive"
+
+
+# Maximum tokens for the legacy extended thinking budget (budget-style models only)
 _THINKING_BUDGET_TOKENS: int = 10_000
 
 # Default max output tokens — generous for curation tasks
 _DEFAULT_MAX_TOKENS: int = 8_192
 
-# max_tokens when thinking is enabled must exceed budget_tokens (Anthropic API requirement)
+# max_tokens when budget thinking is enabled must exceed budget_tokens (API requirement)
 _THINKING_MAX_TOKENS: int = _THINKING_BUDGET_TOKENS + 4_096
+
+# Adaptive-thinking models share max_tokens between thinking and the answer (and
+# may think even when not asked), so give them more room. Kept at 16k so a
+# non-streaming request stays well inside the SDK's HTTP timeout.
+_ADAPTIVE_MAX_TOKENS: int = 16_000
 
 
 class AnthropicLLMClient(AbstractLLMClient):
@@ -72,8 +121,9 @@ class AnthropicLLMClient(AbstractLLMClient):
     Typically BraveSearchTool or TavilySearchTool is injected.
 
     Extended thinking:
-      ``thinking=True`` → enables Anthropic extended thinking with a token budget
-      of ``_THINKING_BUDGET_TOKENS``. Only works for claude-3-7-sonnet models.
+      ``thinking=True`` → adaptive thinking on Opus/Sonnet 4.6 and newer; a
+      ``_THINKING_BUDGET_TOKENS`` budget on older thinking-capable models; ignored on 3.5-era
+      models. Sampling params are omitted for models that reject them (Opus 4.7+, Sonnet 5+).
       Annual curation runs benefit from this for deep cross-year synthesis (SRC-032).
 
     parse_structured uses the identical ``_parse_structured_impl`` function shared
@@ -123,8 +173,9 @@ class AnthropicLLMClient(AbstractLLMClient):
         """
         Send a completion request via the Anthropic Messages API.
 
-        The ``thinking=True`` kwarg enables extended thinking for supported models
-        (claude-3-7-sonnet-*). For unsupported models it is silently ignored.
+        The ``thinking=True`` kwarg enables extended thinking in the form the model
+        supports (adaptive or budget); for models without thinking it is ignored.
+        ``temperature`` is sent only to models that accept it.
 
         System messages are extracted and passed via the ``system`` parameter
         (the Anthropic Messages API requires this). (SRC-059 — plain prompts)
@@ -171,26 +222,40 @@ class AnthropicLLMClient(AbstractLLMClient):
         if system_text:
             req_kwargs["system"] = system_text
 
-        # Extended thinking (SRC-032, SRC-054)
-        use_thinking = thinking and model in _THINKING_MODELS
-        if use_thinking:
+        # Extended thinking (SRC-032, SRC-054) — request shape depends on model generation
+        style = _thinking_style(model)
+        if style == "adaptive":
+            # Newer models think adaptively (several do so even when not asked), and
+            # thinking tokens count toward max_tokens.
+            req_kwargs["max_tokens"] = _ADAPTIVE_MAX_TOKENS
+            if thinking:
+                req_kwargs["thinking"] = {"type": "adaptive"}
+                log.debug("anthropic_adaptive_thinking_enabled", model=model)
+        elif style == "budget" and thinking:
             req_kwargs["thinking"] = {
                 "type": "enabled",
                 "budget_tokens": _THINKING_BUDGET_TOKENS,
             }
             # max_tokens must exceed budget_tokens (Anthropic API requirement)
             req_kwargs["max_tokens"] = _THINKING_MAX_TOKENS
-            # Extended thinking requires temperature=1 on supported models
-            req_kwargs["temperature"] = 1
             log.debug("anthropic_extended_thinking_enabled", model=model)
-        else:
-            req_kwargs["temperature"] = temperature
+
+        # Sampling params: legacy budget thinking requires temperature=1; Opus 4.7+,
+        # Sonnet 5+, and Fable reject temperature entirely.
+        if _accepts_sampling_params(model):
+            req_kwargs["temperature"] = 1 if "thinking" in req_kwargs else temperature
 
         try:
             resp = self._client.messages.create(**req_kwargs)
         except Exception as exc:  # noqa: BLE001
             # Normalise to LLMError — no Anthropic types leak up (SRC-056)
             raise LLMError(f"Anthropic Messages API error: {exc}", cause=exc) from exc
+
+        stop_reason = getattr(resp, "stop_reason", None)
+        if stop_reason == "refusal":
+            raise LLMError(f"Anthropic model {model} declined the request (stop_reason=refusal)")
+        if stop_reason == "max_tokens":
+            log.warning("anthropic_max_tokens_reached", model=model, max_tokens=req_kwargs["max_tokens"])
 
         # Extract text from response content blocks
         text_parts: list[str] = []

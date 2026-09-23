@@ -296,6 +296,85 @@ class TestAnthropicClient:
             "max_tokens must exceed budget_tokens for extended thinking (Anthropic API requirement)"
         )
 
+    @staticmethod
+    def _stub_response(mock_instance, stop_reason: str = "end_turn") -> None:
+        block = MagicMock()
+        block.type = "text"
+        block.text = "ok"
+        message = MagicMock()
+        message.content = [block]
+        message.stop_reason = stop_reason
+        message.usage.input_tokens = 10
+        message.usage.output_tokens = 5
+        mock_instance.messages.create.return_value = message
+
+    @pytest.mark.parametrize(
+        ("model", "thinking", "expect_temperature", "expect_thinking"),
+        [
+            # Legacy: sampling allowed, budget thinking
+            ("claude-haiku-4-5", False, 0.2, None),
+            ("claude-haiku-4-5", True, 1, "enabled"),
+            ("claude-3-5-sonnet-20241022", True, 0.2, None),  # no thinking support
+            # 4.6 generation: sampling allowed, adaptive thinking
+            ("claude-sonnet-4-6", False, 0.2, None),
+            ("claude-sonnet-4-6", True, 1, "adaptive"),
+            ("claude-opus-4-6", True, 1, "adaptive"),
+            # Opus 4.7+ / Sonnet 5 / Opus 5 / Fable: no sampling params, adaptive thinking
+            ("claude-opus-4-8", True, None, "adaptive"),
+            ("claude-sonnet-5", False, None, None),
+            ("claude-sonnet-5", True, None, "adaptive"),
+            ("claude-opus-5", True, None, "adaptive"),
+            ("claude-fable-5-1", False, None, None),
+        ],
+    )
+    def test_request_shape_matches_model_generation(
+        self, anthropic_client, model, thinking, expect_temperature, expect_thinking
+    ) -> None:
+        """
+        complete() only sends parameters the target model accepts: newer models reject
+        temperature and budget_tokens with HTTP 400. (SRC-032, SRC-055)
+        """
+        client, mock_instance = anthropic_client
+        self._stub_response(mock_instance)
+
+        client.complete(
+            messages=[{"role": "user", "content": "Curate."}],
+            model=model,
+            temperature=0.2,
+            thinking=thinking,
+        )
+
+        kwargs = mock_instance.messages.create.call_args.kwargs
+        assert kwargs.get("temperature") == expect_temperature
+        assert ("temperature" in kwargs) == (expect_temperature is not None)
+        assert kwargs.get("thinking", {}).get("type") == expect_thinking
+        if expect_thinking == "adaptive":
+            assert "budget_tokens" not in kwargs["thinking"]
+
+    def test_adaptive_models_get_room_for_thinking(self, anthropic_client) -> None:
+        """Adaptive-thinking models share max_tokens with thinking, so they get a larger cap."""
+        from ai_news_agent.llm.anthropic_client import _ADAPTIVE_MAX_TOKENS, _DEFAULT_MAX_TOKENS
+
+        client, mock_instance = anthropic_client
+        self._stub_response(mock_instance)
+
+        client.complete(messages=[{"role": "user", "content": "x"}], model="claude-sonnet-5")
+        assert mock_instance.messages.create.call_args.kwargs["max_tokens"] == _ADAPTIVE_MAX_TOKENS
+
+        client.complete(messages=[{"role": "user", "content": "x"}], model="claude-haiku-4-5")
+        assert mock_instance.messages.create.call_args.kwargs["max_tokens"] == _DEFAULT_MAX_TOKENS
+
+    def test_refusal_raises_llm_error(self, anthropic_client) -> None:
+        """A refusal stop reason surfaces as LLMError instead of an empty curation."""
+        from ai_news_agent.llm.retry import LLMError
+
+        client, mock_instance = anthropic_client
+        self._stub_response(mock_instance, stop_reason="refusal")
+
+        with pytest.raises(LLMError, match="refusal"):
+            client.complete(messages=[{"role": "user", "content": "x"}], model="claude-sonnet-5")
+        assert mock_instance.messages.create.call_count == 1  # not retried
+
 
 # ---------------------------------------------------------------------------
 # GoogleLLMClient

@@ -31,16 +31,17 @@ agent_id: anthropic-example
 # ─────────────────────────────────────────────────────────────────────────────
 llm:
   provider: anthropic
-  model: claude-sonnet-4-6          # Default for all cadences
+  model: claude-sonnet-5            # Default for all cadences
 
   # Per-cadence model overrides (SRC-054)
-  # claude-opus-4-8 with extended thinking for deep annual synthesis (SRC-032).
+  # claude-opus-5 with adaptive thinking for deep annual synthesis (SRC-032).
+  # The client sends only parameters each model accepts (no temperature on Sonnet 5 / Opus 4.7+).
   cadence_overrides:
     monthly:
-      model: claude-sonnet-4-6
+      model: claude-sonnet-5
       thinking: false
     annual:
-      model: claude-opus-4-8
+      model: claude-opus-5
       thinking: true                # Extended thinking for annual synthesis (SRC-032)
 
 # ─────────────────────────────────────────────────────────────────────────────

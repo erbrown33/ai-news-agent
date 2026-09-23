@@ -148,7 +148,7 @@ llm:
 # Switch to Anthropic — only this field changes
 llm:
   provider: anthropic
-  model: claude-3-7-sonnet-20250219
+  model: claude-sonnet-5
 ```
 
 **Monthly + annual research model (SRC-054, SRC-032):**
@@ -624,9 +624,9 @@ llm:
   model: gpt-4o
   cadence_overrides:
     monthly:
-      model: claude-3-7-sonnet-20250219
+      model: claude-sonnet-5
     annual:
-      model: claude-3-7-sonnet-20250219
+      model: claude-sonnet-5
       thinking: true
 ```
 
