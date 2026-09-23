@@ -298,6 +298,8 @@ class LimitsConfig(BaseModel):
           weekly_top_n:  7
           monthly_top_n: 10
           annual_top_n:  10
+          monthly_candidates_limit: 500
+          annual_candidates_limit:  500
     """
 
     daily_top_n: Annotated[int, Field(ge=1, le=50)] = Field(
@@ -322,6 +324,24 @@ class LimitsConfig(BaseModel):
             "Top articles + predictions count for the annual digest. "
             "Spec requires exactly 10 articles + 10 predictions (SRC-032). "
             "Range: 1–20."
+        ),
+    )
+    monthly_candidates_limit: int | None = Field(
+        default=None,
+        ge=10,
+        description=(
+            "Maximum candidates passed to the LLM for monthly curation. "
+            "Candidates are ranked by source tier then recency before truncation. "
+            "Set when the monthly window grows too large for the model's context window."
+        ),
+    )
+    annual_candidates_limit: int | None = Field(
+        default=None,
+        ge=10,
+        description=(
+            "Maximum candidates passed to the LLM for annual curation. "
+            "Candidates are ranked by source tier then recency before truncation. "
+            "Set when the annual window grows too large for the model's context window."
         ),
     )
 

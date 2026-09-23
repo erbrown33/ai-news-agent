@@ -94,5 +94,9 @@ limits:
   weekly_top_n:  7
   monthly_top_n: 10
   annual_top_n:  10
+  # Cap candidates sent to the LLM for long windows (ranked by tier, then recency).
+  # Keeps monthly/annual prompts under the model's context window as the corpus grows.
+  monthly_candidates_limit: 500
+  annual_candidates_limit:  500
 
 output_dir: outputs/{agent_id}

@@ -454,6 +454,43 @@ class CurationAgent:
         )
 
         # ------------------------------------------------------------------
+        # Step 1a: Candidates limit — truncate oversized windows before prompt build
+        #
+        # Monthly and annual windows can accumulate thousands of candidates that
+        # exceed the model's context window. When limits.monthly_candidates_limit
+        # (or annual_candidates_limit) is set, retain only the top-N candidates
+        # ranked by source tier priority then recency so the LLM still sees the
+        # best-quality articles from each tier.
+        # ------------------------------------------------------------------
+        _CANDIDATES_LIMIT_MAP = {
+            "monthly": self._config.limits.monthly_candidates_limit,
+            "annual": self._config.limits.annual_candidates_limit,
+        }
+        _candidates_limit = _CANDIDATES_LIMIT_MAP.get(cadence)
+        if _candidates_limit is not None and len(candidates) > _candidates_limit:
+            _candidates_before = len(candidates)
+            _TIER_ORDER = {"1a": 0, "1b": 1, "2": 2, "3": 3, "4": 4, "unknown": 5}
+            candidates = sorted(
+                candidates,
+                key=lambda a: (
+                    _TIER_ORDER.get(a.tier, 5),
+                    -(
+                        a.pub_date.timestamp()
+                        if isinstance(a.pub_date, datetime)
+                        else 0
+                    ),
+                ),
+            )[:_candidates_limit]
+            log.info(
+                "curation_candidates_truncated",
+                agent_id=self._config.agent_id,
+                cadence=cadence,
+                candidates_before=_candidates_before,
+                candidates_after=len(candidates),
+                limit=_candidates_limit,
+            )
+
+        # ------------------------------------------------------------------
         # Step 1b: Cross-digest dedup — filter URLs seen in recent daily digests
         #
         # The daily window is yesterday-00:00 → now, creating a ~7-hour overlap
