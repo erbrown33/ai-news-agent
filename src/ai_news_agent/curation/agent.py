@@ -462,32 +462,32 @@ class CurationAgent:
         # ranked by source tier priority then recency so the LLM still sees the
         # best-quality articles from each tier.
         # ------------------------------------------------------------------
-        _CANDIDATES_LIMIT_MAP = {
+        candidates_limit_map = {
             "monthly": self._config.limits.monthly_candidates_limit,
             "annual": self._config.limits.annual_candidates_limit,
         }
-        _candidates_limit = _CANDIDATES_LIMIT_MAP.get(cadence)
-        if _candidates_limit is not None and len(candidates) > _candidates_limit:
-            _candidates_before = len(candidates)
-            _TIER_ORDER = {"1a": 0, "1b": 1, "2": 2, "3": 3, "4": 4, "unknown": 5}
+        candidates_limit = candidates_limit_map.get(cadence)
+        if candidates_limit is not None and len(candidates) > candidates_limit:
+            candidates_before = len(candidates)
+            tier_order = {"1a": 0, "1b": 1, "2": 2, "3": 3, "4": 4, "unknown": 5}
             candidates = sorted(
                 candidates,
                 key=lambda a: (
-                    _TIER_ORDER.get(a.tier, 5),
+                    tier_order.get(a.tier, 5),
                     -(
                         a.pub_date.timestamp()
                         if isinstance(a.pub_date, datetime)
                         else 0
                     ),
                 ),
-            )[:_candidates_limit]
+            )[:candidates_limit]
             log.info(
                 "curation_candidates_truncated",
                 agent_id=self._config.agent_id,
                 cadence=cadence,
-                candidates_before=_candidates_before,
+                candidates_before=candidates_before,
                 candidates_after=len(candidates),
-                limit=_candidates_limit,
+                limit=candidates_limit,
             )
 
         # ------------------------------------------------------------------
