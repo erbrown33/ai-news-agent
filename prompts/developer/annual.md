@@ -185,28 +185,20 @@ it. Include one sentence per prediction naming the most likely failure mode:
 
 ## Output Requirements  <!-- SRC-120, SRC-122, SRC-123, SRC-124 -->
 
-Your response **MUST** follow this exact three-part structure:
+Your response **MUST** follow this exact three-part structure, **in this emission order**:
+emit the complete structured JSON block **first**, before any prose, and write the Markdown
+narrative **after** it. The JSON block is mandatory and must never be deferred to the end of
+your response, abbreviated, or omitted.
 
-### Part 1 — Markdown Narrative (8–12 paragraphs)
+Emission order is not reasoning order. Before you write anything, assess the **full candidate
+set** as a whole: identify the dominant themes of the year, then select and rank the items that
+best evidence them, and ground your predictions in those same observed trends. Themes must be a
+holistic read of the year's most relevant news — never a label applied after the fact to whichever
+items you happened to list first. Do this thematic pass as reasoning, not as prose, so that the
+`items`, `themes`, and `predictions` you emit in Part 1 are already consistent with each other and
+with the narrative that follows.
 
-**Section A — {{year}} in AI for Builders: The Year That Was** (1–2 paragraphs):
-Executive-level framing of the year's defining shift in how engineering teams build with AI.
-What was the single most important development for the build-stack in {{year}}? Be direct.
-
-**Section B — The 3–5 Inflection Points of {{year}}** (one paragraph each):
-Each inflection point as a standalone paragraph. Open with the inflection in one sentence,
-provide supporting evidence, explain the trajectory shift, link forward to {{year_plus_1}}.
-
-**Section C — Signal vs. Noise** (1 paragraph):
-Which heavily-discussed {{year}} releases or papers were less impactful for engineering teams
-than they appeared? What understated developments (a quiet protocol update, a small open-source
-release, a security paper) deserve retrospective attention? Be direct.
-
-**Section D — Introduction to Predictions** (1 paragraph):
-Before the full prediction list, identify the 2–3 thematic clusters your predictions fall into.
-What patterns in {{year}} are driving the {{year_plus_1}} forecast for builders?
-
-### Part 2 — Structured JSON Block
+### Part 1 — Structured JSON Block
 
 ```json
 {
@@ -265,3 +257,22 @@ What patterns in {{year}} are driving the {{year_plus_1}} forecast for builders?
 **Count**: Return exactly {{top_n}} items in `items` and exactly 10 entries in `predictions`.
 **Ranking**: Items ranked by durability of significance to engineering teams.
 **Cross-references**: Use `cross_refs` extensively — annual synthesis often links many items.
+
+### Part 2 — Markdown Narrative (8–12 paragraphs)
+
+**Section A — {{year}} in AI for Builders: The Year That Was** (1–2 paragraphs):
+Executive-level framing of the year's defining shift in how engineering teams build with AI.
+What was the single most important development for the build-stack in {{year}}? Be direct.
+
+**Section B — The 3–5 Inflection Points of {{year}}** (one paragraph each):
+Each inflection point as a standalone paragraph. Open with the inflection in one sentence,
+provide supporting evidence, explain the trajectory shift, link forward to {{year_plus_1}}.
+
+**Section C — Signal vs. Noise** (1 paragraph):
+Which heavily-discussed {{year}} releases or papers were less impactful for engineering teams
+than they appeared? What understated developments (a quiet protocol update, a small open-source
+release, a security paper) deserve retrospective attention? Be direct.
+
+**Section D — Introduction to Predictions** (1 paragraph):
+Before the full prediction list, identify the 2–3 thematic clusters your predictions fall into.
+What patterns in {{year}} are driving the {{year_plus_1}} forecast for builders?

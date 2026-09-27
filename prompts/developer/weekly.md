@@ -131,18 +131,19 @@ For this **weekly** curation run, you may conduct up to **10 additional web sear
 
 ### Output structure
 
-**Part 1 — Markdown narrative** (3–4 paragraphs):
+Your response **MUST** follow this exact two-part structure, **in this emission order**:
+emit the complete structured JSON block **first**, before any prose, and write the Markdown
+narrative **after** it. The JSON block is mandatory and must never be deferred to the end of
+your response, abbreviated, or omitted.
 
-Paragraphs 1–2: Identify the **2–3 dominant themes** of this week for builders. Each theme
-should have at least two supporting items. Name the theme, explain the pattern, and say
-what it signals about where the build-stack is going.
+Emission order is not reasoning order. Before you write anything, assess the **full candidate
+set** as a whole: identify the dominant themes of the period, then select and rank the items that
+best evidence them. Themes must be a holistic read of the period's most relevant news — never a
+label applied after the fact to whichever items you happened to list first. Do this thematic pass
+as reasoning, not as prose, so that the `items` and `themes` you emit in Part 1 are already
+consistent with each other and with the narrative that follows.
 
-Paragraphs 3–4: **"What to watch next week"** — concrete, grounded observations based only
-on what was reported this week. Announced release dates, beta-to-GA transitions, scheduled
-standards meetings, migration deadlines, pending breaking changes that teams should plan
-around. Ground every observation in something that was reported this week.
-
-**Part 2 — Structured JSON block**:
+**Part 1 — Structured JSON block**:
 
 ```json
 {
@@ -191,3 +192,14 @@ around. Ground every observation in something that was reported this week.
 **Ranking**: Items ranked by significance to engineering teams — most important first.
 **Count**: Return exactly {{top_n}} items. If fewer than {{top_n}} genuinely qualify, return only those.
 **Cross-references**: Use `cross_refs` to connect articles that tell parts of the same story.
+
+**Part 2 — Markdown narrative** (3–4 paragraphs):
+
+Paragraphs 1–2: Identify the **2–3 dominant themes** of this week for builders. Each theme
+should have at least two supporting items. Name the theme, explain the pattern, and say
+what it signals about where the build-stack is going.
+
+Paragraphs 3–4: **"What to watch next week"** — concrete, grounded observations based only
+on what was reported this week. Announced release dates, beta-to-GA transitions, scheduled
+standards meetings, migration deadlines, pending breaking changes that teams should plan
+around. Ground every observation in something that was reported this week.

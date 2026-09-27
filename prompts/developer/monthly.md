@@ -153,25 +153,19 @@ may have been missed in sourcing.
 
 ### Output structure
 
-**Part 1 — Markdown narrative** (5–7 paragraphs):
+Your response **MUST** follow this exact two-part structure, **in this emission order**:
+emit the complete structured JSON block **first**, before any prose, and write the Markdown
+narrative **after** it. The JSON block is mandatory and must never be deferred to the end of
+your response, abbreviated, or omitted.
 
-**Paragraph 1 — Month in Review opening**: The single most important shift this month for
-how engineering teams build AI-powered software. What was the month's defining development?
+Emission order is not reasoning order. Before you write anything, assess the **full candidate
+set** as a whole: identify the dominant themes of the period, then select and rank the items that
+best evidence them. Themes must be a holistic read of the period's most relevant news — never a
+label applied after the fact to whichever items you happened to list first. Do this thematic pass
+as reasoning, not as prose, so that the `items` and `themes` you emit in Part 1 are already
+consistent with each other and with the narrative that follows.
 
-**Paragraphs 2–4 — The 3–4 dominant themes**: Themes that cut across this month's
-developments. For each: name the theme, describe the supporting evidence, explain what it
-signals about the trajectory of the build-stack. Connect multiple items within each theme.
-
-**Paragraph 5 — Signal vs. Noise**: Which heavily-discussed releases were less impactful
-than they appeared? What understated work (a quiet protocol update, an open-source release,
-a paper) deserves more attention from teams that may have missed it? Be direct.
-
-**Paragraphs 6–7 — Anticipated Developments**: Based on what was set in motion this month,
-what specific developments should engineering teams watch for next month? Name vendors,
-versions, scheduled standards meetings, GA transitions, deprecation deadlines, and migration
-cutoffs. Ground every observation in something reported this month. No speculation.
-
-**Part 2 — Structured JSON block**:
+**Part 1 — Structured JSON block**:
 
 ```json
 {
@@ -217,3 +211,21 @@ cutoffs. Ground every observation in something reported this month. No speculati
 **Ranking**: Items ranked by durability of significance to engineering teams.
 **Count**: Return exactly {{top_n}} items. If fewer than {{top_n}} genuinely qualify, return only those.
 **Cross-references**: Use `cross_refs` to link articles that tell parts of the same story.
+
+**Part 2 — Markdown narrative** (5–7 paragraphs):
+
+**Paragraph 1 — Month in Review opening**: The single most important shift this month for
+how engineering teams build AI-powered software. What was the month's defining development?
+
+**Paragraphs 2–4 — The 3–4 dominant themes**: Themes that cut across this month's
+developments. For each: name the theme, describe the supporting evidence, explain what it
+signals about the trajectory of the build-stack. Connect multiple items within each theme.
+
+**Paragraph 5 — Signal vs. Noise**: Which heavily-discussed releases were less impactful
+than they appeared? What understated work (a quiet protocol update, an open-source release,
+a paper) deserves more attention from teams that may have missed it? Be direct.
+
+**Paragraphs 6–7 — Anticipated Developments**: Based on what was set in motion this month,
+what specific developments should engineering teams watch for next month? Name vendors,
+versions, scheduled standards meetings, GA transitions, deprecation deadlines, and migration
+cutoffs. Ground every observation in something reported this month. No speculation.

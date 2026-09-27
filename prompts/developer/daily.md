@@ -195,14 +195,19 @@ For **each selected item** you MUST provide:
 
 ### Output structure
 
-Your response **MUST** follow this exact two-part structure:
+Your response **MUST** follow this exact two-part structure, **in this emission order**:
+emit the complete structured JSON block **first**, before any prose, and write the Markdown
+narrative **after** it. The JSON block is mandatory and must never be deferred to the end of
+your response, abbreviated, or omitted.
 
-**Part 1 — Markdown narrative** (3–5 sentences):
-Write a brief editorial framing paragraph identifying the day's most significant builder-facing
-development or theme. What is the single most important thing that happened today in AI
-**for the way we build software**? Lead with the practical takeaway.
+Emission order is not reasoning order. Before you write anything, assess the **full candidate
+set** as a whole: identify the dominant themes of the period, then select and rank the items that
+best evidence them. Themes must be a holistic read of the period's most relevant news — never a
+label applied after the fact to whichever items you happened to list first. Do this thematic pass
+as reasoning, not as prose, so that the `items` and any `themes` you emit in Part 1 are already
+consistent with each other and with the narrative that follows.
 
-**Part 2 — Structured JSON block**:
+**Part 1 — Structured JSON block**:
 
 ```json
 {
@@ -245,3 +250,8 @@ development or theme. What is the single most important thing that happened toda
 
 **Ranking**: Items ranked by significance to engineering teams — most important first.
 **Count**: Return exactly {{top_n}} items. If fewer than {{top_n}} genuinely qualify, return only those.
+
+**Part 2 — Markdown narrative** (3–5 sentences):
+Write a brief editorial framing paragraph identifying the day's most significant builder-facing
+development or theme. What is the single most important thing that happened today in AI
+**for the way we build software**? Lead with the practical takeaway.
