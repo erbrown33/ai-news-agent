@@ -110,6 +110,19 @@ class TestTierClassification:
         config = sample_agent_config.model_copy(update={"sources": new_sources})
         assert _classify_tier("https://myblog.example.com/post/ai-news", config) == "1a"
 
+    def test_lookalike_domain_does_not_match(self, sample_agent_config: AgentConfig) -> None:
+        """A host that merely contains a configured domain is not that source."""
+        assert _classify_tier("https://notreuters.com/article", sample_agent_config) == "unknown"
+
+    def test_path_scoped_entry_matches_under_path(self, sample_agent_config: AgentConfig) -> None:
+        """'openai.com/news' matches posts under /news, not the rest of the site."""
+        new_sources = sample_agent_config.sources.model_copy(update={"custom": ["openai.com/news"]})
+        config = sample_agent_config.model_copy(update={"sources": new_sources})
+        assert _classify_tier("https://openai.com/news/introducing-x/", config) == "1a"
+        assert _classify_tier("https://openai.com/news", config) == "1a"
+        assert _classify_tier("https://openai.com/newsletter", config) != "1a"
+        assert _classify_tier("https://help.openai.com/en/articles/123", config) != "1a"
+
     def test_malformed_url_returns_unknown(self, sample_agent_config: AgentConfig) -> None:
         """Malformed URL (no netloc) gracefully returns 'unknown' without raising."""
         assert _classify_tier("not-a-url", sample_agent_config) == "unknown"

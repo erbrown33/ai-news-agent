@@ -175,6 +175,34 @@ def _strip_www(s: str) -> str:
     return s[4:] if s.startswith("www.") else s
 
 
+def _source_matches(host: str, path: str, source: str) -> bool:
+    """
+    Return True when a URL's host/path falls under a configured source entry.
+
+    An entry is a domain with an optional path prefix (``openai.com`` or
+    ``openai.com/news``).  The host must equal the entry's domain or be a
+    sub-domain of it (label boundary — ``evilopenai.com`` does not match), and
+    when the entry has a path the URL path must start with it on a segment
+    boundary (``/news`` matches ``/news/x`` but not ``/newsletter``).
+
+    Args:
+        host:   Lowercased URL netloc with ``www.`` stripped.
+        path:   URL path (case preserved from the URL, compared case-insensitively).
+        source: Configured source entry.
+    """
+    entry = _strip_www(source.strip().lower())
+    entry_host, _, entry_path = entry.partition("/")
+    if not entry_host:
+        return False
+    if host != entry_host and not host.endswith("." + entry_host):
+        return False
+    entry_path = entry_path.strip("/")
+    if not entry_path:
+        return True
+    url_path = path.lower().strip("/")
+    return url_path == entry_path or url_path.startswith(entry_path + "/")
+
+
 def _classify_tier(url: str, config: AgentConfig) -> str:
     """
     Classify a URL into its source tier by domain-matching against the agent's
@@ -188,10 +216,12 @@ def _classify_tier(url: str, config: AgentConfig) -> str:
     - Tier 4:  policy / research (SRC-021)
     - ``"unknown"``: no tier matched — article may still be stored and curated
 
-    Domain matching is substring-based so that sub-domains (e.g. ``blog.openai.com``)
-    match the configured domain (``openai.com``).  Both the URL netloc and the
-    configured domain are normalised (lowercased, ``www.`` stripped) before
-    comparison.
+    Matching is by domain boundary plus optional path prefix (see
+    ``_source_matches``): sub-domains (``blog.openai.com``) match ``openai.com``,
+    look-alike hosts (``evilopenai.com``) do not, and a path-scoped entry
+    (``openai.com/news``) matches only URLs under that path — so it no longer
+    also promotes ``help.openai.com`` support pages.  Both sides are normalised
+    (lowercased, ``www.`` stripped) before comparison.
 
     Args:
         url:    Candidate article URL.
@@ -203,7 +233,9 @@ def _classify_tier(url: str, config: AgentConfig) -> str:
     Traces: SRC-016–SRC-021 (tier hierarchy)
     """
     try:
-        domain = _strip_www(urllib.parse.urlparse(url).netloc.lower())
+        parsed = urllib.parse.urlparse(url)
+        domain = _strip_www((parsed.hostname or "").lower())
+        path = parsed.path
     except Exception:  # noqa: BLE001
         return "unknown"
 
@@ -211,27 +243,27 @@ def _classify_tier(url: str, config: AgentConfig) -> str:
 
     # Tier 1a — highest priority (SRC-017)
     for custom_domain in sources.custom:
-        if _strip_www(custom_domain.lower()) in domain:
+        if _source_matches(domain, path, custom_domain):
             return "1a"
 
     # Tier 1b — popular business press (SRC-018)
     for tier1b_domain in sources.tier_1b:
-        if _strip_www(tier1b_domain.lower()) in domain:
+        if _source_matches(domain, path, tier1b_domain):
             return "1b"
 
     # Tier 2 — top AI / tech blogs (SRC-019)
     for tier2_domain in sources.tier_2:
-        if _strip_www(tier2_domain.lower()) in domain:
+        if _source_matches(domain, path, tier2_domain):
             return "2"
 
     # Tier 3 — tech business press (SRC-020)
     for tier3_domain in sources.tier_3:
-        if _strip_www(tier3_domain.lower()) in domain:
+        if _source_matches(domain, path, tier3_domain):
             return "3"
 
     # Tier 4 — policy / research (SRC-021)
     for tier4_domain in sources.tier_4:
-        if _strip_www(tier4_domain.lower()) in domain:
+        if _source_matches(domain, path, tier4_domain):
             return "4"
 
     return "unknown"
