@@ -106,10 +106,17 @@ _DEFAULT_MAX_TOKENS: int = 8_192
 # max_tokens when budget thinking is enabled must exceed budget_tokens (API requirement)
 _THINKING_MAX_TOKENS: int = _THINKING_BUDGET_TOKENS + 4_096
 
-# Adaptive-thinking models share max_tokens between thinking and the answer (and
-# may think even when not asked), so give them more room. Kept at 16k so a
-# non-streaming request stays well inside the SDK's HTTP timeout.
-_ADAPTIVE_MAX_TOKENS: int = 16_000
+# Adaptive-thinking models share max_tokens between thinking and the answer, and
+# Sonnet 5 / Opus 5+ / Fable think even when not asked (at effort "high" by default).
+# At 16k, a large curation prompt could spend the whole cap thinking and return no
+# text (2026-10-02). These requests stream, so a large cap can't hit the SDK's HTTP
+# timeout.
+_ADAPTIVE_MAX_TOKENS: int = 64_000
+
+# Effort for adaptive models when the caller didn't ask for extended thinking:
+# routine curation doesn't need high-effort reasoning. thinking=True keeps the
+# model's default effort.
+_ROUTINE_EFFORT: str = "medium"
 
 
 class AnthropicLLMClient(AbstractLLMClient):
@@ -231,6 +238,8 @@ class AnthropicLLMClient(AbstractLLMClient):
             if thinking:
                 req_kwargs["thinking"] = {"type": "adaptive"}
                 log.debug("anthropic_adaptive_thinking_enabled", model=model)
+            else:
+                req_kwargs["output_config"] = {"effort": _ROUTINE_EFFORT}
         elif style == "budget" and thinking:
             req_kwargs["thinking"] = {
                 "type": "enabled",
@@ -246,7 +255,12 @@ class AnthropicLLMClient(AbstractLLMClient):
             req_kwargs["temperature"] = 1 if "thinking" in req_kwargs else temperature
 
         try:
-            resp = self._client.messages.create(**req_kwargs)
+            if style == "adaptive":
+                # Stream so the large max_tokens can't hit the SDK's non-streaming timeout
+                with self._client.messages.stream(**req_kwargs) as stream:
+                    resp = stream.get_final_message()
+            else:
+                resp = self._client.messages.create(**req_kwargs)
         except Exception as exc:  # noqa: BLE001
             # Normalise to LLMError — no Anthropic types leak up (SRC-056)
             raise LLMError(f"Anthropic Messages API error: {exc}", cause=exc) from exc
@@ -255,7 +269,9 @@ class AnthropicLLMClient(AbstractLLMClient):
         if stop_reason == "refusal":
             raise LLMError(f"Anthropic model {model} declined the request (stop_reason=refusal)")
         if stop_reason == "max_tokens":
-            log.warning("anthropic_max_tokens_reached", model=model, max_tokens=req_kwargs["max_tokens"])
+            log.warning(
+                "anthropic_max_tokens_reached", model=model, max_tokens=req_kwargs["max_tokens"]
+            )
 
         # Extract text from response content blocks
         text_parts: list[str] = []

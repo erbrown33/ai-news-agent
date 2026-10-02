@@ -50,6 +50,17 @@ class TestAnthropicClient:
         from ai_news_agent.llm.anthropic_client import AnthropicLLMClient
 
         _, mock_instance = mock_anthropic_module
+
+        # Adaptive-thinking models stream (messages.stream(...) as s -> s.get_final_message()).
+        # Route the stream through messages.create so stubs and assertions on create cover both.
+        def _stream(**kwargs):
+            cm = MagicMock()
+            cm.__enter__.return_value.get_final_message.side_effect = lambda: (
+                mock_instance.messages.create(**kwargs)
+            )
+            return cm
+
+        mock_instance.messages.stream.side_effect = _stream
         return AnthropicLLMClient(api_key="test-ant-key", search_tool=None), mock_instance
 
     def test_complete_returns_string(self, anthropic_client) -> None:
@@ -308,6 +319,11 @@ class TestAnthropicClient:
         message.usage.output_tokens = 5
         mock_instance.messages.create.return_value = message
 
+    @staticmethod
+    def _sent_kwargs(mock_instance) -> dict:
+        """kwargs of the last request (the fixture routes streamed requests through create)."""
+        return mock_instance.messages.create.call_args.kwargs
+
     @pytest.mark.parametrize(
         ("model", "thinking", "expect_temperature", "expect_thinking"),
         [
@@ -344,7 +360,7 @@ class TestAnthropicClient:
             thinking=thinking,
         )
 
-        kwargs = mock_instance.messages.create.call_args.kwargs
+        kwargs = self._sent_kwargs(mock_instance)
         assert kwargs.get("temperature") == expect_temperature
         assert ("temperature" in kwargs) == (expect_temperature is not None)
         assert kwargs.get("thinking", {}).get("type") == expect_thinking
@@ -359,10 +375,27 @@ class TestAnthropicClient:
         self._stub_response(mock_instance)
 
         client.complete(messages=[{"role": "user", "content": "x"}], model="claude-sonnet-5")
-        assert mock_instance.messages.create.call_args.kwargs["max_tokens"] == _ADAPTIVE_MAX_TOKENS
+        assert mock_instance.messages.stream.call_args.kwargs["max_tokens"] == _ADAPTIVE_MAX_TOKENS
+        mock_instance.messages.stream.reset_mock()
 
         client.complete(messages=[{"role": "user", "content": "x"}], model="claude-haiku-4-5")
         assert mock_instance.messages.create.call_args.kwargs["max_tokens"] == _DEFAULT_MAX_TOKENS
+        assert not mock_instance.messages.stream.called  # small cap → plain request
+
+    def test_adaptive_effort_follows_thinking_flag(self, anthropic_client) -> None:
+        """Routine calls on think-by-default models cap effort; thinking=True keeps the default."""
+        from ai_news_agent.llm.anthropic_client import _ROUTINE_EFFORT
+
+        client, mock_instance = anthropic_client
+        self._stub_response(mock_instance)
+
+        client.complete(messages=[{"role": "user", "content": "x"}], model="claude-sonnet-5")
+        assert self._sent_kwargs(mock_instance)["output_config"] == {"effort": _ROUTINE_EFFORT}
+
+        client.complete(
+            messages=[{"role": "user", "content": "x"}], model="claude-sonnet-5", thinking=True
+        )
+        assert "output_config" not in self._sent_kwargs(mock_instance)
 
     def test_refusal_raises_llm_error(self, anthropic_client) -> None:
         """A refusal stop reason surfaces as LLMError instead of an empty curation."""
